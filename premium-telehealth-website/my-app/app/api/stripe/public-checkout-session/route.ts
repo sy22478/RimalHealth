@@ -64,7 +64,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const priceId = getPriceId(planType as PlanType);
 
     // Create a Stripe Checkout session without a pre-existing customer.
-    // Stripe will collect the email and create the customer automatically.
+    // Stripe collects the customer email and creates the customer automatically
+    // when no `customer` param is provided in subscription mode.
     const stripe = (await import('@/lib/integrations/stripe')).stripe;
 
     const session = await stripe.checkout.sessions.create({
@@ -72,8 +73,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: successUrl,
       cancel_url: cancelUrl,
-      // Let Stripe collect email from the customer
-      customer_creation: 'always',
       billing_address_collection: 'required',
       payment_method_collection: 'always',
       metadata: { planType },
