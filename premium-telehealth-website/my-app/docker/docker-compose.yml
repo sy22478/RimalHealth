@@ -1,0 +1,162 @@
+# Rimal Health - Production-like Local Environment
+# Usage: docker-compose -f docker/docker-compose.yml up
+
+version: '3.8'
+
+services:
+  # ============================================================================
+  # Next.js Application
+  # ============================================================================
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: rimalhealth-app
+    ports:
+      - "3000:3000"
+    environment:
+      # Database
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/rimalhealth?schema=public
+      
+      # Redis
+      - REDIS_URL=redis://redis:6379
+      
+      # Auth
+      - JWT_SECRET=${JWT_SECRET:-change-me-in-production-jwt-secret}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      - NEXT_PUBLIC_APP_NAME=${NEXT_PUBLIC_APP_NAME:-Rimal Health}
+      
+      # PHI Encryption
+      - PHI_ENCRYPTION_KEY=${PHI_ENCRYPTION_KEY:-change-me-in-production-32-char-key}
+      
+      # Email (SendGrid)
+      - SENDGRID_API_KEY=${SENDGRID_API_KEY:-}
+      - SENDGRID_FROM_EMAIL=${SENDGRID_FROM_EMAIL:-noreply@rimalhealth.com}
+      
+      # SMS (Twilio)
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID:-}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN:-}
+      - TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER:-}
+      
+      # Payments (Stripe)
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
+      - STRIPE_PRICE_ID_ACTIVE=${STRIPE_PRICE_ID_ACTIVE:-}
+      - STRIPE_PRICE_ID_MAINTENANCE=${STRIPE_PRICE_ID_MAINTENANCE:-}
+      - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-}
+      
+      # Storage (AWS S3)
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_REGION=${AWS_REGION:-us-west-2}
+      - AWS_S3_BUCKET_NAME=${AWS_S3_BUCKET_NAME:-rimalhealth-documents}
+      
+      # E-Prescribing (DoseSpot)
+      - DOSESPOT_API_URL=${DOSESPOT_API_URL:-https://api-sandbox.dosespot.com}
+      - DOSESPOT_CLIENT_ID=${DOSESPOT_CLIENT_ID:-}
+      - DOSESPOT_CLIENT_SECRET=${DOSESPOT_CLIENT_SECRET:-}
+      - DOSESPOT_CLINIC_ID=${DOSESPOT_CLINIC_ID:-}
+      - DOSESPOT_USER_ID=${DOSESPOT_USER_ID:-}
+      - DOSESPOT_MOCK_MODE=${DOSESPOT_MOCK_MODE:-true}
+      
+      # Analytics
+      - NEXT_PUBLIC_GA_MEASUREMENT_ID=${NEXT_PUBLIC_GA_MEASUREMENT_ID:-}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rimalhealth-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (r) => r.statusCode === 200 ? process.exit(0) : process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ============================================================================
+  # PostgreSQL Database
+  # ============================================================================
+  db:
+    image: postgres:15-alpine
+    container_name: rimalhealth-db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=rimalhealth
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5433:5432"
+    networks:
+      - rimalhealth-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d rimalhealth"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ============================================================================
+  # Redis Cache
+  # ============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: rimalhealth-redis
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - rimalhealth-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ============================================================================
+  # Database Backup Service (Optional)
+  # ============================================================================
+  backup:
+    image: postgres:15-alpine
+    container_name: rimalhealth-backup
+    command: >
+      sh -c '
+        echo "0 2 * * * PGPASSWORD=postgres pg_dump -h db -U postgres rimalhealth > /backups/rimalhealth_$$(date +\%Y\%m\%d_\%H\%M\%S).sql && find /backups -name '*.sql' -mtime +7 -delete" | crontab - &&
+        crond -f
+      '
+    volumes:
+      - backup_data:/backups
+    depends_on:
+      - db
+    networks:
+      - rimalhealth-network
+    profiles:
+      - backup
+
+# ============================================================================
+# Volumes
+# ============================================================================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  backup_data:
+    driver: local
+
+# ============================================================================
+# Networks
+# ============================================================================
+networks:
+  rimalhealth-network:
+    driver: bridge

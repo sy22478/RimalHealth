@@ -1,0 +1,61 @@
+# Dependencies
+node_modules/
+
+# Build output
+.next/
+out/
+build/
+.netlify/
+
+# Environment files (contain secrets)
+.env
+.env.local
+.env.*.local
+
+# Testing
+coverage/
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Keys and credentials
+*.pem
+*.key
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Generated Prisma client
+lib/generated/prisma
+
+# Playwright MCP logs
+.playwright-mcp/
+
+# Claude project settings (session-specific)
+.claude/
+
+# Screenshots and previews
+screenshots/
+previews/
+*.preview.html
+monitor-*.png
+website-*.png
+
+# Build artifacts
+audit/

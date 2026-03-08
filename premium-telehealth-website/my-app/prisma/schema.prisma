@@ -1,0 +1,901 @@
+// Telehealth Platform Database Schema
+// HIPAA-Compliant with PHI Encryption
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================
+// USER DOMAIN
+// ============================================
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String
+  role          Role      @default(PATIENT)
+  emailVerified Boolean   @default(false)
+  tokenVersion  Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastLoginAt   DateTime?
+
+  // MFA
+  mfaEnabled    Boolean  @default(false)
+  mfaSecret     String?  // Encrypted with PHI encryption
+  mfaBackupCodes String? // Encrypted JSON array of backup codes
+
+  // Relations
+  patientProfile PatientProfile?
+  physician      Physician?
+  intakes        Intake[]
+  messages       Message[]
+  subscriptions  Subscription[]
+  invoices       Invoice[]
+  sessions       Session[]
+  passwordResets PasswordReset[]
+
+  @@index([email])
+  @@index([role])
+  @@index([createdAt])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  userId       String
+  token        String   @unique
+  refreshToken String   @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  ipAddress    String?
+  userAgent    String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+}
+
+model PasswordReset {
+  id        String    @id @default(uuid())
+  userId    String
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+}
+
+enum Role {
+  PATIENT
+  PHYSICIAN
+  ADMIN
+}
+
+// ============================================
+// PATIENT PROFILE (PHI - Encrypted)
+// ============================================
+
+model PatientProfile {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Personal Info (PHI - Encrypted)
+  firstName   String // Encrypted
+  lastName    String // Encrypted
+  dateOfBirth String // Encrypted (MM/DD/YYYY format, no year stored)
+  phone       String // Encrypted
+
+  // Address (PHI - Encrypted)
+  addressStreet String // Encrypted
+  addressCity   String // Encrypted
+  addressState  String // CA only
+  addressZip    String // Encrypted
+
+  // Billing Address (PHI - Encrypted)
+  billingSameAsHome Boolean @default(true)
+  billingStreet     String? // Encrypted
+  billingCity       String? // Encrypted
+  billingState      String? // Encrypted
+  billingZip        String? // Encrypted
+
+  // Medical Info (PHI - Encrypted)
+  medicalHistory     Json? // Encrypted
+  currentMedications Json? // Encrypted
+  allergies          Json? // Encrypted
+
+  // Treatment Preferences
+  primaryConcern ConcernType?
+  treatmentGoal  TreatmentGoal?
+
+  // Insurance (Optional, PHI - Encrypted)
+  insuranceProvider    String? // Encrypted
+  insuranceMemberId    String? // Encrypted
+  insuranceGroupNumber String? // Encrypted
+
+  // HIPAA Consent
+  privacyConsentGiven   Boolean   @default(false)
+  privacyConsentDate    DateTime?
+  privacyConsentVersion String?
+  termsAccepted         Boolean   @default(false)
+  termsAcceptedDate     DateTime?
+
+  // Notification Preferences (stored as JSON)
+  notificationPreferences Json?
+
+  // Preferred Pharmacy
+  preferredPharmacyId String?
+  preferredPharmacy   Pharmacy? @relation("PreferredPharmacy", fields: [preferredPharmacyId], references: [id])
+
+  // Relations
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents Document[]
+
+  @@index([userId])
+}
+
+enum ConcernType {
+  ALCOHOL
+  SMOKING
+  BOTH
+}
+
+enum TreatmentGoal {
+  QUIT
+  REDUCE
+  EXPLORE
+}
+
+// ============================================
+// PHYSICIAN
+// ============================================
+
+enum PhysicianStatus {
+  PENDING      // Awaiting admin authorization
+  INVITED      // Secret key generated, awaiting first login
+  ACTIVE       // Fully authorized
+  INACTIVE     // Suspended or deactivated
+}
+
+model Physician {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Credentials
+  npiNumber     String  @unique // National Provider Identifier
+  licenseNumber String  @unique // CA Medical License
+  licenseState  String  @default("CA")
+  deaNumber     String? // DEA Registration (for controlled substances)
+
+  // Profile
+  firstName String
+  lastName  String
+  specialty String?
+
+  // Authorization Status
+  status            PhysicianStatus @default(PENDING)
+  authorizedBy      String?         // Admin user ID
+  authorizedAt      DateTime?
+  secretKeyHash     String?         // bcrypt hash of secret key
+  secretKeyExpiry   DateTime?
+  secretKeyUsedAt   DateTime?
+
+  // Availability
+  isActive        Boolean @default(true)
+  maxDailyReviews Int     @default(20)
+
+  // Stats
+  totalReviews     Int  @default(0)
+  avgReviewTimeMin Int? // Average review time in minutes
+
+  // Relations
+  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviews          Review[]
+  messages         Message[]
+  notes            PhysicianNote[]
+  sentMessages     PhysicianMessage[]  @relation("SentMessages")
+  receivedMessages PhysicianMessage[]  @relation("ReceivedMessages")
+
+  @@index([userId])
+  @@index([npiNumber])
+  @@index([status])
+  @@index([authorizedAt])
+}
+
+// ============================================
+// INTAKE DOMAIN (PHI - Encrypted)
+// ============================================
+
+model Intake {
+  id          String       @id @default(uuid())
+  patientId   String
+  status      IntakeStatus @default(DRAFT)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  submittedAt DateTime?
+
+  // Form Data (PHI - Encrypted JSON)
+  formData Json // Encrypted
+
+  // Scoring (for MD prioritization)
+  riskScore       Int? // 0-100
+  complexityScore Int? // 0-100
+
+  // Screening Answers (PHI - Encrypted)
+  isPregnant            Boolean?
+  hasSeizureHistory     Boolean?
+  hasPsychiatricHistory Boolean?
+  takingMedications     Boolean?
+  medicationList        String? // Encrypted
+
+  // Payment
+  paymentStatus   PaymentStatus @default(PENDING)
+  paymentIntentId String?
+  subscriptionId  String?
+
+  // Relations
+  patient      User          @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  review       Review?
+  prescription Prescription?
+
+  @@index([patientId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([submittedAt])
+}
+
+enum IntakeStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  NEEDS_INFO
+  EXPIRED
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+// ============================================
+// REVIEW DOMAIN (PHI - Encrypted)
+// ============================================
+
+model Review {
+  id          String @id @default(uuid())
+  intakeId    String @unique
+  physicianId String
+
+  // Timeline
+  assignedAt  DateTime  @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  // Decision
+  decision ReviewDecision?
+
+  // Clinical Notes (PHI - Encrypted)
+  clinicalNotes     String? // Encrypted
+  contraindications Json? // Encrypted
+
+  // Prescription Decision
+  prescribedMedication String?
+  genericName          String?
+  dosage               String?
+  quantity             Int?
+  refills              Int?
+  instructions         String? // Encrypted
+
+  // Rejection Reason
+  rejectionReason           String? // Encrypted
+  alternativeRecommendation String? // Encrypted
+
+  // Audit
+  reviewedFromIP    String?
+  reviewDurationSec Int?
+
+  // Relations
+  intake    Intake    @relation(fields: [intakeId], references: [id], onDelete: Cascade)
+  physician Physician @relation(fields: [physicianId], references: [id])
+
+  @@index([intakeId])
+  @@index([physicianId])
+  @@index([assignedAt])
+  @@index([completedAt])
+}
+
+enum ReviewDecision {
+  APPROVE
+  REJECT
+  NEEDS_INFO
+}
+
+// ============================================
+// PRESCRIPTION DOMAIN (PHI - Encrypted)
+// ============================================
+
+model Prescription {
+  id        String @id @default(uuid())
+  intakeId  String @unique
+  patientId String
+  pharmacyId String?
+
+  // Medication
+  medicationName   String
+  genericName      String
+  dosage           String
+  quantity         Int
+  refills          Int
+  refillsRemaining Int
+
+  // Instructions (PHI - Encrypted)
+  instructions String // Encrypted
+
+  // Pharmacy (legacy fields - will be migrated to pharmacy relation)
+  pharmacyName    String
+  pharmacyNcpdpId String
+  pharmacyPhone   String?
+  pharmacyAddress String? // Encrypted
+
+  // e-Prescription
+  surescriptsRxId String?   @unique
+  sentAt          DateTime?
+
+  // Status
+  status PrescriptionStatus @default(PENDING)
+
+  // Refill Management
+  lastRefillDate      DateTime?
+  nextRefillAvailable DateTime?
+
+  // Timeline
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  intake         Intake          @relation(fields: [intakeId], references: [id], onDelete: Cascade)
+  refillRequests RefillRequest[]
+  pharmacy       Pharmacy?       @relation("PharmacyPrescriptions", fields: [pharmacyId], references: [id])
+
+  @@index([patientId])
+  @@index([pharmacyId])
+  @@index([status])
+  @@index([nextRefillAvailable])
+}
+
+enum PrescriptionStatus {
+  PENDING
+  SENT
+  RECEIVED_BY_PHARMACY
+  FILLED
+  READY_FOR_PICKUP
+  PICKED_UP
+  CANCELLED
+  EXPIRED
+}
+
+model RefillRequest {
+  id             String @id @default(uuid())
+  prescriptionId String
+  patientId      String
+
+  status      RefillStatus @default(PENDING)
+  requestedAt DateTime     @default(now())
+  respondedAt DateTime?
+
+  // Relations
+  prescription Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+
+  @@index([prescriptionId])
+  @@index([status])
+}
+
+enum RefillStatus {
+  PENDING
+  APPROVED
+  DENIED
+  SENT
+}
+
+// ============================================
+// MESSAGING DOMAIN (PHI - Encrypted)
+// ============================================
+
+model Message {
+  id       String  @id @default(uuid())
+  threadId String
+  parentId String? // For replies
+
+  // Content (PHI - Encrypted)
+  subject String? // Encrypted
+  body    String // Encrypted
+
+  // Sender
+  senderType SenderType
+  senderId   String
+
+  // Recipient
+  recipientId String
+
+  // Timestamps
+  sentAt DateTime  @default(now())
+  readAt DateTime?
+
+  // Status
+  status MessageStatus @default(SENT)
+
+  // Relations
+  physician Physician? @relation(fields: [senderId], references: [userId], map: "message_physician_fk")
+  user      User?      @relation(fields: [userId], references: [id])
+  userId    String?
+
+  @@index([threadId])
+  @@index([recipientId])
+  @@index([senderId])
+  @@index([sentAt])
+  @@index([status])
+}
+
+enum SenderType {
+  PATIENT
+  PHYSICIAN
+  SYSTEM
+}
+
+enum MessageStatus {
+  SENT
+  DELIVERED
+  READ
+}
+
+// ============================================
+// DOCUMENT DOMAIN (PHI - Encrypted)
+// ============================================
+
+model Document {
+  id        String @id @default(uuid())
+  patientId String
+
+  // Document Info
+  documentType DocumentType
+  fileName     String
+  fileSize     Int
+  mimeType     String
+
+  // Storage
+  s3Key    String @unique
+  s3Bucket String
+
+  // Status
+  status DocumentStatus @default(ACTIVE)
+
+  // Timestamps
+  uploadedAt DateTime  @default(now())
+  expiresAt  DateTime?
+
+  // Relations
+  patient PatientProfile @relation(fields: [patientId], references: [userId], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([documentType])
+}
+
+enum DocumentType {
+  ID_VERIFICATION
+  INSURANCE_CARD
+  MEDICAL_RECORD
+  CONSENT_FORM
+  OTHER
+}
+
+enum DocumentStatus {
+  ACTIVE
+  EXPIRED
+  DELETED
+}
+
+// ============================================
+// BILLING DOMAIN
+// ============================================
+
+model Subscription {
+  id     String @id @default(uuid())
+  userId String
+
+  // Plan
+  planType PlanType
+  status   SubscriptionStatus @default(ACTIVE)
+
+  // Pricing
+  amount   Int // in cents
+  currency String @default("USD")
+  interval String @default("month")
+
+  // Stripe
+  stripeCustomerId     String @unique
+  stripeSubscriptionId String @unique
+  stripePriceId        String
+
+  // Timeline
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelledAt        DateTime?
+  cancelAtPeriodEnd  Boolean   @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  invoices Invoice[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([currentPeriodEnd])
+}
+
+enum PlanType {
+  ACTIVE_TREATMENT
+  MAINTENANCE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  PAST_DUE
+  UNPAID
+  EXPIRED
+}
+
+model Invoice {
+  id             String @id @default(uuid())
+  subscriptionId String
+  userId         String
+
+  // Amount
+  amount   Int // in cents
+  currency String        @default("USD")
+  status   InvoiceStatus
+
+  // Stripe
+  stripeInvoiceId String  @unique
+  stripeChargeId  String?
+
+  // PDF
+  pdfUrl String?
+
+  // Timeline
+  createdAt DateTime  @default(now())
+  paidAt    DateTime?
+
+  // Relations
+  subscription Subscription @relation(fields: [subscriptionId], references: [id])
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@index([subscriptionId])
+  @@index([userId])
+  @@index([status])
+}
+
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  VOID
+  UNCOLLECTIBLE
+}
+
+// ============================================
+// AUDIT LOG (Immutable)
+// ============================================
+
+model AuditLog {
+  id String @id @default(uuid())
+
+  // Event
+  eventType String
+  severity  String @default("INFO") // INFO, WARNING, ERROR, CRITICAL
+
+  // Actor
+  userId    String?
+  userRole  String?
+  ipAddress String
+  userAgent String?
+
+  // Target
+  resourceType String
+  resourceId   String?
+  targetUserId String?
+
+  // Details
+  metadata     Json?
+  success      Boolean
+  errorMessage String?
+
+  // Timestamp
+  timestamp DateTime @default(now())
+
+  @@index([eventType])
+  @@index([userId])
+  @@index([resourceType])
+  @@index([timestamp])
+  @@index([success])
+}
+
+// ============================================
+// NOTIFICATIONS
+// ============================================
+
+model Notification {
+  id     String @id @default(uuid())
+  userId String
+
+  // Content
+  type    NotificationType
+  title   String
+  message String
+
+  // Status
+  read   Boolean   @default(false)
+  readAt DateTime?
+
+  // Action
+  actionUrl String?
+
+  // Timestamps
+  createdAt DateTime  @default(now())
+  expiresAt DateTime?
+
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+}
+
+enum NotificationType {
+  INTAKE_SUBMITTED
+  INTAKE_APPROVED
+  INTAKE_REJECTED
+  PRESCRIPTION_SENT
+  PRESCRIPTION_READY
+  REFILL_APPROVED
+  MESSAGE_RECEIVED
+  PAYMENT_SUCCESS
+  PAYMENT_FAILED
+  SUBSCRIPTION_CANCELLED
+}
+
+// ============================================
+// PHARMACY DIRECTORY
+// ============================================
+
+model Pharmacy {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Identification
+  ncpdpId String @unique // National Council for Prescription Drug Programs ID
+  npiNumber String? // National Provider Identifier (if applicable)
+
+  // Contact Info
+  name    String
+  phone   String?
+  fax     String?
+  email   String?
+
+  // Address
+  address String
+  city    String
+  state   String  @default("CA")
+  zipCode String
+
+  // Location (for proximity search)
+  latitude  Float?
+  longitude Float?
+
+  // Operating Hours (JSON format)
+  hours Json?
+
+  // Services
+  is24Hour    Boolean @default(false)
+  hasDelivery Boolean @default(false)
+  hasDriveThru Boolean @default(false)
+
+  // Status
+  isActive Boolean @default(true)
+
+  // Relations
+  prescriptions      Prescription[]    @relation("PharmacyPrescriptions")
+  preferredByPatients PatientProfile[] @relation("PreferredPharmacy")
+
+  @@index([ncpdpId])
+  @@index([isActive])
+  @@index([city])
+  @@index([zipCode])
+}
+
+// ============================================
+// PHYSICIAN NOTES (PHI - Encrypted)
+// ============================================
+
+model PhysicianNote {
+  id        String   @id @default(uuid())
+  patientId String
+  physicianId String
+  
+  // Content (PHI - Encrypted)
+  content   String // Encrypted
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  physician Physician @relation(fields: [physicianId], references: [id], onDelete: Cascade)
+  
+  @@index([patientId])
+  @@index([physicianId])
+  @@index([createdAt])
+}
+
+// ============================================
+// PHYSICIAN AUTHORIZATION LOG
+// ============================================
+
+model PhysicianAuthorizationLog {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  physicianId String
+  adminId     String
+  action      AuthorizationAction
+  reason      String?
+  
+  // Audit fields
+  ipAddress   String?
+  userAgent   String?
+
+  @@index([physicianId])
+  @@index([adminId])
+  @@index([createdAt])
+}
+
+enum AuthorizationAction {
+  INVITED
+  AUTHORIZED
+  REJECTED
+  SUSPENDED
+  REACTIVATED
+  SECRET_KEY_RESET
+}
+
+// ============================================
+// PHYSICIAN MESSAGING (Doctor-to-Doctor)
+// ============================================
+
+model PhysicianMessage {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Participants
+  senderId    String
+  recipientId String
+
+  // Message Content (PHI - Encrypted)
+  subject   String // Encrypted
+  body      String // Encrypted
+  
+  // Threading
+  parentId  String?          // For replies
+  threadId  String           // Conversation thread
+  
+  // Status
+  isRead      Boolean @default(false)
+  readAt      DateTime?
+  isDeleted   Boolean @default(false)
+  deletedAt   DateTime?
+  
+  // Related to patient (optional)
+  patientId   String?
+  
+  // Audit
+  sentFromIP  String?
+
+  // Relations
+  sender    Physician @relation("SentMessages", fields: [senderId], references: [id])
+  recipient Physician @relation("ReceivedMessages", fields: [recipientId], references: [id])
+  parent    PhysicianMessage? @relation("MessageThread", fields: [parentId], references: [id])
+  replies   PhysicianMessage[] @relation("MessageThread")
+
+  @@index([senderId])
+  @@index([recipientId])
+  @@index([threadId])
+  @@index([patientId])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+// Thread summary for efficient querying
+model PhysicianMessageThread {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Participants
+  participant1Id String
+  participant2Id String
+  
+  // Last message reference
+  lastMessageId   String?
+  lastMessageAt   DateTime?
+  
+  // Unread counts
+  participant1Unread Int @default(0)
+  participant2Unread Int @default(0)
+  
+  // Optional: Related patient
+  patientId String?
+
+  @@unique([participant1Id, participant2Id])
+  @@index([participant1Id])
+  @@index([participant2Id])
+  @@index([updatedAt])
+}
+
+// ============================================
+// ADMIN ACTIVITY LOG
+// ============================================
+
+model AdminActivityLog {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  adminId     String
+  action      AdminAction
+  entityType  String    // 'PHYSICIAN', 'PATIENT', etc.
+  entityId    String?
+  description String
+  
+  // Before/After for audit
+  previousValue Json?
+  newValue      Json?
+  
+  // Security
+  ipAddress   String?
+  userAgent   String?
+  sessionId   String?
+
+  @@index([adminId])
+  @@index([action])
+  @@index([entityType])
+  @@index([createdAt])
+}
+
+enum AdminAction {
+  PHYSICIAN_INVITE
+  PHYSICIAN_AUTHORIZE
+  PHYSICIAN_REJECT
+  PHYSICIAN_SUSPEND
+  PHYSICIAN_REACTIVATE
+  SECRET_KEY_GENERATE
+  PATIENT_ACCESS
+  SETTINGS_UPDATE
+  EXPORT_DATA
+}

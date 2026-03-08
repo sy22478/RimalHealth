@@ -1,0 +1,262 @@
+/**
+ * GET /api/physician/stats
+ * Get physician dashboard statistics
+ * 
+ * HIPAA Compliance:
+ * - Requires PHYSICIAN or ADMIN role
+ * - Returns aggregated statistics (no individual PHI)
+ */
+
+import { NextRequest, NextResponse } from 'next/server';
+import { requireRole } from '@/lib/auth/require-auth';
+import { prisma } from '@/lib/db/prisma';
+import { AuditService } from '@/lib/services/audit-service';
+import { ValidationService } from '@/lib/services/validation-service';
+import { statsQuerySchema } from '@/lib/validation/schemas';
+import { Role, IntakeStatus, RefillStatus } from '@prisma/client';
+import { PHIResourceType } from '@/lib/audit';
+
+// ============================================================================
+// GET - Get Stats
+// ============================================================================
+
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  // Require physician or admin role
+  const auth = await requireRole(request, [Role.PHYSICIAN, Role.ADMIN]);
+  
+  if (auth instanceof NextResponse) {
+    return auth;
+  }
+
+  const { userId } = auth.user;
+  const auditContext = AuditService.createAuditContext(
+    request,
+    userId,
+    auth.user.role
+  );
+
+  try {
+    // Validate query params
+    const validation = await ValidationService.validateQueryParams(
+      request,
+      statsQuerySchema
+    );
+
+    if (!validation.success) {
+      return NextResponse.json(
+        {
+          error: 'Invalid query parameters',
+          code: 'VALIDATION_ERROR',
+          details: validation.errors,
+        },
+        { status: 400 }
+      );
+    }
+
+    const { period } = validation.data!;
+
+    // Calculate date range
+    const now = new Date();
+    let startDate: Date;
+    
+    switch (period) {
+      case 'today':
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        break;
+      case 'week':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case 'month':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      default:
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    }
+
+    // Get queue stats
+    const [
+      pendingIntakes,
+      overdueIntakes,
+      reviewsCompleted,
+      pendingRefills,
+      prescriptionsSent,
+      newPatients,
+      messagesUnread,
+    ] = await Promise.all([
+      // Pending intakes
+      prisma.intake.count({
+        where: {
+          status: {
+            in: [IntakeStatus.SUBMITTED, IntakeStatus.UNDER_REVIEW],
+          },
+        },
+      }),
+
+      // Overdue intakes (> 24 hours)
+      prisma.intake.count({
+        where: {
+          status: {
+            in: [IntakeStatus.SUBMITTED, IntakeStatus.UNDER_REVIEW],
+          },
+          submittedAt: {
+            lt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+          },
+        },
+      }),
+
+      // Reviews completed in period
+      prisma.review.count({
+        where: {
+          physicianId: userId,
+          completedAt: {
+            gte: startDate,
+          },
+        },
+      }),
+
+      // Pending refill requests
+      prisma.refillRequest.count({
+        where: {
+          status: RefillStatus.PENDING,
+        },
+      }),
+
+      // Prescriptions sent in period
+      prisma.prescription.count({
+        where: {
+          sentAt: {
+            gte: startDate,
+          },
+        },
+      }),
+
+      // New patients in period
+      prisma.patientProfile.count({
+        where: {
+          createdAt: {
+            gte: startDate,
+          },
+        },
+      }),
+
+      // Unread messages for this physician
+      prisma.message.count({
+        where: {
+          recipientId: userId,
+          readAt: null,
+        },
+      }),
+    ]);
+
+    // Get average review time (if physician has reviews)
+    const reviewStats = await prisma.review.aggregate({
+      where: {
+        physicianId: userId,
+        completedAt: {
+          gte: startDate,
+        },
+        reviewDurationSec: {
+          not: null,
+        },
+      },
+      _avg: {
+        reviewDurationSec: true,
+      },
+      _count: {
+        id: true,
+      },
+    });
+
+    // Calculate approval rate
+    const reviewDecisions = await prisma.review.groupBy({
+      by: ['decision'],
+      where: {
+        physicianId: userId,
+        completedAt: {
+          gte: startDate,
+        },
+      },
+      _count: {
+        id: true,
+      },
+    });
+
+    const totalDecisions = reviewDecisions.reduce((sum, r) => sum + r._count.id, 0);
+    const approvedCount =
+      reviewDecisions.find((r) => r.decision === 'APPROVE')?._count.id || 0;
+    const approvalRate = totalDecisions > 0 ? (approvedCount / totalDecisions) * 100 : 0;
+
+    // Calculate average wait time
+    const pendingIntakeDates = await prisma.intake.findMany({
+      where: {
+        status: {
+          in: [IntakeStatus.SUBMITTED, IntakeStatus.UNDER_REVIEW],
+        },
+      },
+      select: {
+        submittedAt: true,
+      },
+    });
+
+    const avgWaitHours =
+      pendingIntakeDates.length > 0
+        ? pendingIntakeDates.reduce((sum, i) => {
+            const hours = i.submittedAt
+              ? (Date.now() - new Date(i.submittedAt).getTime()) / (1000 * 60 * 60)
+              : 0;
+            return sum + hours;
+          }, 0) / pendingIntakeDates.length
+        : 0;
+
+    // Log access
+    await AuditService.logPHIAccess(
+      'VIEW',
+      userId,
+      auth.user.role,
+      PHIResourceType.PATIENT_PROFILE,
+      'stats',
+      auditContext,
+      { period }
+    );
+
+    return NextResponse.json({
+      period,
+      queue: {
+        pendingIntakes,
+        overdueIntakes,
+        averageWaitHours: Math.round(avgWaitHours * 10) / 10,
+      },
+      reviews: {
+        completed: reviewsCompleted,
+        averageTimeMinutes: reviewStats._avg.reviewDurationSec
+          ? Math.round(reviewStats._avg.reviewDurationSec / 60)
+          : 0,
+        approvalRate: Math.round(approvalRate),
+      },
+      prescriptions: {
+        sent: prescriptionsSent,
+        pendingRefills,
+      },
+      patients: {
+        new: newPatients,
+      },
+      messages: {
+        unread: messagesUnread,
+      },
+    });
+  } catch (error) {
+    console.error('Get stats error:', error);
+    
+    await AuditService.logApiError(
+      error instanceof Error ? error : new Error('Unknown error'),
+      '/api/physician/stats',
+      auditContext,
+      userId
+    );
+
+    return NextResponse.json(
+      { error: 'Failed to retrieve statistics', code: 'INTERNAL_ERROR' },
+      { status: 500 }
+    );
+  }
+}
