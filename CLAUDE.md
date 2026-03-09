@@ -71,8 +71,10 @@ The app uses Next.js App Router with route groups for layout isolation:
 
 - `app/(marketing)/` — Public marketing site with shared nav/footer (homepage, about, pricing, FAQ, contact, alcohol-treatment, how-it-works, privacy, terms, hipaa, get-started, payment)
 - `app/(auth)/` — Auth pages: `/login`, `/signup` (minimal layout, no nav)
-- `app/(patient)/` — Patient portal with sidebar layout: dashboard, messages, prescriptions, billing, documents, profile/settings
-- `app/physician/` — Physician portal: login, dashboard, queue, intake review, prescriptions, messages, patients
+- `app/patient/` — Patient portal with sidebar layout (`/patient/*`): dashboard, messages, prescriptions, billing, documents, profile/settings
+- `app/physician/` — Physician portal, split into sub-groups:
+  - `physician/(auth)/login/` — Physician login (no layout)
+  - `physician/(portal)/` — Auth-protected portal with sidebar: dashboard, queue, patients, intake/[id], prescriptions, messages, reviews, settings
 - `app/admin/` — Admin portal: physician management
 - `app/intake/` — Intake form flow and success page
 - `app/checkout/` — Payment/checkout flow (payment, success, cancel pages)
@@ -130,6 +132,10 @@ Route protection runs in `middleware.ts`. The middleware:
 
 **Third-party integrations** — DoseSpot for e-prescriptions (has a mock at `lib/integrations/dosespot.mock.ts` for dev), Stripe for subscriptions/billing, S3 for document storage, SendGrid for email, Twilio for SMS.
 
+**Patient flow (payment-first)** — Landing CTA → `/checkout/payment` (no signup required) → Stripe checkout → webhook auto-creates User (PATIENT, random password) + PatientProfile + Subscription → "Set Password" email sent → patient sets password at `/set-password` → login → intake form → physician notified. The public checkout uses `POST /api/stripe/public-checkout-session` (no auth). The Stripe webhook handler at `app/api/webhooks/stripe/route.ts` orchestrates user creation.
+
+**Zod v4** — Project uses Zod 4.x. Use `{ message: '...' }` for error messages, not `{ required_error: '...' }` (Zod v3 syntax).
+
 ## TypeScript Conventions
 
 - Strict mode enabled — no `any` without justification
@@ -167,6 +173,21 @@ cp .env.example .env.local
 ```
 
 Database options for local dev: Neon (cloud), Postgres.app, or Homebrew PostgreSQL. After setting `DATABASE_URL`, run `npm run db:generate && npm run db:migrate`.
+
+### Docker Development
+```bash
+docker-compose -f docker/docker-compose.yml up -d    # Start PostgreSQL + Redis + app
+docker-compose -f docker/docker-compose.yml logs -f app  # View logs
+docker-compose -f docker/docker-compose.yml down      # Stop services
+```
+
+## Git Conventions
+
+Branch naming: `feature/`, `fix/`, `docs/`, `test/`, `refactor/`, `security/`
+
+Commit prefixes: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `security:`
+
+Never commit `.env` files, real patient data, database dumps, or log files containing PHI.
 
 ## Documentation
 
