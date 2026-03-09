@@ -77,6 +77,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       payment_method_collection: 'always',
       metadata: { planType },
       subscription_data: { metadata: { planType } },
+      discounts: [{ promotion_code: 'promo_1T9CmBDBQIs2sIXlRuKhK7c7' }],
     });
 
     return NextResponse.json({
