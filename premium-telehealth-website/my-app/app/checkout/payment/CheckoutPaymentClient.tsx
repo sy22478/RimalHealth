@@ -12,7 +12,7 @@
 import * as React from 'react';
 import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Check, Loader2, Shield, AlertCircle } from 'lucide-react';
+import { Check, Loader2, Shield, AlertCircle, FileCheck } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,6 +20,8 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 
 import { getPlans, PlanInfo, isStripeConfigured } from '@/lib/stripe/stripe-client';
 
@@ -27,13 +29,25 @@ import { getPlans, PlanInfo, isStripeConfigured } from '@/lib/stripe/stripe-clie
 // Types
 // ============================================
 
-type CheckoutStatus = 'idle' | 'loading' | 'redirecting' | 'error';
+type CheckoutStatus = 'idle' | 'consent' | 'loading' | 'redirecting' | 'error';
 
 interface CheckoutState {
   status: CheckoutStatus;
   error?: string;
   selectedPlan?: string;
 }
+
+// ============================================
+// Consent Checkboxes
+// ============================================
+
+const CONSENT_ITEMS = [
+  { id: 'age', label: 'I confirm that I am at least 18 years of age.' },
+  { id: 'california', label: 'I confirm that I am a current resident of the state of California.' },
+  { id: 'hipaa', label: 'I have read and agree to the HIPAA Notice of Privacy Practices.' },
+  { id: 'privacy', label: 'I have read and agree to the Privacy Policy and Terms of Service.' },
+  { id: 'telehealth', label: 'I consent to receive telehealth services, including asynchronous physician communication and medication-assisted treatment.' },
+] as const;
 
 // ============================================
 // Plan Card Component
@@ -135,17 +149,33 @@ function CheckoutPaymentContent() {
   const preselectedPlan = searchParams.get('plan') || 'ACTIVE_TREATMENT';
 
   const [selectedPlanId, setSelectedPlanId] = React.useState<string>(preselectedPlan);
+  const [consents, setConsents] = React.useState<Record<string, boolean>>({});
 
   // Check if Stripe is configured
   const stripeConfigured = React.useMemo(() => isStripeConfigured(), []);
+
+  const allConsentsChecked = CONSENT_ITEMS.every(item => consents[item.id]);
 
   const handlePlanSelect = (planId: string) => {
     if (state.status !== 'idle') return;
     setSelectedPlanId(planId);
   };
 
+  const handleConsentToggle = (id: string, checked: boolean) => {
+    setConsents(prev => ({ ...prev, [id]: checked }));
+  };
+
+  const handleProceedToConsent = () => {
+    setState({ status: 'consent' });
+  };
+
+  const handleBackFromConsent = () => {
+    setState({ status: 'idle' });
+    setConsents({});
+  };
+
   const handleCheckout = async () => {
-    if (!selectedPlanId) return;
+    if (!selectedPlanId || !allConsentsChecked) return;
 
     setState({ status: 'loading' });
 
@@ -235,8 +265,58 @@ function CheckoutPaymentContent() {
         ))}
       </div>
 
+      {/* Consent Step */}
+      {state.status === 'consent' && selectedPlan && (
+        <Card className="mx-auto max-w-lg mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <FileCheck className="h-5 w-5" />
+              Consent & Agreements
+            </CardTitle>
+            <CardDescription>
+              Please review and agree to the following before proceeding to payment.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {CONSENT_ITEMS.map((item) => (
+              <div key={item.id} className="flex items-start gap-3">
+                <Checkbox
+                  id={`consent-${item.id}`}
+                  checked={!!consents[item.id]}
+                  onCheckedChange={(checked) => handleConsentToggle(item.id, checked === true)}
+                />
+                <Label
+                  htmlFor={`consent-${item.id}`}
+                  className="text-sm leading-relaxed cursor-pointer"
+                >
+                  {item.label}
+                </Label>
+              </div>
+            ))}
+          </CardContent>
+          <CardFooter className="flex flex-col gap-3">
+            <Button
+              className="w-full"
+              size="lg"
+              onClick={handleCheckout}
+              disabled={!allConsentsChecked || state.status !== 'consent'}
+            >
+              Continue to Payment — {selectedPlan.formattedAmount}/month
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleBackFromConsent}
+              className="w-full"
+            >
+              Back to Plan Selection
+            </Button>
+          </CardFooter>
+        </Card>
+      )}
+
       {/* Order Summary & Checkout */}
-      {selectedPlan && (
+      {state.status !== 'consent' && selectedPlan && (
         <Card className="mx-auto max-w-md">
           <CardHeader>
             <CardTitle className="text-lg">Order Summary</CardTitle>
@@ -260,7 +340,7 @@ function CheckoutPaymentContent() {
             <Button
               className="w-full"
               size="lg"
-              onClick={handleCheckout}
+              onClick={handleProceedToConsent}
               disabled={state.status !== 'idle' || !stripeConfigured}
             >
               {state.status === 'loading' && (
@@ -273,7 +353,7 @@ function CheckoutPaymentContent() {
               {state.status === 'loading' && 'Creating checkout...'}
               {state.status === 'redirecting' && 'Redirecting to Stripe...'}
             </Button>
-            
+
             <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
               <Shield className="h-3 w-3" />
               <span>Secure payment powered by Stripe</span>

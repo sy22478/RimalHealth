@@ -58,24 +58,25 @@ function generateSecureToken(): string {
 }
 
 /**
- * Queue password reset email notification
- * In a real implementation, this would add to a queue
+ * Send password reset email
  */
 async function queuePasswordResetEmail(
   email: string,
   token: string
 ): Promise<void> {
-  // In production, this would queue an email via:
-  // await notificationQueue.add('password-reset', {
-  //   to: email,
-  //   token,
-  //   expiresIn: '1 hour',
-  // });
+  const { sendEmail } = await import('@/lib/integrations/sendgrid');
+  const { EmailTemplate } = await import('@/lib/notifications/templates');
 
-  // TODO: Implement email sending via notification queue
-  // Do NOT log email or token — PHI/HIPAA compliance
-  void email;
-  void token;
+  const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password?token=${token}`;
+
+  await sendEmail({
+    to: email,
+    template: EmailTemplate.PASSWORD_RESET,
+    data: {
+      resetUrl,
+      expiresIn: '1 hour',
+    },
+  });
 }
 
 // ============================================

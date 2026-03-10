@@ -132,6 +132,13 @@ export function IntakeReview({ intake, physicianId, physicianName }: IntakeRevie
     setSubmission({ status: 'submitting' });
 
     try {
+      // Map component decision values to API expected values
+      const decisionMap: Record<string, string> = {
+        APPROVE: 'APPROVED',
+        REJECT: 'DECLINED',
+        NEEDS_INFO: 'NEEDS_INFO',
+      };
+
       const response = await fetch('/api/physician/review', {
         method: 'POST',
         headers: {
@@ -139,12 +146,19 @@ export function IntakeReview({ intake, physicianId, physicianName }: IntakeRevie
         },
         body: JSON.stringify({
           intakeId: intake.id,
-          decision: decisionData.decision,
-          clinicalNotes: decisionData.clinicalNotes,
-          medication: decisionData.medication,
-          rejectionReason: decisionData.rejectionReason,
-          alternativeRecommendation: decisionData.alternativeRecommendation,
-          requestedInfo: decisionData.requestedInfo,
+          decision: decisionMap[decisionData.decision || ''] || decisionData.decision,
+          notes: decisionData.clinicalNotes,
+          prescriptionDetails: decisionData.medication ? {
+            medicationName: decisionData.medication.name,
+            genericName: decisionData.medication.genericName,
+            dosage: decisionData.medication.dosage,
+            frequency: 'Once daily',
+            quantity: decisionData.medication.quantity,
+            refills: decisionData.medication.refills,
+            instructions: decisionData.medication.instructions,
+          } : undefined,
+          rejectionReason: decisionData.rejectionReason || undefined,
+          alternativeRecommendation: decisionData.alternativeRecommendation || undefined,
         }),
       });
 

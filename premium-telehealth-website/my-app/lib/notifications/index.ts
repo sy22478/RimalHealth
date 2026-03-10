@@ -183,38 +183,42 @@ export async function notifyUser(options: {
   sms?: { template: SMSTemplate; data: Record<string, string> };
   priority?: 'high' | 'normal' | 'low';
 }): Promise<void> {
-  const { userId, email, sms, priority = 'normal' } = options;
+  const { userId, email, sms } = options;
 
-  // TODO: Implement user lookup when database is available
-  // For now, this is a placeholder that logs the intent
-  console.log(`[notifyUser] Would notify user ${userId} (priority: ${priority})`);
+  try {
+    // Look up user from database
+    const { prisma } = await import('@/lib/db/prisma');
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, patientProfile: { select: { phone: true } } },
+    });
 
-  if (email) {
-    console.log(`[notifyUser] Email template: ${email.template}`);
-    // TODO: Get user email from database and queue notification
-    // await notificationQueue.add({
-    //   type: 'email',
-    //   priority,
-    //   payload: {
-    //     to: user.email,
-    //     template: email.template,
-    //     data: email.data,
-    //   },
-    // });
-  }
+    if (!user) {
+      console.error(`[notifyUser] User not found: ${userId}`);
+      return;
+    }
 
-  if (sms) {
-    console.log(`[notifyUser] SMS template: ${sms.template}`);
-    // TODO: Get user phone from database and queue notification
-    // await notificationQueue.add({
-    //   type: 'sms',
-    //   priority,
-    //   payload: {
-    //     to: user.phone,
-    //     template: sms.template,
-    //     data: sms.data,
-    //   },
-    // });
+    if (email) {
+      await sendEmail({
+        to: user.email,
+        template: email.template,
+        data: email.data,
+      });
+    }
+
+    if (sms && user.patientProfile?.phone) {
+      const { decryptPHI } = await import('@/lib/encryption/phi');
+      const phone = decryptPHI(user.patientProfile.phone);
+      if (phone && phone.length >= 10) {
+        await sendSMS({
+          to: phone,
+          template: sms.template,
+          data: sms.data,
+        });
+      }
+    }
+  } catch (error) {
+    console.error(`[notifyUser] Failed to notify user ${userId}:`, error);
   }
 }
 
@@ -249,19 +253,37 @@ export async function notifyPhysician(options: {
   sms?: { template: SMSTemplate; data: Record<string, string> };
   priority?: 'high' | 'normal' | 'low';
 }): Promise<void> {
-  const { physicianId, email, sms, priority = 'normal' } = options;
+  const { physicianId, email, sms } = options;
 
-  // TODO: Implement physician lookup when database is available
-  console.log(`[notifyPhysician] Would notify physician ${physicianId} (priority: ${priority})`);
+  try {
+    // Look up physician from database (physicianId may be the userId)
+    const { prisma } = await import('@/lib/db/prisma');
+    const physician = await prisma.physician.findFirst({
+      where: {
+        OR: [{ id: physicianId }, { userId: physicianId }],
+      },
+      include: { user: { select: { email: true } } },
+    });
 
-  if (email) {
-    console.log(`[notifyPhysician] Email template: ${email.template}`);
-    // TODO: Get physician email from database and queue notification
-  }
+    if (!physician) {
+      console.error(`[notifyPhysician] Physician not found: ${physicianId}`);
+      return;
+    }
 
-  if (sms) {
-    console.log(`[notifyPhysician] SMS template: ${sms.template}`);
-    // TODO: Get physician phone from database and queue notification
+    if (email) {
+      await sendEmail({
+        to: physician.user.email,
+        template: email.template,
+        data: email.data,
+      });
+    }
+
+    // SMS not supported for physicians (no phone field in Physician model)
+    if (sms) {
+      console.log(`[notifyPhysician] SMS skipped for physician ${physicianId} (no phone on record)`);
+    }
+  } catch (error) {
+    console.error(`[notifyPhysician] Failed to notify physician ${physicianId}:`, error);
   }
 }
 

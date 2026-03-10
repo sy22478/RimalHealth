@@ -44,8 +44,8 @@ const getAuditLogger = async () => {
 };
 
 const getNotifications = async () => {
-  const { notificationQueue, EmailTemplate } = await import('@/lib/notifications');
-  return { notificationQueue, EmailTemplate };
+  const { EmailTemplate } = await import('@/lib/notifications');
+  return { EmailTemplate };
 };
 
 
@@ -148,7 +148,7 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
   // Initialize lazy imports
   const prisma = await getPrisma();
   const { PlanType, SubscriptionStatus, Role } = await getPrismaClient();
-  const { notificationQueue, EmailTemplate } = await getNotifications();
+  const { EmailTemplate } = await getNotifications();
   const { auditLogger, PHIResourceType } = await getAuditLogger();
   const { hashPassword } = await import('@/lib/auth/password');
   const { encryptPHI } = await import('@/lib/encryption/phi');
@@ -265,8 +265,10 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
   console.log(`[Stripe Webhook] Created subscription for user: ${userId}`);
 
   // ========================================================================
-  // 5. Send appropriate emails
+  // 5. Send appropriate emails (directly, not queued, for reliability)
   // ========================================================================
+  const { sendEmail } = await import('@/lib/integrations/sendgrid');
+
   if (isNewUser) {
     // Generate a password reset token (72-hour expiry) for "Set Your Password"
     const token = crypto.randomUUID();
@@ -280,49 +282,37 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
 
     const setPasswordUrl = `${process.env.NEXT_PUBLIC_APP_URL}/set-password?token=${token}`;
 
-    await notificationQueue.add({
-      type: 'email',
-      priority: 'high',
-      payload: {
-        to: customerEmail,
-        template: EmailTemplate.SET_PASSWORD,
-        data: {
-          setPasswordUrl,
-        },
+    await sendEmail({
+      to: customerEmail,
+      template: EmailTemplate.SET_PASSWORD,
+      data: {
+        setPasswordUrl,
       },
     });
 
     console.log(`[Stripe Webhook] Sent set-password email to: ${customerEmail}`);
   } else {
     // Existing user — send welcome/payment receipt
-    await notificationQueue.add({
-      type: 'email',
-      priority: 'high',
-      payload: {
-        to: user.email,
-        template: EmailTemplate.WELCOME,
-        data: {
-          firstName: 'there',
-          dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL}/patient/dashboard`,
-        },
+    await sendEmail({
+      to: user.email,
+      template: EmailTemplate.WELCOME,
+      data: {
+        firstName: 'there',
+        dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL}/patient/dashboard`,
       },
     });
   }
 
   // Payment receipt for all users
-  await notificationQueue.add({
-    type: 'email',
-    priority: 'normal',
-    payload: {
-      to: customerEmail,
-      template: EmailTemplate.PAYMENT_RECEIPT,
-      data: {
-        firstName: 'there',
-        amount: `$${((session.amount_total || 0) / 100).toFixed(2)}`,
-        date: new Date().toLocaleDateString(),
-        description: `Rimal Health - ${planType === PlanType.ACTIVE_TREATMENT ? 'Active Treatment' : 'Maintenance'} Plan`,
-        transactionId: session.payment_intent as string || session.id,
-      },
+  await sendEmail({
+    to: customerEmail,
+    template: EmailTemplate.PAYMENT_RECEIPT,
+    data: {
+      firstName: 'there',
+      amount: `$${((session.amount_total || 0) / 100).toFixed(2)}`,
+      date: new Date().toLocaleDateString(),
+      description: `Rimal Health - ${planType === PlanType.ACTIVE_TREATMENT ? 'Active Treatment' : 'Maintenance'} Plan`,
+      transactionId: session.payment_intent as string || session.id,
     },
   });
 

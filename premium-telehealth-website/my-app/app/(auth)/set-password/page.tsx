@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import React, { Suspense, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -56,6 +56,14 @@ function SetPasswordContent() {
     { label: 'Special character', met: /[^A-Za-z0-9]/.test(password) },
   ];
 
+  // Auto-redirect to login after password set
+  React.useEffect(() => {
+    if (status === 'success') {
+      const timer = setTimeout(() => router.push('/login'), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [status, router]);
+
   if (!token) {
     return (
       <div className="w-full text-center">
@@ -78,10 +86,10 @@ function SetPasswordContent() {
         </div>
         <h1 className="text-2xl font-bold text-navy-800 mb-2">Password Set Successfully</h1>
         <p className="text-muted-foreground mb-6">
-          Your account is ready. You can now log in and complete your intake form.
+          Your account is ready. Redirecting to login...
         </p>
         <Button onClick={() => router.push('/login')} className="w-full">
-          Go to Login
+          Go to Login Now
         </Button>
       </div>
     );
