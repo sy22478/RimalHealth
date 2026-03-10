@@ -41,13 +41,36 @@ interface CheckoutState {
 // Consent Checkboxes
 // ============================================
 
-const CONSENT_ITEMS = [
+const CONSENT_ITEMS: { id: string; label: React.ReactNode }[] = [
   { id: 'age', label: 'I confirm that I am at least 18 years of age.' },
   { id: 'california', label: 'I confirm that I am a current resident of the state of California.' },
-  { id: 'hipaa', label: 'I have read and agree to the HIPAA Notice of Privacy Practices.' },
-  { id: 'privacy', label: 'I have read and agree to the Privacy Policy and Terms of Service.' },
+  {
+    id: 'hipaa',
+    label: (
+      <>
+        I have read and agree to the{' '}
+        <a href="/hipaa" target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80">
+          HIPAA Notice of Privacy Practices
+        </a>.
+      </>
+    ),
+  },
+  {
+    id: 'privacy',
+    label: (
+      <>
+        I have read and agree to the{' '}
+        <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80">
+          Privacy Policy
+        </a>{' '}and{' '}
+        <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80">
+          Terms of Service
+        </a>.
+      </>
+    ),
+  },
   { id: 'telehealth', label: 'I consent to receive telehealth services, including asynchronous physician communication and medication-assisted treatment.' },
-] as const;
+];
 
 // ============================================
 // Plan Card Component
@@ -213,7 +236,7 @@ function CheckoutPaymentContent() {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An error occurred';
       setState({
-        status: 'error',
+        status: 'consent',
         error: errorMessage,
         selectedPlan: selectedPlanId,
       });
@@ -252,18 +275,20 @@ function CheckoutPaymentContent() {
         </Alert>
       )}
 
-      {/* Plan Selection */}
-      <div className="grid gap-6 md:grid-cols-2 mb-8">
-        {plans.map((plan) => (
-          <PlanCard
-            key={plan.id}
-            plan={plan}
-            isSelected={selectedPlanId === plan.id}
-            onSelect={() => handlePlanSelect(plan.id)}
-            disabled={state.status !== 'idle'}
-          />
-        ))}
-      </div>
+      {/* Plan Selection (hidden during consent/loading/redirecting) */}
+      {(state.status === 'idle' || state.status === 'error') && (
+        <div className="grid gap-6 md:grid-cols-2 mb-8">
+          {plans.map((plan) => (
+            <PlanCard
+              key={plan.id}
+              plan={plan}
+              isSelected={selectedPlanId === plan.id}
+              onSelect={() => handlePlanSelect(plan.id)}
+              disabled={state.status !== 'idle'}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Consent Step */}
       {state.status === 'consent' && selectedPlan && (
@@ -295,6 +320,12 @@ function CheckoutPaymentContent() {
             ))}
           </CardContent>
           <CardFooter className="flex flex-col gap-3">
+            {state.error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{state.error}</AlertDescription>
+              </Alert>
+            )}
             <Button
               className="w-full"
               size="lg"

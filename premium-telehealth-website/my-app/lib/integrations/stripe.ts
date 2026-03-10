@@ -361,7 +361,9 @@ export async function createCheckoutSession(
       billing_address_collection: 'required',
       // Auto-collect payment method for future billing
       payment_method_collection: 'always',
-      discounts: [{ promotion_code: 'promo_1T9CmBDBQIs2sIXlRuKhK7c7' }],
+      ...(process.env.STRIPE_PROMO_CODE
+        ? { discounts: [{ promotion_code: process.env.STRIPE_PROMO_CODE }] }
+        : { allow_promotion_codes: true }),
     })
   );
 }
