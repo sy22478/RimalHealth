@@ -12,7 +12,7 @@
 import * as React from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { CheckCircle, Loader2, AlertCircle, ArrowRight, Calendar, Mail } from 'lucide-react';
+import { CheckCircle, Loader2, AlertCircle, ArrowRight, KeyRound, Mail } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -46,6 +46,7 @@ export default function CheckoutSuccessPage() {
   const [status, setStatus] = React.useState<VerificationStatus>('verifying');
   const [error, setError] = React.useState<string>('');
   const [sessionDetails, setSessionDetails] = React.useState<SessionDetails | null>(null);
+  const [setPasswordUrl, setSetPasswordUrl] = React.useState<string>('/set-password');
 
   // Verify the checkout session
   React.useEffect(() => {
@@ -66,15 +67,33 @@ export default function CheckoutSuccessPage() {
         const data = await response.json();
 
         if (data.paymentStatus === 'paid') {
+          const email = data.customerEmail || '';
           setSessionDetails({
             id: data.sessionId,
             status: data.status,
             paymentStatus: data.paymentStatus,
             planType: data.metadata?.planType || 'ACTIVE_TREATMENT',
             amount: data.amount_total || 5000,
-            customerEmail: data.customerEmail || '',
+            customerEmail: email,
           });
           setStatus('success');
+
+          // Try to get the set-password token for a direct link
+          if (email) {
+            try {
+              const tokenRes = await fetch('/api/auth/set-password-token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email }),
+              });
+              const tokenData = await tokenRes.json();
+              if (tokenData.token) {
+                setSetPasswordUrl(`/set-password?token=${tokenData.token}`);
+              }
+            } catch {
+              // Token fetch failed, fallback to /set-password
+            }
+          }
         } else {
           setStatus('error');
           setError('Payment not completed. Please try again.');
@@ -185,42 +204,51 @@ export default function CheckoutSuccessPage() {
           {/* Next Steps */}
           <div className="space-y-4">
             <h3 className="font-semibold">What happens next?</h3>
-            
+
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex items-start gap-3 rounded-lg border p-4">
-                <Calendar className="mt-0.5 h-5 w-5 text-primary" />
+                <KeyRound className="mt-0.5 h-5 w-5 text-primary" />
                 <div>
-                  <p className="font-medium">Complete Your Intake</p>
+                  <p className="font-medium">Create Your Password</p>
                   <p className="text-sm text-muted-foreground">
-                    Fill out your medical history so our physicians can review your case.
+                    Set a password for your account to log in and complete your intake form.
                   </p>
                 </div>
               </div>
-              
+
               <div className="flex items-start gap-3 rounded-lg border p-4">
                 <Mail className="mt-0.5 h-5 w-5 text-primary" />
                 <div>
                   <p className="font-medium">Physician Review</p>
                   <p className="text-sm text-muted-foreground">
-                    A CA-licensed physician will review within 24 hours.
+                    After your intake, a CA-licensed physician will review within 24 hours.
                   </p>
                 </div>
               </div>
             </div>
           </div>
+
+          {sessionDetails?.customerEmail && (
+            <Alert className="bg-primary/5 border-primary/20">
+              <Mail className="h-4 w-4 text-primary" />
+              <AlertDescription>
+                We sent a password setup link to <strong>{sessionDetails.customerEmail}</strong>. Check your inbox (and spam folder).
+              </AlertDescription>
+            </Alert>
+          )}
         </CardContent>
 
         <CardFooter className="flex flex-col gap-3">
           <Button asChild className="w-full" size="lg">
-            <Link href="/intake">
-              Start Your Intake
+            <Link href={setPasswordUrl}>
+              Set Your Password
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>
-          
+
           <Button variant="outline" asChild className="w-full">
-            <Link href="/dashboard">
-              Go to Dashboard
+            <Link href="/login">
+              Already have a password? Log in
             </Link>
           </Button>
         </CardFooter>

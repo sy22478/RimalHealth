@@ -344,6 +344,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       paymentStatus: session.payment_status,
       subscriptionId: session.subscription,
       customerId: session.customer,
+      customerEmail: session.customer_email || session.customer_details?.email || '',
+      amount_total: session.amount_total,
       metadata: session.metadata,
     });
   } catch (error) {
