@@ -233,9 +233,7 @@ const CSP_SCRIPT_SRC = [
 /** Content Security Policy directives */
 export const CSP_DIRECTIVES: Record<string, string[]> = {
   'default-src': ["'self'"],
-  'script-src': process.env.NODE_ENV === 'development'
-    ? [...CSP_SCRIPT_SRC, "'unsafe-eval'"]
-    : CSP_SCRIPT_SRC,
+  'script-src': [...CSP_SCRIPT_SRC, "'unsafe-eval'"],
   'style-src': [
     "'self'",
     "'unsafe-inline'", // Required for Tailwind/styled-components
