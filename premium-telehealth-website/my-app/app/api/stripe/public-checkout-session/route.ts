@@ -68,7 +68,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // when no `customer` param is provided in subscription mode.
     const stripe = (await import('@/lib/integrations/stripe')).stripe;
 
-    const promoCode = process.env.STRIPE_PROMO_CODE;
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
@@ -78,7 +77,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       payment_method_collection: 'always',
       metadata: { planType },
       subscription_data: { metadata: { planType } },
-      ...(promoCode ? { discounts: [{ promotion_code: promoCode }] } : { allow_promotion_codes: true }),
     });
 
     return NextResponse.json({
