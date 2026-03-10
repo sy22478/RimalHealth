@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 const publicCheckoutSchema = z.object({
-  planType: z.enum(['ACTIVE_TREATMENT', 'MAINTENANCE']),
+  planType: z.enum(['ACTIVE_TREATMENT']),
   successUrl: z.string().url('Invalid success URL'),
   cancelUrl: z.string().url('Invalid cancel URL'),
 });
