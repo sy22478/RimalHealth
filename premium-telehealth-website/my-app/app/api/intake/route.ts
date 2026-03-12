@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { sendEmail } from "@/lib/integrations/sendgrid";
+import { EmailTemplate } from "@/lib/notifications/templates";
 
 // Mirror the client-side schema (server-side re-validation)
 const intakeSchema = z.object({
@@ -25,90 +27,63 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const data = intakeSchema.parse(body);
 
-    const apiKey = process.env.RESEND_API_KEY;
     const toEmail =
       process.env.CONTACT_FORM_TO_EMAIL ?? "support@rimalhealth.com";
-
-    if (!apiKey) {
-      // No email service configured — log non-PHI fields only
-      console.log("Intake form submitted (RESEND_API_KEY not set):", {
-        treatmentType: data.treatmentType,
-        ageRange: data.ageRange,
-      });
-      return NextResponse.json({ success: true });
-    }
 
     const treatmentDetails = [
       `Drinks per week: ${data.drinksPerWeek ?? "Not specified"}`,
       `Goal: ${data.alcoholGoal ?? "Not specified"}`,
     ];
 
-    const intakeText = [
-      "New patient intake — please review within 24 hours.",
-      "",
-      "PATIENT",
-      `Name: ${data.firstName} ${data.lastInitial}.`,
-      `Email: ${data.email}`,
-      `Phone: ${data.phone ?? "Not provided"}`,
-      `Age range: ${data.ageRange}`,
-      `State: ${data.state}`,
-      "",
-      "TREATMENT",
-      `Type: ${data.treatmentType}`,
-      ...treatmentDetails,
-      "",
-      "HISTORY",
-      `Current medications: ${data.currentMedications || "None listed"}`,
-      `Medical conditions: ${data.medicalConditions || "None listed"}`,
-      "",
-      "CONSENTS",
-      "HIPAA: yes | Terms of Service: yes | Telehealth: yes",
+    const intakeHtml = [
+      "<p><strong>New patient intake — please review within 24 hours.</strong></p>",
+      "<p><strong>PATIENT</strong><br>",
+      `Name: ${data.firstName} ${data.lastInitial}.<br>`,
+      `Email: ${data.email}<br>`,
+      `Phone: ${data.phone ?? "Not provided"}<br>`,
+      `Age range: ${data.ageRange}<br>`,
+      `State: ${data.state}</p>`,
+      "<p><strong>TREATMENT</strong><br>",
+      `Type: ${data.treatmentType}<br>`,
+      treatmentDetails.join("<br>"),
+      "</p>",
+      "<p><strong>HISTORY</strong><br>",
+      `Current medications: ${data.currentMedications || "None listed"}<br>`,
+      `Medical conditions: ${data.medicalConditions || "None listed"}</p>`,
+      "<p><strong>CONSENTS</strong><br>",
+      "HIPAA: yes | Terms of Service: yes | Telehealth: yes</p>",
     ].join("\n");
 
     // Notify clinical team
-    const clinicalRes = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: "Rimal Health Intake <no-reply@rimalhealth.com>",
-        to: [toEmail],
+    await sendEmail({
+      to: toEmail,
+      template: EmailTemplate.GENERIC_NOTIFICATION,
+      data: {
         subject: `New intake: ${data.treatmentType} — ${data.firstName} ${data.lastInitial}.`,
-        text: intakeText,
-      }),
+        message: intakeHtml,
+      },
     });
 
-    if (!clinicalRes.ok) {
-      throw new Error(`Resend error ${clinicalRes.status}`);
-    }
-
     // Send confirmation to patient (non-critical — don't throw if it fails)
-    const confirmText = [
+    const confirmMessage = [
       `Hi ${data.firstName},`,
-      "",
+      "<br><br>",
       "We received your intake form. A California-licensed physician will review your information within 24 hours.",
-      "",
+      "<br><br>",
       "If you have urgent concerns, please call 911 or go to your nearest emergency room.",
-      "",
+      "<br><br>",
       "Questions? Email us at support@rimalhealth.com.",
-      "",
+      "<br><br>",
       "— Rimal Health",
-    ].join("\n");
+    ].join("");
 
-    await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: "Rimal Health <no-reply@rimalhealth.com>",
-        to: [data.email],
+    await sendEmail({
+      to: data.email,
+      template: EmailTemplate.GENERIC_NOTIFICATION,
+      data: {
         subject: "We received your intake form — Rimal Health",
-        text: confirmText,
-      }),
+        message: confirmMessage,
+      },
     }).catch(() => {
       // Confirmation email failure is non-critical; clinical notification already sent
       console.error("Patient confirmation email failed (non-critical)");

@@ -378,7 +378,7 @@ export async function notifyAdmin(
       type: 'email',
       priority,
       payload: {
-        to: 'admin@rimalhealth.com',
+        to: process.env.ADMIN_EMAIL || 'admin@admin.rimalhealth.com',
         template: EmailTemplate.GENERIC_NOTIFICATION,
         data: { subject, message },
       },

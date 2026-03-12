@@ -72,6 +72,7 @@ The app uses Next.js App Router with route groups for layout isolation:
 - `app/(marketing)/` — Public marketing site with shared nav/footer (homepage, about, pricing, FAQ, contact, alcohol-treatment, how-it-works, privacy, terms, hipaa, get-started, payment)
 - `app/(auth)/` — Auth pages: `/login`, `/signup` (minimal layout, no nav)
 - `app/patient/` — Patient portal with sidebar layout (`/patient/*`): dashboard, messages, prescriptions, billing, documents, profile/settings
+  - **Note:** `app/(patient)/` also exists but is orphaned — it resolves WITHOUT the `/patient/` prefix. Always use `app/patient/` for patient portal work.
 - `app/physician/` — Physician portal, split into sub-groups:
   - `physician/(auth)/login/` — Physician login (no layout)
   - `physician/(portal)/` — Auth-protected portal with sidebar: dashboard, queue, patients, intake/[id], prescriptions, messages, reviews, settings
@@ -181,6 +182,12 @@ docker-compose -f docker/docker-compose.yml logs -f app  # View logs
 docker-compose -f docker/docker-compose.yml down      # Stop services
 ```
 
+## Deployment
+
+Deployed to **Netlify** via GitHub Actions. Push to `main` triggers the deployment workflow (lint, type-check, tests, security scan, build, deploy, migrations, health check, smoke tests).
+
+Domain `rimalhealth.com` is registered on SiteGround.
+
 ## Git Conventions
 
 Branch naming: `feature/`, `fix/`, `docs/`, `test/`, `refactor/`, `security/`
@@ -191,7 +198,9 @@ Never commit `.env` files, real patient data, database dumps, or log files conta
 
 ## Documentation
 
-Detailed documentation is in `premium-telehealth-website/docs/`:
-- `docs/security.md` — HIPAA compliance details
+Detailed documentation is in `premium-telehealth-website/`:
 - `docs/api-spec.md` — API endpoint specifications
-- `docs/context.md` — Business rules and user flows
+- `docs/security-audit-report.md` — Security audit findings
+- `PROJECT.md` — Vision, business model, requirements
+- `PLAN.md` — Implementation tasks and phases
+- `STATE.md` — Current implementation status

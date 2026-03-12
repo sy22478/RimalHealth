@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { sendEmail } from "@/lib/integrations/sendgrid";
+import { EmailTemplate } from "@/lib/notifications/templates";
 
 const contactSchema = z.object({
   name: z.string().min(2),
@@ -13,42 +15,26 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const data = contactSchema.parse(body);
 
-    const apiKey = process.env.RESEND_API_KEY;
     const toEmail =
       process.env.CONTACT_FORM_TO_EMAIL ?? "support@rimalhealth.com";
 
-    if (!apiKey) {
-      // No email service configured — log non-PHI fields only and acknowledge
-      console.log("Contact form submitted (RESEND_API_KEY not set):", {
-        subject: data.subject,
-      });
-      return NextResponse.json({ success: true });
-    }
+    const messageHtml = [
+      `<strong>Name:</strong> ${data.name}`,
+      `<strong>Email:</strong> ${data.email}`,
+      `<strong>Category:</strong> ${data.subject}`,
+      "",
+      data.message,
+    ].join("<br>");
 
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: "Rimal Health Contact <no-reply@rimalhealth.com>",
-        to: [toEmail],
-        reply_to: data.email,
+    await sendEmail({
+      to: toEmail,
+      template: EmailTemplate.GENERIC_NOTIFICATION,
+      data: {
         subject: `Contact: [${data.subject}] from ${data.name}`,
-        text: [
-          `Name: ${data.name}`,
-          `Email: ${data.email}`,
-          `Subject: ${data.subject}`,
-          "",
-          data.message,
-        ].join("\n"),
-      }),
+        message: messageHtml,
+      },
+      replyTo: data.email,
     });
-
-    if (!res.ok) {
-      throw new Error(`Resend error ${res.status}`);
-    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
