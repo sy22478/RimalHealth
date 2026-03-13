@@ -79,36 +79,30 @@ export default function CheckoutSuccessPage() {
           });
           setStatus('success');
 
-          // Try to get the set-password token for a direct link.
-          // The Stripe webhook may not have fired yet, so retry with backoff.
-          if (email) {
-            const fetchToken = async (): Promise<void> => {
-              const maxRetries = 6;
-              const baseDelay = 3000; // 3 seconds
-              for (let i = 0; i < maxRetries; i++) {
-                // Wait before each attempt (webhook needs time to process)
-                if (i > 0) {
-                  await new Promise((r) => setTimeout(r, baseDelay * i));
-                }
+          // Use the token returned inline from the session verification
+          if (data.setPasswordToken) {
+            setSetPasswordUrl(`/set-password?token=${data.setPasswordToken}`);
+            setTokenLoading(false);
+          } else if (email) {
+            // Webhook may not have fired yet — poll the session endpoint for the token
+            const pollForToken = async (): Promise<void> => {
+              for (let i = 0; i < 6; i++) {
+                await new Promise((r) => setTimeout(r, 3000 * (i + 1)));
                 try {
-                  const tokenRes = await fetch('/api/auth/set-password-token', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email }),
-                  });
-                  // Stop retrying if rate limited
-                  if (tokenRes.status === 429) break;
-                  const tokenData = await tokenRes.json();
-                  if (tokenData.token) {
-                    setSetPasswordUrl(`/set-password?token=${tokenData.token}`);
-                    return;
+                  const retryRes = await fetch(`/api/stripe/checkout-session?sessionId=${sessionId}`);
+                  if (retryRes.ok) {
+                    const retryData = await retryRes.json();
+                    if (retryData.setPasswordToken) {
+                      setSetPasswordUrl(`/set-password?token=${retryData.setPasswordToken}`);
+                      return;
+                    }
                   }
                 } catch {
                   // Network error, will retry
                 }
               }
             };
-            fetchToken().finally(() => setTokenLoading(false));
+            pollForToken().finally(() => setTokenLoading(false));
           } else {
             setTokenLoading(false);
           }

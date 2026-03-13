@@ -337,6 +337,34 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     
     const session = await getCheckoutSession(sessionId);
 
+    const customerEmail = session.customer_email || session.customer_details?.email || '';
+
+    // Try to include the set-password token so the success page doesn't need a separate call
+    let setPasswordToken: string | null = null;
+    if (customerEmail && session.payment_status === 'paid') {
+      try {
+        const { prisma } = await import('@/lib/db/prisma');
+        const user = await prisma.user.findUnique({
+          where: { email: customerEmail.toLowerCase() },
+          select: { id: true, emailVerified: true },
+        });
+        if (user && !user.emailVerified) {
+          const resetToken = await prisma.passwordReset.findFirst({
+            where: {
+              userId: user.id,
+              usedAt: null,
+              expiresAt: { gt: new Date() },
+            },
+            orderBy: { createdAt: 'desc' },
+            select: { token: true },
+          });
+          setPasswordToken = resetToken?.token || null;
+        }
+      } catch {
+        // Token lookup failed — not critical, user can use email link
+      }
+    }
+
     // Return session status
     return NextResponse.json({
       sessionId: session.id,
@@ -344,9 +372,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       paymentStatus: session.payment_status,
       subscriptionId: session.subscription,
       customerId: session.customer,
-      customerEmail: session.customer_email || session.customer_details?.email || '',
+      customerEmail,
       amount_total: session.amount_total,
       metadata: session.metadata,
+      setPasswordToken,
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
