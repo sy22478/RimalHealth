@@ -46,7 +46,8 @@ export default function CheckoutSuccessPage() {
   const [status, setStatus] = React.useState<VerificationStatus>('verifying');
   const [error, setError] = React.useState<string>('');
   const [sessionDetails, setSessionDetails] = React.useState<SessionDetails | null>(null);
-  const [setPasswordUrl, setSetPasswordUrl] = React.useState<string>('/set-password');
+  const [setPasswordUrl, setSetPasswordUrl] = React.useState<string>('');
+  const [tokenLoading, setTokenLoading] = React.useState(true);
 
   // Verify the checkout session
   React.useEffect(() => {
@@ -78,21 +79,34 @@ export default function CheckoutSuccessPage() {
           });
           setStatus('success');
 
-          // Try to get the set-password token for a direct link
+          // Try to get the set-password token for a direct link.
+          // The Stripe webhook may not have fired yet, so retry with backoff.
           if (email) {
-            try {
-              const tokenRes = await fetch('/api/auth/set-password-token', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email }),
-              });
-              const tokenData = await tokenRes.json();
-              if (tokenData.token) {
-                setSetPasswordUrl(`/set-password?token=${tokenData.token}`);
+            const fetchToken = async (retries: number, delay: number): Promise<void> => {
+              for (let i = 0; i < retries; i++) {
+                try {
+                  const tokenRes = await fetch('/api/auth/set-password-token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email }),
+                  });
+                  const tokenData = await tokenRes.json();
+                  if (tokenData.token) {
+                    setSetPasswordUrl(`/set-password?token=${tokenData.token}`);
+                    return;
+                  }
+                } catch {
+                  // Network error, will retry
+                }
+                // Wait before next attempt (webhook may still be processing)
+                if (i < retries - 1) {
+                  await new Promise((r) => setTimeout(r, delay * (i + 1)));
+                }
               }
-            } catch {
-              // Token fetch failed, fallback to /set-password
-            }
+            };
+            fetchToken(5, 2000).finally(() => setTokenLoading(false));
+          } else {
+            setTokenLoading(false);
           }
         } else {
           setStatus('error');
@@ -239,12 +253,26 @@ export default function CheckoutSuccessPage() {
         </CardContent>
 
         <CardFooter className="flex flex-col gap-3">
-          <Button asChild className="w-full" size="lg">
-            <Link href={setPasswordUrl}>
-              Set Your Password
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-          </Button>
+          {tokenLoading ? (
+            <Button className="w-full" size="lg" disabled>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Preparing your account...
+            </Button>
+          ) : setPasswordUrl ? (
+            <Button asChild className="w-full" size="lg">
+              <Link href={setPasswordUrl}>
+                Set Your Password
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          ) : (
+            <Alert className="text-left">
+              <Mail className="h-4 w-4" />
+              <AlertDescription>
+                Your account is being set up. Check your email for a password setup link, or refresh this page in a moment.
+              </AlertDescription>
+            </Alert>
+          )}
 
           <Button variant="outline" asChild className="w-full">
             <Link href="/login">
