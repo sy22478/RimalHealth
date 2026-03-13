@@ -18,7 +18,7 @@ import { emailTemplates, EmailTemplate, interpolateTemplate } from '@/lib/notifi
  * SendGrid configuration from environment
  */
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY || '';
-const SENDGRID_FROM_EMAIL = process.env.SENDGRID_FROM_EMAIL || 'noreply@admin.rimalhealth.com';
+const SENDGRID_FROM_EMAIL = process.env.SENDGRID_FROM_EMAIL || 'noreply@rimalhealth.com';
 const SENDGRID_FROM_NAME = process.env.SENDGRID_FROM_NAME || 'Rimal Health';
 
 /**
