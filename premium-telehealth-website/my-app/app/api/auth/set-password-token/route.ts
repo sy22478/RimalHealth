@@ -17,7 +17,11 @@ const schema = z.object({
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
-  const rateLimitResult = await rateLimit(clientIp, rateLimitPresets.strict);
+  const rateLimitResult = await rateLimit(clientIp, {
+    requests: 10,
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    keyPrefix: 'ratelimit:set-password-token',
+  });
   if (!rateLimitResult.success) {
     return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
   }

@@ -82,14 +82,22 @@ export default function CheckoutSuccessPage() {
           // Try to get the set-password token for a direct link.
           // The Stripe webhook may not have fired yet, so retry with backoff.
           if (email) {
-            const fetchToken = async (retries: number, delay: number): Promise<void> => {
-              for (let i = 0; i < retries; i++) {
+            const fetchToken = async (): Promise<void> => {
+              const maxRetries = 6;
+              const baseDelay = 3000; // 3 seconds
+              for (let i = 0; i < maxRetries; i++) {
+                // Wait before each attempt (webhook needs time to process)
+                if (i > 0) {
+                  await new Promise((r) => setTimeout(r, baseDelay * i));
+                }
                 try {
                   const tokenRes = await fetch('/api/auth/set-password-token', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email }),
                   });
+                  // Stop retrying if rate limited
+                  if (tokenRes.status === 429) break;
                   const tokenData = await tokenRes.json();
                   if (tokenData.token) {
                     setSetPasswordUrl(`/set-password?token=${tokenData.token}`);
@@ -98,13 +106,9 @@ export default function CheckoutSuccessPage() {
                 } catch {
                   // Network error, will retry
                 }
-                // Wait before next attempt (webhook may still be processing)
-                if (i < retries - 1) {
-                  await new Promise((r) => setTimeout(r, delay * (i + 1)));
-                }
               }
             };
-            fetchToken(5, 2000).finally(() => setTokenLoading(false));
+            fetchToken().finally(() => setTokenLoading(false));
           } else {
             setTokenLoading(false);
           }
