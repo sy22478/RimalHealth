@@ -208,11 +208,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       patientName,
     });
 
-    // Log message creation
-    await AuditService.logMessageAccess(userId, 'PATIENT', threadId, 'CREATE', auditContext);
-
-    // Notify physician
-    await NotificationService.notifyPhysicianNewMessage(physicianId, userId, threadId);
+    // Non-critical: audit + notification (don't block response)
+    AuditService.logMessageAccess(userId, 'PATIENT', threadId, 'CREATE', auditContext).catch(() => {});
+    NotificationService.notifyPhysicianNewMessage(physicianId, userId, threadId).catch(() => {});
 
     return NextResponse.json(
       {
@@ -220,7 +218,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         message: {
           id: message.id,
           threadId: message.threadId,
-          body: message.body,
+          body,
           sentAt: message.sentAt.toISOString(),
         },
       },
