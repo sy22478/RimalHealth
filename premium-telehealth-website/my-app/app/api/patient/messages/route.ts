@@ -177,10 +177,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Get physician ID from thread ID (format: thread-{patientId}-{physicianId})
-    const physicianId = threadId.split('-')[2];
+    // Get physician ID from thread ID (format: thread-{patientUUID}-{physicianUUID})
+    // Can't use split('-') since UUIDs contain hyphens — strip the known prefix
+    const physicianId = threadId.replace(`thread-${userId}-`, '');
 
-    if (!physicianId) {
+    if (!physicianId || physicianId === threadId) {
       return NextResponse.json(
         { error: 'Invalid thread ID', code: 'INVALID_THREAD' },
         { status: 400 }

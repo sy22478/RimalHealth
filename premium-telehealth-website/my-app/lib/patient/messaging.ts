@@ -211,10 +211,11 @@ export async function getPatientThreadMessages(
     orderBy: { sentAt: 'asc' },
   });
 
-  // Get physician ID from thread ID
-  const physicianId = threadId.split('-')[2];
-  
-  if (!physicianId) {
+  // Get physician ID from thread ID (format: thread-{patientUUID}-{physicianUUID})
+  // Can't use split('-') since UUIDs contain hyphens — strip the known prefix instead
+  const physicianId = threadId.replace(`thread-${patientId}-`, '');
+
+  if (!physicianId || physicianId === threadId) {
     return null;
   }
 
