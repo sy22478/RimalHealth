@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Rimal Health** is a HIPAA-compliant telehealth platform for medication-assisted treatment of alcohol use disorder (AUD) with Naltrexone, serving California residents. Flat-fee pricing: $50/month active treatment, $25/month maintenance.
 
+**Stack:** Next.js 16.1.6, React 19, TypeScript 5.x (strict), Prisma 7.4.1, Tailwind CSS 4.x, Zod 4.x, Vitest 4.x, Playwright 1.58.x.
+
 ## App Location
 
 All application code lives in:
@@ -170,7 +172,7 @@ Route protection runs in `middleware.ts`. The middleware:
 ```bash
 cp .env.example .env.local
 # Required: NEXT_PUBLIC_APP_URL, DATABASE_URL, JWT_SECRET, PHI_ENCRYPTION_KEY (ENCRYPTION_KEY)
-# Optional: RESEND_API_KEY, STRIPE_SECRET_KEY, NEXT_PUBLIC_GA_MEASUREMENT_ID
+# Optional: SENDGRID_API_KEY, STRIPE_SECRET_KEY, NEXT_PUBLIC_GA_MEASUREMENT_ID
 ```
 
 Database options for local dev: Neon (cloud), Postgres.app, or Homebrew PostgreSQL. After setting `DATABASE_URL`, run `npm run db:generate && npm run db:migrate`.
