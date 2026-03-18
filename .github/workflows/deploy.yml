@@ -144,21 +144,15 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
-      - name: Build Project
-        run: npm run build
-        env:
-          CI: 'true'
-          NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
-          NEXT_PUBLIC_APP_NAME: ${{ vars.NEXT_PUBLIC_APP_NAME }}
-          NEXT_PUBLIC_GA_MEASUREMENT_ID: ${{ vars.NEXT_PUBLIC_GA_MEASUREMENT_ID }}
-          NETLIFY: 'true'
-
-      - name: Deploy to Netlify
+      - name: Build and Deploy to Netlify
         id: netlify-deploy
         env:
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-        run: netlify deploy --prod --dir=.next --site="$NETLIFY_SITE_ID" --auth="$NETLIFY_AUTH_TOKEN"
+          NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
+          NEXT_PUBLIC_APP_NAME: ${{ vars.NEXT_PUBLIC_APP_NAME }}
+          NEXT_PUBLIC_GA_MEASUREMENT_ID: ${{ vars.NEXT_PUBLIC_GA_MEASUREMENT_ID }}
+        run: netlify deploy --prod --build --site="$NETLIFY_SITE_ID" --auth="$NETLIFY_AUTH_TOKEN"
 
       - name: Run database migrations
         run: npx prisma migrate deploy
