@@ -5,8 +5,16 @@ const nextConfig: NextConfig = {
   // Enable standalone output for Docker deployments (not Netlify)
   output: process.env.NETLIFY ? undefined : 'standalone',
 
-  // Turbopack configuration (empty config for default behavior)
-  turbopack: {},
+  // Turbopack configuration
+  turbopack: {
+    resolveAlias: {
+      '@/lib/audit': './lib/audit/index.ts',
+      '@/lib/audit/logger': './lib/audit/logger.ts',
+      '@/lib/audit/types': './lib/audit/types.ts',
+      '@/lib/audit/utils': './lib/audit/utils.ts',
+      '@/lib/audit/middleware': './lib/audit/middleware.ts',
+    },
+  },
   
   // Enable gzip compression for responses
   compress: true,
