@@ -1,20 +1,21 @@
 /**
  * Next.js Middleware for Route Protection
- * 
+ *
  * Protects role-based routes and handles authentication redirects.
- * 
+ * Generates a unique request ID (x-request-id) for end-to-end tracing.
+ *
  * HIPAA Compliance:
  * - Validates JWT tokens on protected routes
  * - Enforces role-based access control
  * - Redirects unauthenticated users to login
  * - Redirects unauthorized users to /unauthorized
- * 
+ *
  * Route Patterns:
- * - /patient/*      → PATIENT role only
- * - /physician/*    → PHYSICIAN role only  
- * - /admin/*        → ADMIN role only
- * - /checkout/*     → Any authenticated user
- * - /intake/*       → PATIENT with active subscription
+ * - /patient/*      -> PATIENT role only
+ * - /physician/*    -> PHYSICIAN role only
+ * - /admin/*        -> ADMIN role only
+ * - /checkout/*     -> Any authenticated user
+ * - /intake/*       -> PATIENT with active subscription
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
@@ -46,6 +47,7 @@ const PUBLIC_ROUTES = [
   '/get-started',
   '/for-physicians',
   '/payment',
+  '/checkout/consent',
   '/checkout/payment',
   '/checkout/success',
   '/checkout/cancel',
@@ -82,8 +84,8 @@ const AUTHENTICATED_ROUTES = ['/checkout'];
  * Check if a path is a static/public asset
  */
 function isStaticRoute(path: string): boolean {
-  return STATIC_ROUTES.some(route => 
-    path.startsWith(route) || 
+  return STATIC_ROUTES.some(route =>
+    path.startsWith(route) ||
     path.includes('.') // File extensions
   );
 }
@@ -102,7 +104,7 @@ function isPublicRoute(path: string): boolean {
 
 /**
  * Extract token from request
- * Priority: Authorization header → Cookie
+ * Priority: Authorization header -> Cookie
  */
 function extractToken(request: NextRequest): string | null {
   // Check Authorization header first
@@ -110,13 +112,13 @@ function extractToken(request: NextRequest): string | null {
   if (authHeader?.startsWith('Bearer ')) {
     return authHeader.substring(7);
   }
-  
+
   // Check cookies
   const tokenCookie = request.cookies.get('accessToken');
   if (tokenCookie?.value) {
     return tokenCookie.value;
   }
-  
+
   return null;
 }
 
@@ -143,26 +145,26 @@ function hasRouteAccess(role: Role, path: string): boolean {
   if (role === Role.ADMIN) {
     return true;
   }
-  
+
   // Check role-specific routes
   const allowedPrefixes = ROLE_ROUTES[role] || [];
-  const hasRoleAccess = allowedPrefixes.some(prefix => 
+  const hasRoleAccess = allowedPrefixes.some(prefix =>
     path === prefix || path.startsWith(`${prefix}/`)
   );
-  
+
   if (hasRoleAccess) {
     return true;
   }
-  
+
   // Check authenticated routes
   const isAuthenticatedRoute = AUTHENTICATED_ROUTES.some(route =>
     path === route || path.startsWith(`${route}/`)
   );
-  
+
   if (isAuthenticatedRoute) {
     return true;
   }
-  
+
   return false;
 }
 
@@ -171,11 +173,11 @@ function hasRouteAccess(role: Role, path: string): boolean {
  */
 function shouldRedirectFromAuth(role: Role, path: string): string | null {
   const authPaths = ['/login', '/signup', '/forgot-password'];
-  
+
   if (authPaths.some(authPath => path === authPath || path.startsWith(authPath))) {
     return getDashboardUrl(role);
   }
-  
+
   return null;
 }
 
@@ -185,12 +187,15 @@ function shouldRedirectFromAuth(role: Role, path: string): string | null {
 
 export async function middleware(request: NextRequest): Promise<NextResponse> {
   const { pathname, search } = request.nextUrl;
-  
+
+  // Generate a unique request ID for end-to-end tracing
+  const requestId = crypto.randomUUID();
+
   // Skip static assets and API routes
   if (isStaticRoute(pathname)) {
     return NextResponse.next();
   }
-  
+
   // Allow public routes
   if (isPublicRoute(pathname)) {
     // Check if user is already logged in and trying to access auth pages
@@ -209,12 +214,19 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
         // Invalid token, continue to public route
       }
     }
-    return NextResponse.next();
+    // Attach request ID even on public routes so downstream API calls can trace
+    const publicHeaders = new Headers(request.headers);
+    publicHeaders.set('x-request-id', requestId);
+    const publicResponse = NextResponse.next({
+      request: { headers: publicHeaders },
+    });
+    publicResponse.headers.set('x-request-id', requestId);
+    return publicResponse;
   }
-  
+
   // Extract and verify token for protected routes
   const token = extractToken(request);
-  
+
   if (!token) {
     // No token - redirect to appropriate login page
     const loginPath = pathname.startsWith('/physician') ? '/physician/login' : '/login';
@@ -222,36 +234,40 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     loginUrl.searchParams.set('from', pathname + search);
     return NextResponse.redirect(loginUrl);
   }
-  
+
   try {
     // Verify the token
     const payload = await verifyAccessToken(token);
     const { userId, role } = payload;
-    
+
     // Check if user has access to this route
     if (!hasRouteAccess(role, pathname)) {
       // User is authenticated but not authorized for this route
       console.warn(`Access denied: User ${userId} with role ${role} attempted to access ${pathname}`);
-      
+
       // Redirect to unauthorized page
       const unauthorizedUrl = new URL('/unauthorized', request.url);
       unauthorizedUrl.searchParams.set('required', pathname);
       return NextResponse.redirect(unauthorizedUrl);
     }
-    
-    // Add user info to request headers for downstream use
+
+    // Add user info and request ID to request headers for downstream use
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set('x-user-id', userId);
     requestHeaders.set('x-user-role', role);
     requestHeaders.set('x-user-email', payload.email);
-    
+    requestHeaders.set('x-request-id', requestId);
+
     // Continue with modified headers
     const response = NextResponse.next({
       request: {
         headers: requestHeaders,
       },
     });
-    
+
+    // Expose request ID on the response for client-side correlation
+    response.headers.set('x-request-id', requestId);
+
     // Refresh token cookie if it exists (extend session)
     const tokenCookie = request.cookies.get('accessToken');
     if (tokenCookie) {
@@ -264,13 +280,13 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
         maxAge: 15 * 60, // 15 minutes
       });
     }
-    
+
     return response;
-    
+
   } catch (error) {
     // Token is invalid or expired
     console.error('Token verification failed:', error);
-    
+
     // Clear invalid cookies
     const response = NextResponse.redirect(new URL('/login', request.url));
     response.cookies.delete('accessToken');

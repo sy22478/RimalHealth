@@ -122,7 +122,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const clientIp = getClientIp(request);
 
   // Check IP-based rate limiting (additional protection)
-  // Fail-safe: if Redis is unavailable, allow the request to proceed
+  // Fail-closed: if Redis is unavailable, deny the request
   try {
     const ipLimit = await checkIpRateLimit(clientIp, 30, 60);
     if (!ipLimit.allowed) {
@@ -136,8 +136,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
   } catch {
-    // Redis unavailable — skip rate limiting, proceed with login
-    console.warn('Redis unavailable for IP rate limiting, proceeding without check');
+    // Redis unavailable — deny request to prevent brute-force bypass
+    return NextResponse.json(
+      { error: 'Service temporarily unavailable. Please try again.', code: 'SERVICE_UNAVAILABLE' },
+      { status: 503 }
+    );
   }
 
   try {
@@ -158,7 +161,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const { email, password }: LoginInput = validationResult.data;
 
-    // Check account lockout status (fail-safe: skip if Redis unavailable)
+    // Check account lockout status (fail-closed: deny if Redis unavailable)
     try {
       const lockoutCheck = await checkAuthenticationAllowed(email.toLowerCase());
       if (!lockoutCheck.allowed) {
@@ -180,7 +183,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         );
       }
     } catch {
-      console.warn('Redis unavailable for account lockout check, proceeding');
+      // Redis unavailable — deny request to prevent brute-force bypass
+      return NextResponse.json(
+        { error: 'Service temporarily unavailable. Please try again.', code: 'SERVICE_UNAVAILABLE' },
+        { status: 503 }
+      );
     }
 
     // Find user by email

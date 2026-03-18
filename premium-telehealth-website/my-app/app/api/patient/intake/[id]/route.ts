@@ -2,7 +2,7 @@
  * GET /api/patient/intake/[id]
  * PATCH /api/patient/intake/[id]
  * Retrieve or update an intake draft
- * 
+ *
  * HIPAA Compliance:
  * - Verifies patient owns the intake
  * - Decrypts PHI for authorized access only
@@ -15,9 +15,8 @@ import { prisma } from '@/lib/db/prisma';
 import { AuditService } from '@/lib/services/audit-service';
 import { ValidationService } from '@/lib/services/validation-service';
 import { updateIntakeSchema } from '@/lib/validation/schemas';
-import { Role, IntakeStatus } from '@prisma/client';
+import { Role, IntakeStatus, Prisma } from '@prisma/client';
 import { DataModificationAction } from '@/lib/audit';
-import { encryptPHI, decryptPHI } from '@/lib/encryption/phi';
 
 // ============================================================================
 // GET - Retrieve Intake
@@ -29,7 +28,7 @@ export async function GET(
 ): Promise<NextResponse> {
   // Require patient role
   const auth = await requireRole(request, [Role.PATIENT]);
-  
+
   if (auth instanceof NextResponse) {
     return auth;
   }
@@ -77,24 +76,12 @@ export async function GET(
     // Log access
     await AuditService.logIntakeAccess(userId, 'PATIENT', intakeId, 'VIEW', auditContext);
 
-    // Decrypt form data
-    let formData = {};
-    try {
-      if (intake.formData && typeof intake.formData === 'object') {
-        const encryptedData = JSON.stringify(intake.formData);
-        const decrypted = decryptPHI(encryptedData);
-        formData = JSON.parse(decrypted);
-      }
-    } catch {
-      // If decryption fails, return empty object
-      formData = {};
-    }
-
+    // formData is auto-decrypted by the Prisma encryption extension
     return NextResponse.json({
       intake: {
         id: intake.id,
         status: intake.status,
-        formData,
+        formData: intake.formData ?? {},
         paymentStatus: intake.paymentStatus,
         riskScore: intake.riskScore,
         complexityScore: intake.complexityScore,
@@ -105,7 +92,7 @@ export async function GET(
     });
   } catch (error) {
     console.error('Get intake error:', error);
-    
+
     await AuditService.logApiError(
       error instanceof Error ? error : new Error('Unknown error'),
       `/api/patient/intake/${intakeId}`,
@@ -130,7 +117,7 @@ export async function PATCH(
 ): Promise<NextResponse> {
   // Require patient role
   const auth = await requireRole(request, [Role.PATIENT]);
-  
+
   if (auth instanceof NextResponse) {
     return auth;
   }
@@ -206,10 +193,11 @@ export async function PATCH(
     }
 
     // Update intake
+    // Note: formData is auto-encrypted by the Prisma encryption extension
     const updatedIntake = await prisma.intake.update({
       where: { id: intakeId },
       data: {
-        formData: encryptPHI(JSON.stringify(formData)),
+        formData: formData as Prisma.InputJsonValue,
       },
     });
 
@@ -234,7 +222,7 @@ export async function PATCH(
     });
   } catch (error) {
     console.error('Update intake error:', error);
-    
+
     await AuditService.logApiError(
       error instanceof Error ? error : new Error('Unknown error'),
       `/api/patient/intake/${intakeId}`,

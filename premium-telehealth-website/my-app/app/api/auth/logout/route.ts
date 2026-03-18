@@ -15,6 +15,9 @@ import { cookies } from 'next/headers';
 import { invalidateUserSessions } from '@/lib/auth/session';
 import { verifyAccessToken, decodeTokenUnsafe } from '@/lib/auth/jwt';
 import { rateLimit } from '@/lib/middleware/rate-limit';
+import { auditLogger } from '@/lib/audit/logger';
+import { AuditEventType } from '@/lib/audit/types';
+import { prisma } from '@/lib/db/prisma';
 
 /**
  * Extract token from request
@@ -71,12 +74,24 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     cookieStore.delete('accessToken');
     cookieStore.delete('refreshToken');
     
-    // TODO: Invalidate session in database if session ID is available
-    // await invalidateSession(token);
-    
-    // TODO: Audit log the logout event
-    // await auditLogout(userId, auditContext);
-    
+    // Invalidate session in database
+    if (token) {
+      try {
+        await prisma.session.deleteMany({ where: { token } });
+      } catch {
+        // Best-effort — don't block logout if DB cleanup fails
+      }
+    }
+
+    // Audit log the logout event
+    if (userId) {
+      auditLogger.logAuth(AuditEventType.USER_LOGOUT, userId, true, {
+        ipAddress: clientIp,
+        userAgent: request.headers.get('user-agent') ?? 'unknown',
+        requestId: request.headers.get('x-request-id') ?? crypto.randomUUID(),
+      });
+    }
+
     // Redirect to login after successful logout
     return NextResponse.redirect(new URL('/login', request.url));
   } catch (error) {

@@ -21,7 +21,7 @@ import {
 } from '@/lib/auth/jwt';
 
 // Session management
-import { validateTokenVersion } from '@/lib/auth/session';
+import { validateTokenVersion, createSession } from '@/lib/auth/session';
 
 // Database
 import { prisma } from '@/lib/db/prisma';
@@ -59,24 +59,24 @@ function getAuditContext(request: NextRequest): AuditContext {
 }
 
 /**
- * Update session with new tokens
+ * Rotate session: delete old session, create new one
+ * Ensures the old refresh token cannot be reused.
  */
-async function updateSession(
+async function rotateSession(
   oldRefreshToken: string,
+  userId: string,
   newAccessToken: string,
-  newRefreshToken: string
+  newRefreshToken: string,
+  ipAddress: string,
+  userAgent: string
 ): Promise<void> {
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + 7); // 7 days from now
-
-  await prisma.session.update({
+  // 1. Invalidate the old session by deleting it
+  await prisma.session.deleteMany({
     where: { refreshToken: oldRefreshToken },
-    data: {
-      token: newAccessToken,
-      refreshToken: newRefreshToken,
-      expiresAt,
-    },
   });
+
+  // 2. Create a new session with the new tokens
+  await createSession(userId, newAccessToken, newRefreshToken, ipAddress, userAgent);
 }
 
 // ============================================
@@ -221,24 +221,26 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const { accessToken: newAccessToken, refreshToken: newRefreshToken } =
       await generateTokenPair(user.id, user.email, user.role, user.tokenVersion);
 
-    // Update session with new tokens
+    // Rotate session: delete old session record, create new one
+    // This ensures the old refresh token is invalidated and cannot be reused
     try {
-      await updateSession(refreshToken, newAccessToken, newRefreshToken);
+      await rotateSession(
+        refreshToken,
+        user.id,
+        newAccessToken,
+        newRefreshToken,
+        auditContext.ipAddress,
+        auditContext.userAgent
+      );
     } catch {
-      // Session might not exist in DB, create a new one
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 7);
-
-      await prisma.session.create({
-        data: {
-          userId: user.id,
-          token: newAccessToken,
-          refreshToken: newRefreshToken,
-          expiresAt,
-          ipAddress: auditContext.ipAddress,
-          userAgent: auditContext.userAgent,
-        },
-      });
+      // If rotation fails (e.g., old session didn't exist), still create new session
+      await createSession(
+        user.id,
+        newAccessToken,
+        newRefreshToken,
+        auditContext.ipAddress,
+        auditContext.userAgent
+      );
     }
 
     // Log token refresh audit event

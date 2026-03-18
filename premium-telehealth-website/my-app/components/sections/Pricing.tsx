@@ -70,7 +70,7 @@ export function Pricing() {
             </li>
           </ul>
 
-          <Link href="/checkout/payment?plan=active-treatment" className="btn-primary w-full mt-8 block text-center">
+          <Link href="/checkout/consent?plan=active-treatment" className="btn-primary w-full mt-8 block text-center">
             Get Started
           </Link>
         </motion.div>

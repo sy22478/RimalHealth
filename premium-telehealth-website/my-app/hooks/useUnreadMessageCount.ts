@@ -1,9 +1,11 @@
 /**
  * useUnreadMessageCount Hook
- * 
+ *
  * Simplified hook for tracking unread message count.
  * Optimized for navigation badge display.
- * 
+ * Uses the lightweight /api/physician/messages/count endpoint
+ * instead of fetching full thread data.
+ *
  * @module hooks/useUnreadMessageCount
  */
 
@@ -12,19 +14,10 @@
 import * as React from 'react';
 
 /**
- * Message thread from API response
+ * Response from the lightweight count endpoint
  */
-interface MessageThread {
-  id: string;
-  patientId: string;
-  patientName: string;
-  lastMessage: {
-    body: string;
-    sentAt: string;
-    senderType: 'PATIENT' | 'PHYSICIAN';
-  };
+interface UnreadCountResponse {
   unreadCount: number;
-  totalMessages: number;
 }
 
 /**
@@ -41,14 +34,15 @@ interface UseUnreadMessageCountReturn {
 
 /**
  * Hook for tracking unread message count
- * 
+ *
  * Lightweight hook optimized for navigation badge display.
  * Polls every 60 seconds by default for efficiency.
- * 
+ * Uses a dedicated count endpoint (single DB count query, no joins).
+ *
  * @example
  * ```typescript
  * const { unreadCount, isLoading, refresh } = useUnreadMessageCount();
- * 
+ *
  * // In navigation:
  * {unreadCount > 0 && (
  *   <Badge variant="destructive">{unreadCount}</Badge>
@@ -60,7 +54,7 @@ export function useUnreadMessageCount(): UseUnreadMessageCountReturn {
   const [isLoading, setIsLoading] = React.useState(false);
 
   /**
-   * Fetch unread count from API
+   * Fetch unread count from lightweight count endpoint
    */
   const fetchUnreadCount = React.useCallback(async (showLoading = true) => {
     if (showLoading) {
@@ -68,7 +62,7 @@ export function useUnreadMessageCount(): UseUnreadMessageCountReturn {
     }
 
     try {
-      const response = await fetch('/api/physician/messages', {
+      const response = await fetch('/api/physician/messages/count', {
         credentials: 'include',
       });
 
@@ -78,18 +72,11 @@ export function useUnreadMessageCount(): UseUnreadMessageCountReturn {
           setUnreadCount(0);
           return;
         }
-        throw new Error(`Failed to fetch messages: ${response.statusText}`);
+        throw new Error(`Failed to fetch unread count: ${response.statusText}`);
       }
 
-      const data = await response.json() as { threads: MessageThread[] };
-      
-      // Calculate total unread count
-      const count = data.threads.reduce(
-        (sum, thread) => sum + thread.unreadCount,
-        0
-      );
-
-      setUnreadCount(count);
+      const data = await response.json() as UnreadCountResponse;
+      setUnreadCount(data.unreadCount);
     } catch (err) {
       console.error('Unread count fetch error:', err);
       // Don't reset count on error to avoid UI flicker

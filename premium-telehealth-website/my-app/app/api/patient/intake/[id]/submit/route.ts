@@ -1,7 +1,7 @@
 /**
  * POST /api/patient/intake/[id]/submit
  * Submit intake for physician review
- * 
+ *
  * HIPAA Compliance:
  * - Verifies patient owns the intake
  * - Validates all required fields
@@ -17,9 +17,8 @@ import { ValidationService } from '@/lib/services/validation-service';
 import { NotificationService } from '@/lib/services/notification-service';
 import { submitIntakeSchema } from '@/lib/validation/schemas';
 import { calculateIntakeScores } from '@/lib/intake/scoring';
-import { Role, IntakeStatus } from '@prisma/client';
+import { Role, IntakeStatus, Prisma } from '@prisma/client';
 import { DataModificationAction } from '@/lib/audit';
-import { encryptPHI } from '@/lib/encryption/phi';
 
 // ============================================================================
 // POST - Submit Intake
@@ -31,7 +30,7 @@ export async function POST(
 ): Promise<NextResponse> {
   // Require patient role
   const auth = await requireRole(request, [Role.PATIENT]);
-  
+
   if (auth instanceof NextResponse) {
     return auth;
   }
@@ -114,8 +113,9 @@ export async function POST(
     }
 
     // Check payment status
-    // In development, skip this check; in production, require payment
-    if (process.env.NODE_ENV === 'production' && intake.paymentStatus !== 'COMPLETED') {
+    // In production, always require payment. In dev/test, require if REQUIRE_PAYMENT=true.
+    const requirePayment = process.env.NODE_ENV === 'production' || process.env.REQUIRE_PAYMENT === 'true';
+    if (requirePayment && intake.paymentStatus !== 'COMPLETED') {
       return NextResponse.json(
         {
           error: 'Payment required before submission',
@@ -129,11 +129,12 @@ export async function POST(
     const scores = calculateIntakeScores(formData as Record<string, unknown>);
 
     // Update intake
+    // Note: formData is auto-encrypted by the Prisma encryption extension
     const updatedIntake = await prisma.intake.update({
       where: { id: intakeId },
       data: {
         status: IntakeStatus.SUBMITTED,
-        formData: encryptPHI(JSON.stringify(formData)),
+        formData: formData as Prisma.InputJsonValue,
         submittedAt: new Date(),
         riskScore: scores.riskScore,
         complexityScore: scores.complexityScore,
@@ -141,20 +142,22 @@ export async function POST(
     });
 
     // Update patient profile with form data
+    // Note: PHI fields (firstName, lastName, phone, etc.) are auto-encrypted
+    // by the Prisma encryption extension -- do NOT manually encrypt them here.
     await prisma.patientProfile.update({
       where: { userId },
       data: {
-        firstName: encryptPHI(formData.firstName),
-        lastName: encryptPHI(formData.lastName),
-        phone: encryptPHI(formData.phone),
-        dateOfBirth: encryptPHI(formData.dateOfBirth),
-        addressStreet: encryptPHI(formData.addressStreet),
-        addressCity: encryptPHI(formData.addressCity),
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phone: formData.phone,
+        dateOfBirth: formData.dateOfBirth,
+        addressStreet: formData.addressStreet,
+        addressCity: formData.addressCity,
         addressState: 'CA',
-        addressZip: encryptPHI(formData.addressZip),
+        addressZip: formData.addressZip,
         primaryConcern: formData.primaryConcern,
         treatmentGoal: formData.treatmentGoal,
-        medicalHistory: encryptPHI(JSON.stringify({
+        medicalHistory: {
           isPregnant: formData.isPregnant,
           isPregnantDetails: formData.isPregnantDetails,
           hasSeizureHistory: formData.hasSeizureHistory,
@@ -168,12 +171,12 @@ export async function POST(
           hasHeartCondition: formData.hasHeartCondition,
           heartConditionDetails: formData.heartConditionDetails,
           otherConditions: formData.otherConditions,
-        })),
-        currentMedications: encryptPHI(JSON.stringify({
+        } as Prisma.InputJsonValue,
+        currentMedications: {
           takingMedications: formData.takingMedications,
           medicationList: formData.medicationList,
           medicationAllergies: formData.medicationAllergies,
-        })),
+        } as Prisma.InputJsonValue,
         privacyConsentGiven: true,
         privacyConsentDate: new Date(),
         privacyConsentVersion: '1.0',
@@ -211,7 +214,7 @@ export async function POST(
     });
   } catch (error) {
     console.error('Submit intake error:', error);
-    
+
     await AuditService.logApiError(
       error instanceof Error ? error : new Error('Unknown error'),
       `/api/patient/intake/${intakeId}/submit`,

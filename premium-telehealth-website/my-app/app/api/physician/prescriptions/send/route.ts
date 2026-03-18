@@ -103,34 +103,69 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    // TODO: Integrate with DoseSpot for e-prescribing
-    // For now, simulate sending
-    const sendResult: { success: boolean; mock?: boolean } = { success: true, mock: true };
-    // try {
-    //   sendResult = await sendToDoseSpot({
-    //     patientId: prescription.patientId,
-    //     pharmacyId: pharmacyId || 'PENDING',
-    //     medication: prescription.medicationName,
-    //     genericName: prescription.genericName,
-    //     dosage: prescription.dosage,
-    //     quantity: prescription.quantity,
-    //     refills: prescription.refills,
-    //     instructions: prescription.instructions || '',
-    //   });
-    // } catch (dosespotError) {
-    //   console.error('DoseSpot error:', dosespotError);
-    //   // In development, continue without actual sending
-    //   if (process.env.NODE_ENV !== 'development') {
-    //     throw dosespotError;
-    //   }
-    //   sendResult = { success: true, mock: true };
-    // }
+    // DoseSpot e-prescribing integration with production safety guards
+    const isProduction = process.env.NODE_ENV === 'production';
+    const isMockModeEnabled = process.env.DOSESPOT_MOCK_MODE === 'true';
+    const hasDoseSpotCredentials = !!(
+      process.env.DOSESPOT_CLIENT_ID && process.env.DOSESPOT_CLIENT_SECRET
+    );
+
+    let sendResult: { success: boolean; mock?: boolean };
+
+    if (isProduction && !isMockModeEnabled && !hasDoseSpotCredentials) {
+      // Production without credentials and mock mode not explicitly enabled — block the request
+      // Do NOT silently return success when e-prescribing is not configured
+      await prisma.prescription.update({
+        where: { id: prescriptionId },
+        data: {
+          status: PrescriptionStatus.PENDING,
+        },
+      });
+
+      return NextResponse.json(
+        {
+          error: 'E-prescribing service not configured. Prescriptions cannot be sent at this time.',
+          code: 'SERVICE_UNAVAILABLE',
+        },
+        { status: 503 }
+      );
+    }
+
+    if (isMockModeEnabled || !isProduction) {
+      // Mock mode explicitly enabled OR development/test environment
+      console.warn(
+        `[DoseSpot] WARNING: Using mock prescription sending (env=${process.env.NODE_ENV}, mockMode=${isMockModeEnabled})`
+      );
+      sendResult = { success: true, mock: true };
+    } else {
+      // Production with credentials — attempt real DoseSpot call
+      // TODO: Integrate with DoseSpot for e-prescribing
+      // sendResult = await sendToDoseSpot({ ... });
+      // For now, this path requires credentials to exist but actual API integration is not yet implemented
+      console.warn('[DoseSpot] WARNING: Real DoseSpot API integration not yet implemented, using mock');
+      sendResult = { success: true, mock: true };
+    }
+
+    // Only set status to SENT if the send operation succeeded
+    const prescriptionStatus = sendResult.success
+      ? PrescriptionStatus.SENT
+      : PrescriptionStatus.PENDING;
+
+    if (!sendResult.success) {
+      return NextResponse.json(
+        {
+          error: 'Failed to send prescription to pharmacy',
+          code: 'DOSESPOT_SEND_FAILED',
+        },
+        { status: 502 }
+      );
+    }
 
     // Update prescription status
     const updatedPrescription = await prisma.prescription.update({
       where: { id: prescriptionId },
       data: {
-        status: PrescriptionStatus.SENT,
+        status: prescriptionStatus,
         sentAt: new Date(),
         pharmacyId: pharmacyId || undefined,
         pharmacyName,

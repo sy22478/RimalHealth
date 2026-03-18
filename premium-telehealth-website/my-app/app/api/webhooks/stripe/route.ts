@@ -89,7 +89,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  console.log(`[Stripe Webhook] Received event: ${event.type}`);
+  console.info(`[Stripe Webhook] Event: ${event.type}`);
 
   // ========================================================================
   // 2. Handle the event
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         break;
 
       default:
-        console.log(`[Stripe Webhook] Unhandled event type: ${event.type}`);
+        console.info(`[Stripe Webhook] Unhandled event type: ${event.type}`);
     }
 
     return NextResponse.json({ received: true });
@@ -143,7 +143,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
  * For existing users, links subscription and sends welcome email.
  */
 async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise<void> {
-  console.log('[Stripe Webhook] Processing checkout.session.completed');
+  // Processing checkout.session.completed
 
   // Initialize lazy imports
   const prisma = await getPrisma();
@@ -151,7 +151,6 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
   const { EmailTemplate } = await getNotifications();
   const { auditLogger, PHIResourceType } = await getAuditLogger();
   const { hashPassword } = await import('@/lib/auth/password');
-  const { encryptPHI } = await import('@/lib/encryption/phi');
 
   const customerEmail = session.customer_email;
   const customerId = session.customer as string;
@@ -185,7 +184,7 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
     });
 
     isNewUser = true;
-    console.log(`[Stripe Webhook] Auto-created user for: ${customerEmail}`);
+    console.info('[Stripe Webhook] Auto-created user after checkout');
   }
 
   const userId = user.id;
@@ -198,7 +197,7 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
       where: { stripeSubscriptionId: subscriptionId },
     });
     if (existingSub) {
-      console.log(`[Stripe Webhook] Subscription ${subscriptionId} already recorded, skipping`);
+      console.info('[Stripe Webhook] Subscription already recorded, skipping');
       return;
     }
   }
@@ -212,20 +211,21 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
 
   if (!existingProfile) {
     // Create a minimal profile — patient will complete it later
+    // PHI fields are auto-encrypted by the Prisma encryption extension
     await prisma.patientProfile.create({
       data: {
         userId,
-        firstName: encryptPHI(''),
-        lastName: encryptPHI(''),
-        dateOfBirth: encryptPHI(''),
-        phone: encryptPHI(''),
-        addressStreet: encryptPHI(''),
-        addressCity: encryptPHI(''),
+        firstName: '',
+        lastName: '',
+        dateOfBirth: '',
+        phone: '',
+        addressStreet: '',
+        addressCity: '',
         addressState: 'CA',
-        addressZip: encryptPHI(''),
+        addressZip: '',
       },
     });
-    console.log(`[Stripe Webhook] Created empty patient profile for user: ${userId}`);
+    // Patient profile created via webhook
   }
 
   // ========================================================================
@@ -262,7 +262,7 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
     },
   });
 
-  console.log(`[Stripe Webhook] Created subscription for user: ${userId}`);
+  // Subscription record created
 
   // ========================================================================
   // 5. Send appropriate emails (directly, not queued, for reliability)
@@ -290,7 +290,7 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
       },
     });
 
-    console.log(`[Stripe Webhook] Sent set-password email to: ${customerEmail}`);
+    // Set-password email sent
   } else {
     // Existing user — send welcome/payment receipt
     await sendEmail({
@@ -335,7 +335,7 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
     }
   );
 
-  console.log(`[Stripe Webhook] Completed checkout for user: ${userId}`);
+  // Checkout processing complete
 }
 
 /**
@@ -343,7 +343,7 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
  * Updates subscription status and records payment
  */
 async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice): Promise<void> {
-  console.log('[Stripe Webhook] Processing invoice.payment_succeeded');
+  // Processing invoice.payment_succeeded
 
   // Initialize lazy imports
   const prisma = await getPrisma();
@@ -365,7 +365,7 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice): Promise<v
   });
 
   if (existingInvoice) {
-    console.log(`[Stripe Webhook] Invoice ${invoice.id} already recorded`);
+    // Invoice already recorded, skipping
     return;
   }
 
@@ -403,7 +403,7 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice): Promise<v
     },
   });
 
-  console.log(`[Stripe Webhook] Recorded payment for subscription: ${subscriptionId}`);
+  // Payment recorded for subscription
 }
 
 /**
@@ -411,7 +411,7 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice): Promise<v
  * Marks subscription as past due and notifies user
  */
 async function handleInvoicePaymentFailed(invoice: Stripe.Invoice): Promise<void> {
-  console.log('[Stripe Webhook] Processing invoice.payment_failed');
+  // Processing invoice.payment_failed
 
   // Initialize lazy imports
   const prisma = await getPrisma();
@@ -455,7 +455,7 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice): Promise<void
     },
   });
 
-  console.log(`[Stripe Webhook] Marked subscription as past due: ${subscriptionId}`);
+  // Subscription marked as past due
 }
 
 /**
@@ -463,7 +463,7 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice): Promise<void
  * Logs new subscription (usually handled by checkout.session.completed)
  */
 async function handleSubscriptionCreated(subscription: Stripe.Subscription): Promise<void> {
-  console.log(`[Stripe Webhook] Subscription created in Stripe: ${subscription.id}`);
+  // Subscription created in Stripe (handled by checkout.session.completed)
   // Main logic handled by checkout.session.completed
   // This handler catches subscriptions created outside of checkout flow
 }
@@ -473,7 +473,7 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription): Pro
  * Updates subscription details including plan changes and status updates
  */
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription): Promise<void> {
-  console.log(`[Stripe Webhook] Processing customer.subscription.updated: ${subscription.id}`);
+  // Processing customer.subscription.updated
 
   // Initialize lazy imports
   const prisma = await getPrisma();
@@ -560,7 +560,7 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription): Pro
     },
   });
 
-  console.log(`[Stripe Webhook] Updated subscription: ${subscription.id}`);
+  // Subscription updated
 }
 
 /**
@@ -568,7 +568,7 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription): Pro
  * Marks subscription as cancelled in database
  */
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription): Promise<void> {
-  console.log(`[Stripe Webhook] Processing customer.subscription.deleted: ${subscription.id}`);
+  // Processing customer.subscription.deleted
 
   // Initialize lazy imports
   const prisma = await getPrisma();
@@ -611,5 +611,5 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription): Pro
     },
   });
 
-  console.log(`[Stripe Webhook] Cancelled subscription: ${subscription.id}`);
+  // Subscription cancelled
 }

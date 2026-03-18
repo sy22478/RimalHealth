@@ -15,14 +15,12 @@ import {
 
 // ============================================================================
 // Checkout Form Context Provider
-// Manages multi-step form state with localStorage persistence
+// Manages multi-step form state (in-memory only, no localStorage for HIPAA)
 // ============================================================================
 
 const CheckoutContext = React.createContext<CheckoutContextType | undefined>(
   undefined
 );
-
-const LOCAL_STORAGE_KEY = "rimal_checkout_data";
 
 interface CheckoutProviderProps {
   children: React.ReactNode;
@@ -37,32 +35,6 @@ export function CheckoutProvider({ children }: CheckoutProviderProps) {
     addressState: "CA",
     billingSameAsHome: true,
   });
-
-  // Load saved data from localStorage on mount
-  React.useEffect(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setFormData((prev) => ({ ...prev, ...parsed.formData }));
-        setCurrentStep(parsed.currentStep || 1);
-      }
-    } catch {
-      // Ignore localStorage errors (privacy mode, etc.)
-    }
-  }, []);
-
-  // Save to localStorage whenever data changes
-  React.useEffect(() => {
-    try {
-      localStorage.setItem(
-        LOCAL_STORAGE_KEY,
-        JSON.stringify({ formData, currentStep })
-      );
-    } catch {
-      // Ignore localStorage errors
-    }
-  }, [formData, currentStep]);
 
   const updateFormData = React.useCallback((data: Partial<CheckoutData>) => {
     setFormData((prev) => ({ ...prev, ...data }));
@@ -167,9 +139,6 @@ export function CheckoutProvider({ children }: CheckoutProviderProps) {
           error.message || "Failed to submit. Please try again."
         );
       }
-
-      // Clear localStorage on successful submission
-      localStorage.removeItem(LOCAL_STORAGE_KEY);
 
       // Redirect to payment
       router.push("/checkout/payment");

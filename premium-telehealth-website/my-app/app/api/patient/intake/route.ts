@@ -1,7 +1,7 @@
 /**
  * POST /api/patient/intake
  * Create a new intake draft
- * 
+ *
  * HIPAA Compliance:
  * - Validates patient authentication
  * - Logs intake creation
@@ -15,8 +15,7 @@ import { AuditService } from '@/lib/services/audit-service';
 import { ValidationService } from '@/lib/services/validation-service';
 import { NotificationService } from '@/lib/services/notification-service';
 import { createIntakeSchema } from '@/lib/validation/schemas';
-import { Role, IntakeStatus, PaymentStatus } from '@prisma/client';
-import { encryptPHI } from '@/lib/encryption/phi';
+import { Role, IntakeStatus, PaymentStatus, Prisma } from '@prisma/client';
 
 // ============================================================================
 // POST - Create Intake Draft
@@ -25,7 +24,7 @@ import { encryptPHI } from '@/lib/encryption/phi';
 export async function POST(request: NextRequest): Promise<NextResponse> {
   // Require patient role
   const auth = await requireRole(request, [Role.PATIENT]);
-  
+
   if (auth instanceof NextResponse) {
     return auth;
   }
@@ -74,20 +73,25 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Create intake draft
-    const intake = await prisma.intake.create({
-      data: {
-        patientId: userId,
-        status: IntakeStatus.DRAFT,
-        formData: formData ? encryptPHI(JSON.stringify(formData)) : {},
-        paymentStatus: PaymentStatus.PENDING,
-      },
-    });
+    // Create intake draft and update patient profile atomically
+    // Note: formData is auto-encrypted by the Prisma encryption extension
+    const intake = await prisma.$transaction(async (tx) => {
+      const newIntake = await tx.intake.create({
+        data: {
+          patientId: userId,
+          status: IntakeStatus.DRAFT,
+          formData: (formData ?? {}) as Prisma.InputJsonValue,
+          paymentStatus: PaymentStatus.PENDING,
+        },
+      });
 
-    // Update patient profile with primary concern
-    await prisma.patientProfile.update({
-      where: { userId },
-      data: { primaryConcern },
+      // Update patient profile with primary concern
+      await tx.patientProfile.update({
+        where: { userId },
+        data: { primaryConcern },
+      });
+
+      return newIntake;
     });
 
     // Log intake creation
@@ -114,7 +118,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   } catch (error) {
     console.error('Create intake error:', error);
-    
+
     await AuditService.logApiError(
       error instanceof Error ? error : new Error('Unknown error'),
       '/api/patient/intake',

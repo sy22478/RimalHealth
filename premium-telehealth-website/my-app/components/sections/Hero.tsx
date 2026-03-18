@@ -81,7 +81,7 @@ export function Hero() {
         {/* CTA */}
         <motion.div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4" variants={itemVariants}>
           <Link
-            href="/checkout/payment"
+            href="/checkout/consent"
             className="inline-flex items-center justify-center px-10 py-4 bg-gradient-to-r from-blue-500 to-ocean-500 text-white font-semibold rounded-lg shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5 transition-all duration-200 text-lg"
           >
             Get Started — $50/month

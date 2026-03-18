@@ -539,6 +539,14 @@ export class DoseSpotClient {
 }
 
 // ============================================
+// PRODUCTION SAFETY GUARD
+// ============================================
+
+if (process.env.NODE_ENV === 'production' && process.env.DOSESPOT_MOCK_MODE === 'true') {
+  console.warn('[DoseSpot] WARNING: Mock mode enabled in production environment');
+}
+
+// ============================================
 // SINGLETON INSTANCE
 // ============================================
 

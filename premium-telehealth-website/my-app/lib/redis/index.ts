@@ -1,7 +1,7 @@
 /**
  * Redis Module
  * Centralized exports for Redis client, cache, and session utilities
- * 
+ *
  * Usage:
  *   import { getRedisClient, getCache, setCache, storeSession, getSession } from '@/lib/redis';
  */
@@ -12,6 +12,11 @@ export {
   closeRedisConnection,
   checkRedisHealth,
   getRedisStatus,
+  // Circuit breaker
+  getCircuitBreakerState,
+  isCircuitClosed,
+  recordSuccess,
+  recordFailure,
 } from './client';
 
 // Cache

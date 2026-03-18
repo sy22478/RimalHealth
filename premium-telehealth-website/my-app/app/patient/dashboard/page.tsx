@@ -1,62 +1,139 @@
-import * as React from 'react';
-import { redirect } from 'next/navigation';
-import { PatientDashboard } from '@/components/patient/PatientDashboard';
-import { DashboardData } from '@/types/dashboard';
-import { prisma } from '@/lib/db/prisma';
-import { SenderType, Role } from '@prisma/client';
-import { requireRole } from '@/lib/auth/session-helpers';
+import * as React from "react";
+import { redirect } from "next/navigation";
+import { PatientDashboard } from "@/components/patient/PatientDashboard";
+import { DashboardData } from "@/types/dashboard";
+import { prisma } from "@/lib/db/prisma";
+import { SenderType, Role } from "@prisma/client";
+import { requireRole } from "@/lib/auth/session-helpers";
 
 async function getDashboardData(userId: string): Promise<DashboardData> {
-  const [profile, intake, subscription, prescriptions, messages, unreadCount] = await Promise.all([
+  const results = await Promise.allSettled([
     prisma.patientProfile.findUnique({
       where: { userId },
       select: {
-        id: true, userId: true, firstName: true, lastName: true,
-        primaryConcern: true, treatmentGoal: true, createdAt: true, updatedAt: true,
+        id: true,
+        userId: true,
+        firstName: true,
+        lastName: true,
+        primaryConcern: true,
+        treatmentGoal: true,
+        createdAt: true,
+        updatedAt: true,
       },
     }),
     prisma.intake.findFirst({
       where: { patientId: userId },
-      orderBy: { createdAt: 'desc' },
-      select: { id: true, status: true, submittedAt: true, riskScore: true, paymentStatus: true },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        status: true,
+        submittedAt: true,
+        riskScore: true,
+        paymentStatus: true,
+      },
     }),
     prisma.subscription.findFirst({
       where: { userId },
-      orderBy: { createdAt: 'desc' },
-      select: { id: true, status: true, currentPeriodEnd: true, planType: true, amount: true },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        status: true,
+        currentPeriodEnd: true,
+        planType: true,
+        amount: true,
+      },
     }),
     prisma.prescription.findMany({
       where: { patientId: userId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       take: 5,
       select: {
-        id: true, medicationName: true, genericName: true, dosage: true,
-        quantity: true, refills: true, refillsRemaining: true, status: true,
-        nextRefillAvailable: true, pharmacyName: true, sentAt: true,
+        id: true,
+        medicationName: true,
+        genericName: true,
+        dosage: true,
+        quantity: true,
+        refills: true,
+        refillsRemaining: true,
+        status: true,
+        nextRefillAvailable: true,
+        pharmacyName: true,
+        sentAt: true,
       },
     }),
     prisma.message.findMany({
       where: { recipientId: userId },
-      orderBy: { sentAt: 'desc' },
+      orderBy: { sentAt: "desc" },
       take: 3,
-      select: { id: true, subject: true, body: true, senderType: true, senderId: true, sentAt: true, readAt: true },
+      select: {
+        id: true,
+        subject: true,
+        body: true,
+        senderType: true,
+        senderId: true,
+        sentAt: true,
+        readAt: true,
+      },
     }),
     prisma.message.count({ where: { recipientId: userId, readAt: null } }),
   ]);
 
-  const dashboardMessages = messages.map(msg => ({
+  // Extract each result with graceful fallback for failures
+  const profile =
+    results[0].status === "fulfilled" ? results[0].value : null;
+  const intake =
+    results[1].status === "fulfilled" ? results[1].value : null;
+  const subscription =
+    results[2].status === "fulfilled" ? results[2].value : null;
+  const prescriptions =
+    results[3].status === "fulfilled" ? results[3].value : [];
+  const messages =
+    results[4].status === "fulfilled" ? results[4].value : [];
+  const unreadCount =
+    results[5].status === "fulfilled" ? results[5].value : 0;
+
+  // Log any failed queries for debugging (no PHI in error messages)
+  const queryNames = [
+    "profile",
+    "intake",
+    "subscription",
+    "prescriptions",
+    "messages",
+    "unreadCount",
+  ];
+  results.forEach((result, index) => {
+    if (result.status === "rejected") {
+      console.error(
+        `[Dashboard] Failed to fetch ${queryNames[index]}:`,
+        result.reason instanceof Error
+          ? result.reason.message
+          : "Unknown error"
+      );
+    }
+  });
+
+  const dashboardMessages = messages.map((msg) => ({
     id: msg.id,
     subject: msg.subject,
     body: msg.body,
     senderType: msg.senderType,
     senderId: msg.senderId,
-    senderName: msg.senderType === SenderType.PHYSICIAN ? 'Your Doctor' : 'System',
+    senderName:
+      msg.senderType === SenderType.PHYSICIAN ? "Your Doctor" : "System",
     sentAt: msg.sentAt,
     read: msg.readAt !== null,
-    preview: msg.body.slice(0, 150) + (msg.body.length > 150 ? '...' : ''),
+    preview:
+      msg.body.slice(0, 150) + (msg.body.length > 150 ? "..." : ""),
   }));
 
-  return { profile, intake, subscription, prescriptions, messages: dashboardMessages, unreadCount };
+  return {
+    profile,
+    intake,
+    subscription,
+    prescriptions,
+    messages: dashboardMessages,
+    unreadCount,
+  };
 }
 
 export default async function PatientDashboardPage() {
@@ -64,7 +141,7 @@ export default async function PatientDashboardPage() {
 
   const data = await getDashboardData(user.id);
   if (!data.profile) {
-    redirect('/profile/setup');
+    redirect("/profile/setup");
   }
 
   return (
@@ -75,4 +152,4 @@ export default async function PatientDashboardPage() {
 }
 
 export const revalidate = 60;
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";

@@ -6,18 +6,19 @@ import { useForm, FormProvider, useFormContext } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
-import { 
-  User, 
-  MapPin, 
-  Phone, 
-  Shield, 
-  ChevronRight, 
-  ChevronLeft, 
+import {
+  User,
+  MapPin,
+  Phone,
+  Shield,
+  ChevronRight,
+  ChevronLeft,
   CheckCircle,
   AlertCircle,
   Loader2,
   Building2,
-  Heart
+  Heart,
+  Search
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -60,16 +61,84 @@ const profileSetupSchema = z.object({
 type ProfileSetupData = z.infer<typeof profileSetupSchema>;
 
 // ============================================================================
-// Mock Pharmacies
+// Pharmacy Search Types & Hook
 // ============================================================================
 
-const mockPharmacies = [
-  { id: 'cvs-001', name: 'CVS Pharmacy', address: '123 Main St, Los Angeles, CA 90001', phone: '(323) 555-0100' },
-  { id: 'walgreens-001', name: 'Walgreens', address: '456 Oak Ave, Los Angeles, CA 90002', phone: '(323) 555-0200' },
-  { id: 'riteaid-001', name: 'Rite Aid', address: '789 Pine Rd, Los Angeles, CA 90003', phone: '(323) 555-0300' },
-  { id: 'costco-001', name: 'Costco Pharmacy', address: '321 Elm St, Los Angeles, CA 90004', phone: '(323) 555-0400' },
-  { id: 'other', name: 'Other (I\'ll enter details later)', address: '', phone: '' },
-];
+interface PharmacyResult {
+  id: string;
+  name: string;
+  address: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  phone: string | null;
+  is24Hour: boolean;
+  hasDelivery: boolean;
+  hasDriveThru: boolean;
+}
+
+/**
+ * Custom hook for debounced pharmacy search via the real API.
+ * Calls GET /api/patient/pharmacies/search with query and optional zip.
+ */
+function usePharmacySearch() {
+  const [pharmacies, setPharmacies] = React.useState<PharmacyResult[]>([]);
+  const [isSearching, setIsSearching] = React.useState(false);
+  const [searchError, setSearchError] = React.useState<string | null>(null);
+  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const search = React.useCallback((query: string, zip: string) => {
+    // Clear any pending debounce
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    // If both fields are empty, clear results
+    if (!query.trim() && !zip.trim()) {
+      setPharmacies([]);
+      setSearchError(null);
+      return;
+    }
+
+    debounceRef.current = setTimeout(async () => {
+      setIsSearching(true);
+      setSearchError(null);
+
+      try {
+        const params = new URLSearchParams();
+        if (query.trim()) params.set('q', query.trim());
+        if (zip.trim()) params.set('zip', zip.trim());
+
+        const response = await fetch(`/api/patient/pharmacies/search?${params.toString()}`, {
+          credentials: 'include',
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to search pharmacies');
+        }
+
+        const data = await response.json() as { pharmacies: PharmacyResult[] };
+        setPharmacies(data.pharmacies);
+      } catch {
+        setSearchError('Unable to search pharmacies. You can add one later from your profile.');
+        setPharmacies([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+  }, []);
+
+  // Cleanup debounce timer on unmount
+  React.useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, []);
+
+  return { pharmacies, isSearching, searchError, search };
+}
 
 // ============================================================================
 // Form Steps Configuration
@@ -322,9 +391,20 @@ function EmergencyContactStep() {
 }
 
 function InsurancePharmacyStep() {
-  const { register, watch, formState: { errors } } = useFormContext<ProfileSetupData>();
+  const { register, watch, setValue, formState: { errors } } = useFormContext<ProfileSetupData>();
   const selectedPharmacy = watch('preferredPharmacyId');
-  
+  const zipCode = watch('zipCode');
+  const { pharmacies, isSearching, searchError, search } = usePharmacySearch();
+  const [pharmacyQuery, setPharmacyQuery] = React.useState('');
+
+  const handlePharmacySearch = React.useCallback(
+    (query: string) => {
+      setPharmacyQuery(query);
+      search(query, zipCode || '');
+    },
+    [search, zipCode]
+  );
+
   return (
     <div className="space-y-6">
       {/* Insurance Section */}
@@ -333,7 +413,7 @@ function InsurancePharmacyStep() {
           <Shield className="h-4 w-4 text-ocean-500" />
           Insurance Information (Optional)
         </h4>
-        
+
         <div className="space-y-2">
           <Label htmlFor="insuranceProvider">Insurance Provider</Label>
           <Input
@@ -366,35 +446,100 @@ function InsurancePharmacyStep() {
           Preferred Pharmacy (Optional)
         </h4>
 
-        <div className="space-y-3">
-          {mockPharmacies.map((pharmacy) => (
-            <label
-              key={pharmacy.id}
-              className={cn(
-                'flex items-start gap-3 p-4 rounded-lg border cursor-pointer transition-all',
-                selectedPharmacy === pharmacy.id
-                  ? 'border-ocean-500 bg-ocean-50'
-                  : 'border-gray-200 hover:border-gray-300 bg-white'
-              )}
-            >
-              <input
-                type="radio"
-                {...register('preferredPharmacyId')}
-                value={pharmacy.id}
-                className="w-4 h-4 mt-0.5 text-ocean-600 border-gray-300 focus:ring-ocean-500"
-              />
-              <div className="flex-1">
-                <p className="font-medium text-gray-900">{pharmacy.name}</p>
-                {pharmacy.address && (
-                  <p className="text-sm text-gray-500">{pharmacy.address}</p>
-                )}
-                {pharmacy.phone && (
-                  <p className="text-sm text-gray-500">{pharmacy.phone}</p>
-                )}
-              </div>
-            </label>
-          ))}
+        {/* Pharmacy Search Input */}
+        <div className="space-y-2">
+          <Label htmlFor="pharmacySearch">Search by name or city</Label>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              id="pharmacySearch"
+              value={pharmacyQuery}
+              onChange={(e) => handlePharmacySearch(e.target.value)}
+              placeholder="e.g., CVS, Walgreens, Los Angeles..."
+              className="pl-10"
+            />
+            {isSearching && (
+              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 animate-spin" />
+            )}
+          </div>
+          {zipCode && (
+            <p className="text-xs text-gray-500">
+              Showing results near ZIP code {zipCode}
+            </p>
+          )}
         </div>
+
+        {/* Search Error */}
+        {searchError && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{searchError}</AlertDescription>
+          </Alert>
+        )}
+
+        {/* Pharmacy Results */}
+        <div className="space-y-3 max-h-72 overflow-y-auto">
+          {pharmacies.length > 0 ? (
+            pharmacies.map((pharmacy) => (
+              <label
+                key={pharmacy.id}
+                className={cn(
+                  'flex items-start gap-3 p-4 rounded-lg border cursor-pointer transition-all',
+                  selectedPharmacy === pharmacy.id
+                    ? 'border-ocean-500 bg-ocean-50'
+                    : 'border-gray-200 hover:border-gray-300 bg-white'
+                )}
+              >
+                <input
+                  type="radio"
+                  {...register('preferredPharmacyId')}
+                  value={pharmacy.id}
+                  className="w-4 h-4 mt-0.5 text-ocean-600 border-gray-300 focus:ring-ocean-500"
+                />
+                <div className="flex-1">
+                  <p className="font-medium text-gray-900">{pharmacy.name}</p>
+                  <p className="text-sm text-gray-500">
+                    {pharmacy.address}, {pharmacy.city}, {pharmacy.state} {pharmacy.zipCode}
+                  </p>
+                  {pharmacy.phone && (
+                    <p className="text-sm text-gray-500">{pharmacy.phone}</p>
+                  )}
+                  <div className="flex gap-2 mt-1">
+                    {pharmacy.is24Hour && (
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">24 Hour</span>
+                    )}
+                    {pharmacy.hasDelivery && (
+                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Delivery</span>
+                    )}
+                    {pharmacy.hasDriveThru && (
+                      <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">Drive-Thru</span>
+                    )}
+                  </div>
+                </div>
+              </label>
+            ))
+          ) : pharmacyQuery.trim() && !isSearching && !searchError ? (
+            <div className="text-center py-6 text-gray-500">
+              <Building2 className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+              <p className="text-sm">No pharmacies found. Try a different search term.</p>
+            </div>
+          ) : !pharmacyQuery.trim() ? (
+            <p className="text-sm text-gray-500 text-center py-4">
+              Start typing to search for a pharmacy near you.
+            </p>
+          ) : null}
+        </div>
+
+        {/* Clear selection option */}
+        {selectedPharmacy && (
+          <button
+            type="button"
+            onClick={() => setValue('preferredPharmacyId', undefined)}
+            className="text-sm text-ocean-600 hover:underline"
+          >
+            Clear pharmacy selection
+          </button>
+        )}
 
         <p className="text-xs text-gray-500">
           You can change your preferred pharmacy at any time from your profile settings.

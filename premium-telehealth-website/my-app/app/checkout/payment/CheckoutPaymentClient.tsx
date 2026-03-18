@@ -12,7 +12,7 @@
 import * as React from 'react';
 import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Check, Loader2, Shield, AlertCircle, FileCheck } from 'lucide-react';
+import { Check, Loader2, Shield, AlertCircle } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,8 +20,6 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
 
 import { getPlans, PlanInfo, isStripeConfigured } from '@/lib/stripe/stripe-client';
 
@@ -29,48 +27,13 @@ import { getPlans, PlanInfo, isStripeConfigured } from '@/lib/stripe/stripe-clie
 // Types
 // ============================================
 
-type CheckoutStatus = 'idle' | 'consent' | 'loading' | 'redirecting' | 'error';
+type CheckoutStatus = 'idle' | 'loading' | 'redirecting' | 'error';
 
 interface CheckoutState {
   status: CheckoutStatus;
   error?: string;
   selectedPlan?: string;
 }
-
-// ============================================
-// Consent Checkboxes
-// ============================================
-
-const CONSENT_ITEMS: { id: string; label: React.ReactNode }[] = [
-  { id: 'age', label: 'I confirm that I am at least 18 years of age.' },
-  { id: 'california', label: 'I confirm that I am a current resident of the state of California.' },
-  {
-    id: 'hipaa',
-    label: (
-      <>
-        I have read and agree to the{' '}
-        <a href="/hipaa" target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80">
-          HIPAA Notice of Privacy Practices
-        </a>.
-      </>
-    ),
-  },
-  {
-    id: 'privacy',
-    label: (
-      <>
-        I have read and agree to the{' '}
-        <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80">
-          Privacy Policy
-        </a>{' '}and{' '}
-        <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80">
-          Terms of Service
-        </a>.
-      </>
-    ),
-  },
-  { id: 'telehealth', label: 'I consent to receive telehealth services, including asynchronous physician communication and medication-assisted treatment.' },
-];
 
 // ============================================
 // Plan Card Component
@@ -172,33 +135,17 @@ function CheckoutPaymentContent() {
   const preselectedPlan = searchParams.get('plan') || 'ACTIVE_TREATMENT';
 
   const [selectedPlanId, setSelectedPlanId] = React.useState<string>(preselectedPlan);
-  const [consents, setConsents] = React.useState<Record<string, boolean>>({});
 
   // Check if Stripe is configured
   const stripeConfigured = React.useMemo(() => isStripeConfigured(), []);
 
-  const allConsentsChecked = CONSENT_ITEMS.every(item => consents[item.id]);
-
   const handlePlanSelect = (planId: string) => {
-    if (state.status !== 'idle') return;
+    if (state.status !== 'idle' && state.status !== 'error') return;
     setSelectedPlanId(planId);
   };
 
-  const handleConsentToggle = (id: string, checked: boolean) => {
-    setConsents(prev => ({ ...prev, [id]: checked }));
-  };
-
-  const handleProceedToConsent = () => {
-    setState({ status: 'consent' });
-  };
-
-  const handleBackFromConsent = () => {
-    setState({ status: 'idle' });
-    setConsents({});
-  };
-
   const handleCheckout = async () => {
-    if (!selectedPlanId || !allConsentsChecked) return;
+    if (!selectedPlanId) return;
 
     setState({ status: 'loading' });
 
@@ -236,7 +183,7 @@ function CheckoutPaymentContent() {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An error occurred';
       setState({
-        status: 'consent',
+        status: 'error',
         error: errorMessage,
         selectedPlan: selectedPlanId,
       });
@@ -275,7 +222,7 @@ function CheckoutPaymentContent() {
         </Alert>
       )}
 
-      {/* Plan Selection (hidden during consent/loading/redirecting) */}
+      {/* Plan Selection (hidden during loading/redirecting) */}
       {(state.status === 'idle' || state.status === 'error') && (
         <div className="grid gap-6 md:grid-cols-2 mb-8">
           {plans.map((plan) => (
@@ -284,70 +231,14 @@ function CheckoutPaymentContent() {
               plan={plan}
               isSelected={selectedPlanId === plan.id}
               onSelect={() => handlePlanSelect(plan.id)}
-              disabled={state.status !== 'idle'}
+              disabled={state.status !== 'idle' && state.status !== 'error'}
             />
           ))}
         </div>
       )}
 
-      {/* Consent Step */}
-      {state.status === 'consent' && selectedPlan && (
-        <Card className="mx-auto max-w-lg mb-8">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <FileCheck className="h-5 w-5" />
-              Consent & Agreements
-            </CardTitle>
-            <CardDescription>
-              Please review and agree to the following before proceeding to payment.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {CONSENT_ITEMS.map((item) => (
-              <div key={item.id} className="flex items-start gap-3">
-                <Checkbox
-                  id={`consent-${item.id}`}
-                  checked={!!consents[item.id]}
-                  onCheckedChange={(checked) => handleConsentToggle(item.id, checked === true)}
-                />
-                <Label
-                  htmlFor={`consent-${item.id}`}
-                  className="text-sm leading-relaxed cursor-pointer"
-                >
-                  {item.label}
-                </Label>
-              </div>
-            ))}
-          </CardContent>
-          <CardFooter className="flex flex-col gap-3">
-            {state.error && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{state.error}</AlertDescription>
-              </Alert>
-            )}
-            <Button
-              className="w-full"
-              size="lg"
-              onClick={handleCheckout}
-              disabled={!allConsentsChecked || state.status !== 'consent'}
-            >
-              Continue to Payment — {selectedPlan.formattedAmount}/month
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleBackFromConsent}
-              className="w-full"
-            >
-              Back to Plan Selection
-            </Button>
-          </CardFooter>
-        </Card>
-      )}
-
       {/* Order Summary & Checkout */}
-      {state.status !== 'consent' && selectedPlan && (
+      {selectedPlan && (
         <Card className="mx-auto max-w-md">
           <CardHeader>
             <CardTitle className="text-lg">Order Summary</CardTitle>
@@ -371,8 +262,8 @@ function CheckoutPaymentContent() {
             <Button
               className="w-full"
               size="lg"
-              onClick={handleProceedToConsent}
-              disabled={state.status !== 'idle' || !stripeConfigured}
+              onClick={handleCheckout}
+              disabled={(state.status !== 'idle' && state.status !== 'error') || !stripeConfigured}
             >
               {state.status === 'loading' && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -380,7 +271,7 @@ function CheckoutPaymentContent() {
               {state.status === 'redirecting' && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              {state.status === 'idle' && 'Proceed to Checkout'}
+              {(state.status === 'idle' || state.status === 'error') && 'Proceed to Checkout'}
               {state.status === 'loading' && 'Creating checkout...'}
               {state.status === 'redirecting' && 'Redirecting to Stripe...'}
             </Button>

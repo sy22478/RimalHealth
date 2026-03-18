@@ -1,10 +1,10 @@
 /**
  * Prisma Client Extension for Automatic PHI Encryption
  * Uses Prisma Client Extensions (Prisma 5.x+ recommended approach)
- * 
+ *
  * Automatically encrypts PHI fields on create/update
  * Automatically decrypts PHI fields on read
- * 
+ *
  * HIPAA Compliance:
  * - All PHI fields are encrypted at rest using AES-256-GCM
  * - Encryption/decryption happens transparently via extension
@@ -18,7 +18,7 @@ import { encryptPHI, decryptPHI, isEncrypted, encryptJSON, decryptJSON } from '.
 export const PHI_FIELDS: Record<string, string[]> = {
   PatientProfile: [
     'firstName',
-    'lastName', 
+    'lastName',
     'dateOfBirth',
     'phone',
     'addressStreet',
@@ -39,18 +39,18 @@ export const PHI_FIELDS: Record<string, string[]> = {
     'medicationList',
   ],
   Review: [
-    'clinicalNotes', 
-    'contraindications', 
-    'rejectionReason', 
+    'clinicalNotes',
+    'contraindications',
+    'rejectionReason',
     'alternativeRecommendation',
     'instructions',
   ],
   Prescription: [
-    'instructions', 
+    'instructions',
     'pharmacyAddress',
   ],
   Message: [
-    'subject', 
+    'subject',
     'body',
   ],
   PhysicianNote: [
@@ -108,8 +108,8 @@ function isNullableField(model: string, field: string): boolean {
  * Encrypt a single field value
  */
 function encryptField(
-  model: string, 
-  field: string, 
+  model: string,
+  field: string,
   value: unknown
 ): string | null {
   // Handle null/undefined for nullable fields
@@ -147,8 +147,8 @@ function encryptField(
  * Decrypt a single field value
  */
 function decryptField(
-  model: string, 
-  field: string, 
+  model: string,
+  field: string,
   value: unknown
 ): unknown {
   // Handle null/undefined
@@ -184,7 +184,7 @@ function decryptField(
  * Encrypt PHI fields in a data object
  */
 function encryptPHIFields(
-  model: string, 
+  model: string,
   data: Record<string, unknown>
 ): Record<string, unknown> {
   const phiFields = PHI_FIELDS[model];
@@ -196,7 +196,7 @@ function encryptPHIFields(
   for (const key of Object.keys(data)) {
     encrypted[key] = data[key];
   }
-  
+
   for (const field of phiFields) {
     if (field in encrypted) {
       encrypted[field] = encryptField(model, field, encrypted[field]);
@@ -210,7 +210,7 @@ function encryptPHIFields(
  * Decrypt PHI fields in a result object
  */
 function decryptPHIFields<T>(
-  model: string, 
+  model: string,
   data: T
 ): T {
   if (!data || typeof data !== 'object') {
@@ -227,7 +227,7 @@ function decryptPHIFields<T>(
   for (const key of Object.keys(record)) {
     decrypted[key] = record[key];
   }
-  
+
   for (const field of phiFields) {
     if (field in decrypted) {
       decrypted[field] = decryptField(model, field, decrypted[field]);
@@ -260,12 +260,12 @@ function decryptNestedPHIFields<T>(model: string, data: T): T {
 
 /**
  * Create Prisma Client extension for PHI encryption
- * 
+ *
  * Usage:
  * ```typescript
  * import { PrismaClient } from '@prisma/client';
  * import { createEncryptionExtension } from './encryption-extension';
- * 
+ *
  * const prisma = new PrismaClient().$extends(createEncryptionExtension());
  * ```
  */
@@ -275,14 +275,12 @@ export function createEncryptionExtension() {
     query: {
       $allModels: {
         // Intercept create operations
-        async create<T>({ model, operation, args, query }: {
+        async create<T>({ model, args, query }: {
           model: string;
           operation: string;
           args: { data?: Record<string, unknown> };
           query: (args: { data?: Record<string, unknown> }) => Promise<T>;
         }): Promise<T> {
-          const modelName = model.charAt(0).toLowerCase() + model.slice(1);
-          
           if (PHI_FIELDS[model] && args.data) {
             args = {
               ...args,
@@ -291,18 +289,17 @@ export function createEncryptionExtension() {
           }
 
           const result = await query(args);
-          return decryptNestedPHIFields(modelName, result);
+          // Use model (PascalCase) directly for PHI_FIELDS lookup — not camelCase
+          return decryptNestedPHIFields(model, result);
         },
 
         // Intercept createMany operations
-        async createMany<T>({ model, operation, args, query }: {
+        async createMany<T>({ model, args, query }: {
           model: string;
           operation: string;
           args: { data?: Record<string, unknown>[] | Record<string, unknown> };
           query: (args: { data?: Record<string, unknown>[] | Record<string, unknown> }) => Promise<T>;
         }): Promise<T> {
-          const modelName = model.charAt(0).toLowerCase() + model.slice(1);
-          
           if (PHI_FIELDS[model] && args.data) {
             if (Array.isArray(args.data)) {
               args = {
@@ -321,14 +318,12 @@ export function createEncryptionExtension() {
         },
 
         // Intercept update operations
-        async update<T>({ model, operation, args, query }: {
+        async update<T>({ model, args, query }: {
           model: string;
           operation: string;
           args: { data?: Record<string, unknown> };
           query: (args: { data?: Record<string, unknown> }) => Promise<T>;
         }): Promise<T> {
-          const modelName = model.charAt(0).toLowerCase() + model.slice(1);
-          
           if (PHI_FIELDS[model] && args.data) {
             args = {
               ...args,
@@ -337,11 +332,11 @@ export function createEncryptionExtension() {
           }
 
           const result = await query(args);
-          return decryptNestedPHIFields(modelName, result);
+          return decryptNestedPHIFields(model, result);
         },
 
         // Intercept updateMany operations
-        async updateMany<T>({ model, operation, args, query }: {
+        async updateMany<T>({ model, args, query }: {
           model: string;
           operation: string;
           args: { data?: Record<string, unknown> };
@@ -358,14 +353,12 @@ export function createEncryptionExtension() {
         },
 
         // Intercept upsert operations
-        async upsert<T>({ model, operation, args, query }: {
+        async upsert<T>({ model, args, query }: {
           model: string;
           operation: string;
           args: { create?: Record<string, unknown>; update?: Record<string, unknown> };
           query: (args: { create?: Record<string, unknown>; update?: Record<string, unknown> }) => Promise<T>;
         }): Promise<T> {
-          const modelName = model.charAt(0).toLowerCase() + model.slice(1);
-          
           if (PHI_FIELDS[model]) {
             const newArgs = { ...args };
             if (args.create) {
@@ -378,83 +371,77 @@ export function createEncryptionExtension() {
           }
 
           const result = await query(args);
-          return decryptNestedPHIFields(modelName, result);
+          return decryptNestedPHIFields(model, result);
         },
 
         // Intercept findUnique operations
-        async findUnique<T>({ model, operation, args, query }: {
+        async findUnique<T>({ model, args, query }: {
           model: string;
           operation: string;
           args: unknown;
           query: (args: unknown) => Promise<T>;
         }): Promise<T> {
-          const modelName = model.charAt(0).toLowerCase() + model.slice(1);
           const result = await query(args);
-          return decryptNestedPHIFields(modelName, result);
+          return decryptNestedPHIFields(model, result);
         },
 
         // Intercept findFirst operations
-        async findFirst<T>({ model, operation, args, query }: {
+        async findFirst<T>({ model, args, query }: {
           model: string;
           operation: string;
           args: unknown;
           query: (args: unknown) => Promise<T>;
         }): Promise<T> {
-          const modelName = model.charAt(0).toLowerCase() + model.slice(1);
           const result = await query(args);
-          return decryptNestedPHIFields(modelName, result);
+          return decryptNestedPHIFields(model, result);
         },
 
         // Intercept findMany operations
-        async findMany<T>({ model, operation, args, query }: {
+        async findMany<T>({ model, args, query }: {
           model: string;
           operation: string;
           args: unknown;
           query: (args: unknown) => Promise<T>;
         }): Promise<T> {
-          const modelName = model.charAt(0).toLowerCase() + model.slice(1);
           const result = await query(args);
-          return decryptNestedPHIFields(modelName, result);
+          return decryptNestedPHIFields(model, result);
         },
 
         // Intercept findFirstOrThrow operations
-        async findFirstOrThrow<T>({ model, operation, args, query }: {
+        async findFirstOrThrow<T>({ model, args, query }: {
           model: string;
           operation: string;
           args: unknown;
           query: (args: unknown) => Promise<T>;
         }): Promise<T> {
-          const modelName = model.charAt(0).toLowerCase() + model.slice(1);
           const result = await query(args);
-          return decryptNestedPHIFields(modelName, result);
+          return decryptNestedPHIFields(model, result);
         },
 
         // Intercept findUniqueOrThrow operations
-        async findUniqueOrThrow<T>({ model, operation, args, query }: {
+        async findUniqueOrThrow<T>({ model, args, query }: {
           model: string;
           operation: string;
           args: unknown;
           query: (args: unknown) => Promise<T>;
         }): Promise<T> {
-          const modelName = model.charAt(0).toLowerCase() + model.slice(1);
           const result = await query(args);
-          return decryptNestedPHIFields(modelName, result);
+          return decryptNestedPHIFields(model, result);
         },
 
         // Intercept delete operations
-        async delete<T>({ model, operation, args, query }: {
+        async delete<T>({ model, args, query }: {
           model: string;
           operation: string;
           args: unknown;
           query: (args: unknown) => Promise<T>;
         }): Promise<T> {
-          const modelName = model.charAt(0).toLowerCase() + model.slice(1);
           const result = await query(args);
-          return decryptNestedPHIFields(modelName, result);
+          return decryptNestedPHIFields(model, result);
         },
 
         // Intercept deleteMany operations
-        async deleteMany<T>({ model, operation, args, query }: {
+        async deleteMany<T>({ model, args, query }: {
           model: string;
           operation: string;
           args: unknown;

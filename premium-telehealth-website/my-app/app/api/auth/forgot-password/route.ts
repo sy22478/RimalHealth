@@ -67,7 +67,7 @@ async function queuePasswordResetEmail(
   const { sendEmail } = await import('@/lib/integrations/sendgrid');
   const { EmailTemplate } = await import('@/lib/notifications/templates');
 
-  const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password?token=${token}`;
+  const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/set-password?token=${token}`;
 
   await sendEmail({
     to: email,

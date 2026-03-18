@@ -253,6 +253,7 @@ model Intake {
   @@index([status])
   @@index([createdAt])
   @@index([submittedAt])
+  @@index([status, submittedAt])
 }
 
 enum IntakeStatus {
@@ -377,6 +378,7 @@ model Prescription {
   @@index([pharmacyId])
   @@index([status])
   @@index([nextRefillAvailable])
+  @@index([patientId, status])
 }
 
 enum PrescriptionStatus {
@@ -404,6 +406,7 @@ model RefillRequest {
 
   @@index([prescriptionId])
   @@index([status])
+  @@index([prescriptionId, status])
 }
 
 enum RefillStatus {
@@ -450,6 +453,8 @@ model Message {
   @@index([senderId])
   @@index([sentAt])
   @@index([status])
+  @@index([threadId, recipientId])
+  @@index([recipientId, readAt])
 }
 
 enum SenderType {
@@ -548,6 +553,7 @@ model Subscription {
   @@index([userId])
   @@index([status])
   @@index([currentPeriodEnd])
+  @@index([userId, status])
 }
 
 enum PlanType {

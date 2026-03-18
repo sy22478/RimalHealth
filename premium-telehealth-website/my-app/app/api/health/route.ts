@@ -5,7 +5,7 @@
  *
  * Returns system health status including:
  * - Database connectivity
- * - Redis connectivity
+ * - Redis connectivity (with 2-second ping timeout)
  * - Performance metrics
  * - Memory usage
  *
@@ -19,7 +19,11 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { checkDatabaseHealth } from "@/lib/db/prisma";
-import { checkRedisHealth, getRedisStatus } from "@/lib/redis/client";
+import {
+  checkRedisHealth,
+  getRedisStatus,
+  getRedisClient,
+} from "@/lib/redis/client";
 import { getHealthMetrics } from "@/lib/middleware/performance-monitor";
 
 // ============================================================================
@@ -30,6 +34,8 @@ interface HealthResponse {
   status: "healthy" | "degraded" | "unhealthy";
   timestamp: string;
   version: string;
+  database: "connected" | "disconnected";
+  redis: "connected" | "disconnected";
   services: {
     database: {
       status: "healthy" | "unhealthy";
@@ -70,6 +76,33 @@ const VERSION = process.env.NEXT_PUBLIC_APP_VERSION || "0.1.0";
 let cachedHealth: HealthResponse | null = null;
 let cacheTimestamp = 0;
 const CACHE_TTL = 5000; // 5 seconds
+const REDIS_HEALTH_TIMEOUT = 2000; // 2-second timeout for Redis ping
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+/**
+ * Ping Redis with a 2-second timeout.
+ * Returns true if Redis responds with PONG within the timeout, false otherwise.
+ */
+async function redisPingWithTimeout(): Promise<boolean> {
+  try {
+    const client = getRedisClient();
+    const result = await Promise.race([
+      client.ping(),
+      new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Redis ping timeout")),
+          REDIS_HEALTH_TIMEOUT
+        )
+      ),
+    ]);
+    return result === "PONG";
+  } catch {
+    return false;
+  }
+}
 
 // ============================================================================
 // GET Handler
@@ -81,7 +114,9 @@ const CACHE_TTL = 5000; // 5 seconds
  * Returns comprehensive health status of the application.
  * Cached for 5 seconds to prevent excessive database calls.
  */
-export async function GET(request: NextRequest): Promise<NextResponse<HealthResponse | ErrorResponse>> {
+export async function GET(
+  request: NextRequest
+): Promise<NextResponse<HealthResponse | ErrorResponse>> {
   // Check for cached result
   const now = Date.now();
   if (cachedHealth && now - cacheTimestamp < CACHE_TTL) {
@@ -94,20 +129,27 @@ export async function GET(request: NextRequest): Promise<NextResponse<HealthResp
   }
 
   try {
-    // Check all services in parallel
-    const [dbHealth, redisHealthy, performance] = await Promise.all([
-      checkDatabaseHealth(),
-      checkRedisHealth(),
-      Promise.resolve(getHealthMetrics()),
-    ]);
+    // Check all services in parallel (Redis ping uses 2-second timeout)
+    const [dbHealth, redisHealthy, redisPingOk, performance] =
+      await Promise.all([
+        checkDatabaseHealth(),
+        checkRedisHealth(),
+        redisPingWithTimeout(),
+        Promise.resolve(getHealthMetrics()),
+      ]);
+
+    const redisConnected = redisHealthy && redisPingOk;
 
     // Get memory usage
     const memUsage = process.memoryUsage();
 
     // Determine overall status
+    // Redis is optional — only DB failures make the service unhealthy
     let status: "healthy" | "degraded" | "unhealthy" = "healthy";
-    if (!dbHealth.healthy || !redisHealthy) {
+    if (!dbHealth.healthy) {
       status = "unhealthy";
+    } else if (!redisConnected) {
+      status = "degraded";
     } else if (performance.status !== "healthy") {
       status = "degraded";
     }
@@ -117,6 +159,8 @@ export async function GET(request: NextRequest): Promise<NextResponse<HealthResp
       status,
       timestamp: new Date().toISOString(),
       version: VERSION,
+      database: dbHealth.healthy ? "connected" : "disconnected",
+      redis: redisConnected ? "connected" : "disconnected",
       services: {
         database: {
           status: dbHealth.healthy ? "healthy" : "unhealthy",
@@ -124,7 +168,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<HealthResp
           ...(dbHealth.error && { error: dbHealth.error }),
         },
         cache: {
-          status: redisHealthy ? "healthy" : "unhealthy",
+          status: redisConnected ? "healthy" : "unhealthy",
           ...getRedisStatus(),
         },
       },
@@ -145,7 +189,8 @@ export async function GET(request: NextRequest): Promise<NextResponse<HealthResp
     cacheTimestamp = now;
 
     // Return with appropriate status code
-    const statusCode = status === "healthy" ? 200 : status === "degraded" ? 200 : 503;
+    // Redis failure returns 200 (degraded) — only DB failure returns 503
+    const statusCode = status === "unhealthy" ? 503 : 200;
 
     return NextResponse.json(health, {
       status: statusCode,
@@ -179,10 +224,13 @@ export async function GET(request: NextRequest): Promise<NextResponse<HealthResp
  */
 export async function HEAD(): Promise<NextResponse> {
   try {
-    const [dbHealth, redisHealthy] = await Promise.all([checkDatabaseHealth(), checkRedisHealth()]);
+    const [dbHealth] = await Promise.all([
+      checkDatabaseHealth(),
+      checkRedisHealth(),
+    ]);
 
-    const isHealthy = dbHealth.healthy && redisHealthy;
-    const statusCode = isHealthy ? 200 : 503;
+    // Only DB health determines the status code (Redis is optional)
+    const statusCode = dbHealth.healthy ? 200 : 503;
 
     return new NextResponse(null, {
       status: statusCode,

@@ -4,7 +4,7 @@ import * as React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 import Link from "next/link";
@@ -80,6 +80,8 @@ export function LoginForm() {
   const [isLocked, setIsLocked] = React.useState(false);
   const [remainingSeconds, setRemainingSeconds] = React.useState(0);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const from = searchParams.get("from");
 
   const {
     register,
@@ -112,28 +114,45 @@ export function LoginForm() {
         if (result.code === "ACCOUNT_LOCKED") {
           setIsLocked(true);
           setRemainingSeconds(result.remainingSeconds || 0);
-          setError(result.error || "Account is locked. Please try again later.");
+          setError(
+            result.error || "Account is locked. Please try again later."
+          );
           return;
         }
-        
+
         // Handle email not verified
         if (result.code === "EMAIL_NOT_VERIFIED") {
-          setError("Please verify your email address before signing in. Check your inbox for the verification link.");
+          setError(
+            "Please verify your email address before signing in. Check your inbox for the verification link."
+          );
           return;
         }
-        
+
         // Handle warning for approaching lockout
         if (result.warning) {
           setWarning(result.warning);
         }
-        
+
         // Generic error for invalid credentials (don't reveal if email exists)
-        setError(result.error || "Invalid email or password. Please try again.");
+        setError(
+          result.error || "Invalid email or password. Please try again."
+        );
         return;
       }
 
-      // Redirect based on user role
-      if (result.user?.role === "ADMIN") {
+      // Validate `from` against open redirect attacks:
+      // - Must start with "/"
+      // - Must NOT start with "//" (protocol-relative URL)
+      // - Must NOT contain "javascript:" (XSS vector, case-insensitive)
+      const isValidRedirect =
+        from &&
+        from.startsWith("/") &&
+        !from.startsWith("//") &&
+        !from.toLowerCase().includes("javascript:");
+
+      if (isValidRedirect) {
+        router.push(from);
+      } else if (result.user?.role === "ADMIN") {
         router.push("/admin/dashboard");
       } else if (result.user?.role === "PHYSICIAN") {
         router.push("/physician/queue");
@@ -168,8 +187,8 @@ export function LoginForm() {
                 <div className="flex-1">
                   <p className="text-sm text-destructive">{error}</p>
                   {isLocked && remainingSeconds > 0 && (
-                    <CountdownTimer 
-                      initialSeconds={remainingSeconds} 
+                    <CountdownTimer
+                      initialSeconds={remainingSeconds}
                       onComplete={() => {
                         setIsLocked(false);
                         setError("");
@@ -253,10 +272,13 @@ export function LoginForm() {
                 autoComplete="current-password"
                 disabled={isLoading}
                 aria-invalid={errors.password ? "true" : "false"}
-                aria-describedby={errors.password ? "password-error" : undefined}
+                aria-describedby={
+                  errors.password ? "password-error" : undefined
+                }
                 className={cn(
                   "h-11 pr-10",
-                  errors.password && "border-destructive focus-visible:ring-destructive"
+                  errors.password &&
+                    "border-destructive focus-visible:ring-destructive"
                 )}
                 {...register("password")}
               />

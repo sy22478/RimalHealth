@@ -136,17 +136,20 @@ export async function getPendingIntakes(
       const waitTimeHours = calculateWaitTime(submittedAt);
 
       // Decrypt PHI fields
+      // NOTE: Manual decryption is required here because the Prisma encryption
+      // extension only auto-decrypts fields on the top-level queried model (Intake).
+      // Nested included relations (patient.patientProfile) are not auto-decrypted.
       let patientName = 'Unknown';
       let patientAge = 0;
       let concernType: ConcernType = 'ALCOHOL';
 
       try {
         if (profile) {
-          const firstName = profile.firstName 
-            ? decryptPHI(profile.firstName) 
+          const firstName = profile.firstName
+            ? decryptPHI(profile.firstName)
             : '';
-          const lastName = profile.lastName 
-            ? decryptPHI(profile.lastName) 
+          const lastName = profile.lastName
+            ? decryptPHI(profile.lastName)
             : '';
           patientName = `${firstName} ${lastName}`.trim() || 'Unknown';
 
@@ -155,10 +158,9 @@ export async function getPendingIntakes(
             patientAge = calculateAge(dob);
           }
 
+          // primaryConcern is a ConcernType enum, not an encrypted string
           if (profile.primaryConcern) {
-            concernType = mapConcernType(
-              decryptPHI(profile.primaryConcern)
-            );
+            concernType = mapConcernType(profile.primaryConcern);
           }
         }
       } catch (decryptError) {

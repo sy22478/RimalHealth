@@ -21,7 +21,6 @@ import {
 } from '@/lib/validation/schemas';
 import { Role, SenderType, MessageStatus } from '@prisma/client';
 import { PHIResourceType } from '@/lib/audit';
-import { decryptPHI } from '@/lib/encryption/phi';
 
 // ============================================================================
 // GET - List Messages/Threads
@@ -84,8 +83,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         select: { firstName: true, lastName: true },
       });
 
+      // Patient profile fields are auto-decrypted by Prisma encryption extension
       const patientName = patientProfile
-        ? `${decryptPHI(patientProfile.firstName)} ${decryptPHI(patientProfile.lastName)}`
+        ? `${patientProfile.firstName} ${patientProfile.lastName}`
         : 'Patient';
 
       const physicianName = physicianProfile
@@ -191,22 +191,31 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    // Get patient names
-    const threads = await Promise.all(
-      Array.from(threadsMap.values()).map(async (thread) => {
-        const profile = await prisma.patientProfile.findUnique({
-          where: { userId: thread.patientId },
-          select: { firstName: true, lastName: true },
-        });
+    // Batch-load all patient profiles in one query (avoids N+1)
+    const threadValues = Array.from(threadsMap.values());
+    const uniquePatientIds = [...new Set(threadValues.map(t => t.patientId))];
 
-        return {
-          ...thread,
-          patientName: profile
-            ? `${decryptPHI(profile.firstName)} ${decryptPHI(profile.lastName)}`
-            : 'Unknown Patient',
-        };
-      })
+    const patientProfiles = await prisma.patientProfile.findMany({
+      where: { userId: { in: uniquePatientIds } },
+      select: { userId: true, firstName: true, lastName: true },
+    });
+
+    // Build lookup map (profiles are auto-decrypted by Prisma encryption extension)
+    const profileMap = new Map(
+      patientProfiles.map(p => [p.userId, p])
     );
+
+    // Build thread responses using the lookup map
+    const threads = threadValues.map((thread) => {
+      const profile = profileMap.get(thread.patientId);
+
+      return {
+        ...thread,
+        patientName: profile
+          ? `${profile.firstName} ${profile.lastName}`
+          : 'Unknown Patient',
+      };
+    });
 
     // Log access
     await AuditService.logPHIAccess(

@@ -86,7 +86,7 @@ export function Navigation() {
                 Sign In
               </Link>
               <Link
-                href="/checkout/payment"
+                href="/checkout/consent"
                 className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-ocean-500 text-white font-semibold rounded-lg hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
               >
                 Get Started
@@ -145,7 +145,7 @@ export function Navigation() {
                 Sign In
               </Link>
               <Link
-                href="/checkout/payment"
+                href="/checkout/consent"
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="flex items-center justify-center gap-2 w-full px-6 py-3 bg-gradient-to-r from-blue-500 to-ocean-500 text-white font-semibold rounded-lg hover:shadow-lg transition-all duration-200"
               >

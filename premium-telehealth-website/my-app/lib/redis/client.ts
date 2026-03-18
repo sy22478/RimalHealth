@@ -2,7 +2,12 @@
  * Redis Client
  * Singleton instance for Redis operations
  * Used for: sessions, caching, rate limiting, queues
- * 
+ *
+ * Includes a circuit breaker that prevents cascading failures when Redis
+ * is unavailable. After {@link CIRCUIT_BREAKER_THRESHOLD} consecutive
+ * failures the circuit opens and all operations gracefully degrade for
+ * {@link CIRCUIT_BREAKER_COOLDOWN_MS} milliseconds.
+ *
  * HIPAA Compliance Notes:
  * - No PHI stored in cache keys (use hashed IDs)
  * - Encrypted session data
@@ -19,6 +24,117 @@ const REDIS_PASSWORD = process.env.REDIS_PASSWORD;
 
 // Redis client singleton
 let redis: Redis | null = null;
+
+// ============================================
+// Circuit Breaker
+// ============================================
+
+/** Number of consecutive failures before the circuit opens */
+const CIRCUIT_BREAKER_THRESHOLD = 5;
+
+/** How long the circuit stays open before allowing a probe request (ms) */
+const CIRCUIT_BREAKER_COOLDOWN_MS = 30_000;
+
+type CircuitState = 'closed' | 'open' | 'half-open';
+
+interface CircuitBreaker {
+  state: CircuitState;
+  consecutiveFailures: number;
+  lastFailureTime: number;
+}
+
+const circuitBreaker: CircuitBreaker = {
+  state: 'closed',
+  consecutiveFailures: 0,
+  lastFailureTime: 0,
+};
+
+/**
+ * Get current circuit breaker state (for monitoring / health checks)
+ */
+export function getCircuitBreakerState(): {
+  state: CircuitState;
+  consecutiveFailures: number;
+  lastFailureTime: number;
+} {
+  // Check if cooldown has expired while in open state
+  if (
+    circuitBreaker.state === 'open' &&
+    Date.now() - circuitBreaker.lastFailureTime >= CIRCUIT_BREAKER_COOLDOWN_MS
+  ) {
+    circuitBreaker.state = 'half-open';
+  }
+
+  return {
+    state: circuitBreaker.state,
+    consecutiveFailures: circuitBreaker.consecutiveFailures,
+    lastFailureTime: circuitBreaker.lastFailureTime,
+  };
+}
+
+/**
+ * Record a successful Redis operation.
+ * Resets the circuit breaker to the closed state.
+ */
+export function recordSuccess(): void {
+  if (circuitBreaker.state !== 'closed') {
+    console.log('[Redis] Circuit breaker closed — connection recovered');
+  }
+  circuitBreaker.state = 'closed';
+  circuitBreaker.consecutiveFailures = 0;
+}
+
+/**
+ * Record a failed Redis operation.
+ * After enough consecutive failures the circuit opens.
+ */
+export function recordFailure(): void {
+  circuitBreaker.consecutiveFailures += 1;
+  circuitBreaker.lastFailureTime = Date.now();
+
+  if (circuitBreaker.consecutiveFailures >= CIRCUIT_BREAKER_THRESHOLD) {
+    if (circuitBreaker.state !== 'open') {
+      console.error(
+        `[Redis] Circuit breaker OPEN after ${circuitBreaker.consecutiveFailures} consecutive failures. ` +
+        `Redis operations will be skipped for ${CIRCUIT_BREAKER_COOLDOWN_MS / 1000}s.`
+      );
+    }
+    circuitBreaker.state = 'open';
+  }
+}
+
+/**
+ * Check whether the circuit allows a request through.
+ *
+ * - **closed**: always allows
+ * - **open**: blocks until cooldown expires, then transitions to half-open
+ * - **half-open**: allows exactly one probe request
+ *
+ * @returns `true` if the operation should proceed, `false` to skip gracefully
+ */
+export function isCircuitClosed(): boolean {
+  if (circuitBreaker.state === 'closed') {
+    return true;
+  }
+
+  if (circuitBreaker.state === 'open') {
+    const elapsed = Date.now() - circuitBreaker.lastFailureTime;
+    if (elapsed >= CIRCUIT_BREAKER_COOLDOWN_MS) {
+      // Transition to half-open — allow a single probe
+      circuitBreaker.state = 'half-open';
+      console.log('[Redis] Circuit breaker half-open — attempting probe request');
+      return true;
+    }
+    return false;
+  }
+
+  // half-open: allow the probe through
+  return true;
+}
+
+// ============================================
+// Redis Client
+// ============================================
 
 /**
  * Get Redis client instance (singleton pattern)
