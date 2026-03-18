@@ -14,7 +14,7 @@ import { prisma } from '@/lib/db/prisma';
 import { AuditService } from '@/lib/services/audit-service';
 import { sendEmail } from '@/lib/integrations/sendgrid';
 import { Role, PhysicianStatus, AuthorizationAction } from '@prisma/client';
-import { DataModificationAction } from '@/lib/audit';
+import { DataModificationAction } from '@/lib/audit/index';
 import { EmailTemplate } from '@/lib/notifications/templates';
 
 // ============================================================================

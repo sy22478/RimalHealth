@@ -13,7 +13,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Role } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { requireRole, AuthenticatedRequest, getClientIp, getUserAgent } from '@/lib/auth/require-auth';
-import { auditLogger } from '@/lib/audit';
+import { auditLogger } from '@/lib/audit/index';
 import { AuditEventType, PHIResourceType } from '@/lib/audit/types';
 import { markThreadAsRead } from '@/lib/physician/messaging';
 

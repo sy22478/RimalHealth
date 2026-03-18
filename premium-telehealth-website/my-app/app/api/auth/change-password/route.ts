@@ -10,7 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
-import { auditLogger, AuditEventType } from '@/lib/audit';
+import { auditLogger, AuditEventType } from '@/lib/audit/index';
 import { getClientIP } from '@/lib/audit/utils';
 import { verifyAccessToken } from '@/lib/auth/jwt';
 import { verifyPassword, hashPassword } from '@/lib/auth/password';

@@ -21,7 +21,7 @@ import { prisma } from '@/lib/db/prisma';
 import { requirePermission } from '@/lib/auth/require-auth';
 import { Permission } from '@/lib/auth/rbac';
 import { checkPrescriptionStatus } from '@/lib/integrations/dosespot';
-import { auditLogger, PHIResourceType, AuditEventType } from '@/lib/audit';
+import { auditLogger, PHIResourceType, AuditEventType } from '@/lib/audit/index';
 import { getClientIp, getUserAgent } from '@/lib/auth/require-auth';
 import { PrescriptionStatus } from '@prisma/client';
 

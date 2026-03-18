@@ -17,7 +17,7 @@ import { ValidationService } from '@/lib/services/validation-service';
 import { NotificationService } from '@/lib/services/notification-service';
 import { submitReviewSchema } from '@/lib/validation/schemas';
 import { Role, IntakeStatus, ReviewDecision, PrescriptionStatus } from '@prisma/client';
-import { DataModificationAction } from '@/lib/audit';
+import { DataModificationAction } from '@/lib/audit/index';
 import { encryptPHI } from '@/lib/encryption/phi';
 
 // ============================================================================

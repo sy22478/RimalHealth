@@ -14,7 +14,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { verifyAccessToken } from '@/lib/auth/jwt';
-import { auditLogger, PHIResourceType, DataModificationAction } from '@/lib/audit';
+import { auditLogger, PHIResourceType, DataModificationAction } from '@/lib/audit/index';
 import { getClientIP } from '@/lib/audit/utils';
 import {
   getPatientProfileById,

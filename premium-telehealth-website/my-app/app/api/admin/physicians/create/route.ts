@@ -15,7 +15,7 @@ import { prisma } from '@/lib/db/prisma';
 import { hashPassword } from '@/lib/auth/password';
 import { AuditService } from '@/lib/services/audit-service';
 import { Role, PhysicianStatus, AuthorizationAction, AdminAction } from '@prisma/client';
-import { DataModificationAction } from '@/lib/audit';
+import { DataModificationAction } from '@/lib/audit/index';
 
 // ============================================================================
 // Validation Schema

@@ -13,7 +13,7 @@ import { requireRole } from '@/lib/auth/require-auth';
 import { prisma } from '@/lib/db/prisma';
 import { AuditService } from '@/lib/services/audit-service';
 import { Role } from '@prisma/client';
-import { PHIResourceType } from '@/lib/audit';
+import { PHIResourceType } from '@/lib/audit/index';
 
 // ============================================================================
 // GET - Get Single Physician

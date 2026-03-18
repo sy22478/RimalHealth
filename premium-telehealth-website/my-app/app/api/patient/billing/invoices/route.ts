@@ -13,7 +13,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { auditLogger, createAuditContext } from '@/lib/audit';
+import { auditLogger, createAuditContext } from '@/lib/audit/index';
 import { InvoiceStatus } from '@prisma/client';
 import { verifyAccessToken } from '@/lib/auth/jwt';
 

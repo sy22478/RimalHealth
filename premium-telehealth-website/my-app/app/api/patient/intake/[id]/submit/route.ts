@@ -18,7 +18,7 @@ import { NotificationService } from '@/lib/services/notification-service';
 import { submitIntakeSchema } from '@/lib/validation/schemas';
 import { calculateIntakeScores } from '@/lib/intake/scoring';
 import { Role, IntakeStatus, Prisma } from '@prisma/client';
-import { DataModificationAction } from '@/lib/audit';
+import { DataModificationAction } from '@/lib/audit/index';
 
 // ============================================================================
 // POST - Submit Intake

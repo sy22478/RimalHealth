@@ -14,7 +14,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Role } from '@prisma/client';
 import { requireRole, AuthenticatedRequest, getClientIp, getUserAgent } from '@/lib/auth/require-auth';
-import { auditLogger } from '@/lib/audit';
+import { auditLogger } from '@/lib/audit/index';
 import { PHIResourceType, AuditEventType } from '@/lib/audit/types';
 import { 
   getPatientThreadMessages, 

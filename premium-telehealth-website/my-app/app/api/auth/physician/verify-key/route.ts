@@ -22,7 +22,7 @@ import { verifySecretKey, isSecretKeyExpired } from '@/lib/auth/secret-key';
 import { rateLimit } from '@/lib/middleware/rate-limit';
 
 // Audit logging
-import { auditLogger, AuditEventType, AuditSeverity } from '@/lib/audit';
+import { auditLogger, AuditEventType, AuditSeverity } from '@/lib/audit/index';
 import { AuditContext } from '@/lib/audit/types';
 
 // ============================================

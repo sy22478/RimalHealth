@@ -21,7 +21,7 @@ import { z } from 'zod';
 import { requirePermission } from '@/lib/auth/require-auth';
 import { Permission } from '@/lib/auth/rbac';
 import { searchPharmacies } from '@/lib/integrations/dosespot';
-import { auditLogger, AuditEventType } from '@/lib/audit';
+import { auditLogger, AuditEventType } from '@/lib/audit/index';
 import { getClientIp, getUserAgent } from '@/lib/auth/require-auth';
 
 // ============================================

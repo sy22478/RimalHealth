@@ -17,7 +17,7 @@ import { prisma } from '@/lib/db/prisma';
 import { AuditService } from '@/lib/services/audit-service';
 import { ValidationService } from '@/lib/services/validation-service';
 import { Role } from '@prisma/client';
-import { DataModificationAction } from '@/lib/audit';
+import { DataModificationAction } from '@/lib/audit/index';
 import { PHIResourceType } from '@/lib/audit/types';
 import { encryptPHI, decryptPHI } from '@/lib/encryption/phi';
 

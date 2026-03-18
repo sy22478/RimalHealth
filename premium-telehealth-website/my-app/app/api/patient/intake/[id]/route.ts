@@ -16,7 +16,7 @@ import { AuditService } from '@/lib/services/audit-service';
 import { ValidationService } from '@/lib/services/validation-service';
 import { updateIntakeSchema } from '@/lib/validation/schemas';
 import { Role, IntakeStatus, Prisma } from '@prisma/client';
-import { DataModificationAction } from '@/lib/audit';
+import { DataModificationAction } from '@/lib/audit/index';
 
 // ============================================================================
 // GET - Retrieve Intake

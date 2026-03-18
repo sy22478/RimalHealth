@@ -17,7 +17,7 @@ import { ValidationService } from '@/lib/services/validation-service';
 import { NotificationService } from '@/lib/services/notification-service';
 import { sendMessageSchema, getMessagesQuerySchema } from '@/lib/validation/schemas';
 import { Role, SenderType } from '@prisma/client';
-import { PHIResourceType } from '@/lib/audit';
+import { PHIResourceType } from '@/lib/audit/index';
 import {
   getPatientMessagingThreads,
   getPatientThreadMessages,

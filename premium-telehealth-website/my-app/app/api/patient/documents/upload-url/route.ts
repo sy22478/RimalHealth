@@ -14,7 +14,7 @@ import {
   isAllowedFileType,
   MAX_FILE_SIZE,
 } from '@/lib/integrations/s3';
-import { auditLog, createAuditContext, AuditEventType } from '@/lib/audit';
+import { auditLog, createAuditContext, AuditEventType } from '@/lib/audit/index';
 import { DocumentType } from '@prisma/client';
 
 // Validation schema

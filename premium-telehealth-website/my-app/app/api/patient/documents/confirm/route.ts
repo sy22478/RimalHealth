@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
 import { getObjectInfo } from '@/lib/integrations/s3';
-import { auditPHIAccess, createAuditContext, PHIResourceType } from '@/lib/audit';
+import { auditPHIAccess, createAuditContext, PHIResourceType } from '@/lib/audit/index';
 import { DocumentType, DocumentStatus } from '@prisma/client';
 
 // Validation schema

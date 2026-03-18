@@ -14,7 +14,7 @@ import { requireRole } from '@/lib/auth/require-auth';
 import { prisma } from '@/lib/db/prisma';
 import { AuditService } from '@/lib/services/audit-service';
 import { Role, PhysicianStatus } from '@prisma/client';
-import { PHIResourceType, DataModificationAction } from '@/lib/audit';
+import { PHIResourceType, DataModificationAction } from '@/lib/audit/index';
 
 // ============================================================================
 // Validation Schema

@@ -20,7 +20,7 @@ import {
   physicianMessagesQuerySchema,
 } from '@/lib/validation/schemas';
 import { Role, SenderType, MessageStatus } from '@prisma/client';
-import { PHIResourceType } from '@/lib/audit';
+import { PHIResourceType } from '@/lib/audit/index';
 
 // ============================================================================
 // GET - List Messages/Threads

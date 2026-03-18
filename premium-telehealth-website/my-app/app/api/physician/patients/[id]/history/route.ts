@@ -13,7 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAccessToken } from '@/lib/auth/jwt';
 import { prisma } from '@/lib/db/prisma';
-import { auditLogger, PHIResourceType, AuditEventType } from '@/lib/audit';
+import { auditLogger, PHIResourceType, AuditEventType } from '@/lib/audit/index';
 import { getClientIP } from '@/lib/audit/utils';
 
 interface RouteContext {

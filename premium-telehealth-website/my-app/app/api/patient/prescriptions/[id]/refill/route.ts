@@ -15,7 +15,7 @@ import { AuditService } from '@/lib/services/audit-service';
 import { ValidationService } from '@/lib/services/validation-service';
 import { NotificationService } from '@/lib/services/notification-service';
 import { Role } from '@prisma/client';
-import { PHIResourceType } from '@/lib/audit';
+import { PHIResourceType } from '@/lib/audit/index';
 import { createRefillRequest } from '@/lib/patient/prescriptions';
 
 // ============================================================================

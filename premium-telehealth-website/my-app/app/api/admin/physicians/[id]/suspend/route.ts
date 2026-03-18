@@ -17,7 +17,7 @@ import { AuditService } from '@/lib/services/audit-service';
 import { sendEmail } from '@/lib/integrations/sendgrid';
 import { getRedisClient } from '@/lib/redis/client';
 import { Role, PhysicianStatus, AuthorizationAction } from '@prisma/client';
-import { DataModificationAction } from '@/lib/audit';
+import { DataModificationAction } from '@/lib/audit/index';
 import { EmailTemplate } from '@/lib/notifications/templates';
 
 // ============================================================================

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auditLogger } from '@/lib/audit';
+import { auditLogger } from '@/lib/audit/index';
 import { AuditEventType } from '@/lib/audit/types';
 
 /**

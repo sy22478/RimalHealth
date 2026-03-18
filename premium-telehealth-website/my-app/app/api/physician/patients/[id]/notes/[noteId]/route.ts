@@ -18,7 +18,7 @@ import {
   updateClinicalNote,
   deleteClinicalNote,
 } from '@/lib/physician/patients';
-import { auditLogger } from '@/lib/audit';
+import { auditLogger } from '@/lib/audit/index';
 import { getClientIP } from '@/lib/audit/utils';
 
 interface RouteContext {

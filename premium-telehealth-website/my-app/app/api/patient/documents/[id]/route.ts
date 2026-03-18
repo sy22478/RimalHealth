@@ -9,7 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { deleteFile } from '@/lib/integrations/s3';
-import { auditPHIAccess, createAuditContext, PHIResourceType } from '@/lib/audit';
+import { auditPHIAccess, createAuditContext, PHIResourceType } from '@/lib/audit/index';
 import { DocumentStatus } from '@prisma/client';
 
 interface RouteParams {

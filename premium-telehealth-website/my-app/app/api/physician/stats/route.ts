@@ -14,7 +14,7 @@ import { AuditService } from '@/lib/services/audit-service';
 import { ValidationService } from '@/lib/services/validation-service';
 import { statsQuerySchema } from '@/lib/validation/schemas';
 import { Role, IntakeStatus, RefillStatus } from '@prisma/client';
-import { PHIResourceType } from '@/lib/audit';
+import { PHIResourceType } from '@/lib/audit/index';
 
 // ============================================================================
 // GET - Get Stats

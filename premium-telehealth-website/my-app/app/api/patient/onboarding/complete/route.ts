@@ -17,7 +17,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAccessToken } from '@/lib/auth/jwt';
-import { auditLogger, PHIResourceType } from '@/lib/audit';
+import { auditLogger, PHIResourceType } from '@/lib/audit/index';
 import { getClientIP } from '@/lib/audit/utils';
 import { notificationQueue, EmailTemplate } from '@/lib/notifications';
 import {

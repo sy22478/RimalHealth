@@ -14,7 +14,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { stripe, getDefaultPaymentMethod } from '@/lib/integrations/stripe';
-import { auditLogger, createAuditContext } from '@/lib/audit';
+import { auditLogger, createAuditContext } from '@/lib/audit/index';
 import { verifyAccessToken } from '@/lib/auth/jwt';
 
 // ============================================================================
