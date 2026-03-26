@@ -46,29 +46,23 @@ export {
   calculateComplexityScore,
   generateRiskAssessment,
   calculateIntakeScores,
+  calculateDSM5Score,
+  detectContraindications,
+  assessWithdrawalRisk,
+  generateProviderDecisionSummary,
   type AuditCResult,
   type RiskScoreParams,
   type ComplexityScoreParams,
+  type DSM5Result,
+  type DSM5Severity,
+  type ContraindicationResult,
+  type WithdrawalRiskResult,
+  type ProviderDecisionSummary,
 } from './scoring';
 
-// Auto-save functionality
-export {
-  saveDraftToLocalStorage,
-  loadDraftFromLocalStorage,
-  clearDraftFromLocalStorage,
-  hasSavedDraft,
-  saveDraftToServer,
-  loadDraftFromServer,
-  debounce,
-  throttle,
-  createAutoSaveHandler,
-  calculateProgress,
-  type AutoSaveState,
-  type AutoSaveStatus,
-  type SavedDraft,
-  type AutoSaveOptions,
-  type AutoSaveActions,
-} from './auto-save';
+// Note: The auto-save module (auto-save.ts) was removed because it stored
+// unencrypted PHI in browser sessionStorage, violating HIPAA requirements.
+// The current IntakeClient.tsx uses server-side auto-save instead.
 
 // Types
 export type {
