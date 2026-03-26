@@ -56,15 +56,13 @@ export async function notifyNewIntake(patientId: string, intakeId: string): Prom
 
 /**
  * Notify patient that their intake review is complete
- * 
+ *
  * @param patientId - Patient's user ID
  * @param status - Review status (APPROVED, DECLINED, NEEDS_INFO)
- * @param notes - Optional notes from physician
  */
 export async function notifyReviewComplete(
   patientId: string,
   status: 'APPROVED' | 'DECLINED' | 'NEEDS_INFO',
-  notes?: string
 ): Promise<void> {
   console.log(`[NotificationService] Notifying review complete: ${status} for patient: ${patientId}`);
   
@@ -423,9 +421,8 @@ export class NotificationService {
   static async notifyReviewComplete(
     patientId: string,
     status: 'APPROVED' | 'DECLINED' | 'NEEDS_INFO',
-    notes?: string
   ): Promise<void> {
-    return notifyReviewComplete(patientId, status, notes);
+    return notifyReviewComplete(patientId, status);
   }
 
   static async notifyPrescriptionSent(

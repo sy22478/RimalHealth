@@ -254,6 +254,23 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
       return NextResponse.redirect(unauthorizedUrl);
     }
 
+    // Enforce absolute session timeout (P1-014)
+    // This check MUST happen BEFORE user headers are injected so that
+    // downstream API routes never receive identity headers for an
+    // expired session.
+    const issuedAt = payload.iat;
+    if (issuedAt) {
+      const now = Math.floor(Date.now() / 1000);
+      const sessionAge = now - issuedAt;
+      if (sessionAge > SESSION_CONFIG.ABSOLUTE_TIMEOUT) {
+        // Session has exceeded absolute timeout — force re-login
+        const expiredResponse = NextResponse.redirect(new URL('/login', request.url));
+        expiredResponse.cookies.delete('accessToken');
+        expiredResponse.cookies.delete('refreshToken');
+        return expiredResponse;
+      }
+    }
+
     // Add user info and request ID to request headers for downstream use
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set('x-user-id', userId);
@@ -270,22 +287,6 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
 
     // Expose request ID on the response for client-side correlation
     response.headers.set('x-request-id', requestId);
-
-    // Enforce absolute session timeout (P1-014)
-    // If the token was issued more than ABSOLUTE_TIMEOUT seconds ago,
-    // force re-login instead of refreshing the session.
-    const issuedAt = payload.iat;
-    if (issuedAt) {
-      const now = Math.floor(Date.now() / 1000);
-      const sessionAge = now - issuedAt;
-      if (sessionAge > SESSION_CONFIG.ABSOLUTE_TIMEOUT) {
-        // Session has exceeded absolute timeout — force re-login
-        const expiredResponse = NextResponse.redirect(new URL('/login', request.url));
-        expiredResponse.cookies.delete('accessToken');
-        expiredResponse.cookies.delete('refreshToken');
-        return expiredResponse;
-      }
-    }
 
     // Refresh token cookie if it exists (extend session)
     const tokenCookie = request.cookies.get('accessToken');

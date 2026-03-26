@@ -29,10 +29,5 @@
     Content-Type = "image/svg+xml"
     Cache-Control = "public, max-age=86400"
 
-# Headers for security
-[[headers]]
-  for = "/*"
-  [headers.values]
-    X-Frame-Options = "DENY"
-    X-Content-Type-Options = "nosniff"
-    Referrer-Policy = "strict-origin-when-cross-origin"
+# Security headers (X-Frame-Options, X-Content-Type-Options, Referrer-Policy, etc.)
+# are set in next.config.ts via the SECURITY_HEADERS constant. Do not duplicate here.

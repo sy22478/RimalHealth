@@ -110,6 +110,19 @@ export function getQueryStats(): {
 }
 
 // Create PostgreSQL connection pool
+//
+// PRODUCTION NOTE (Neon Serverless):
+// For serverless environments (e.g., Netlify Functions), the DATABASE_URL
+// should use Neon's pooled connection endpoint with the `-pooler` suffix.
+// Example: postgresql://user:pass@ep-xxx-pooler.us-east-2.aws.neon.tech/dbname?sslmode=require
+// The `-pooler` suffix routes connections through Neon's built-in PgBouncer
+// proxy, which is critical for serverless workloads where each request may
+// open a new connection. Without it, cold starts can exhaust the direct
+// connection limit quickly.
+//
+// Non-pooler (direct) connections should only be used for migrations and
+// Prisma Studio: postgresql://user:pass@ep-xxx.us-east-2.aws.neon.tech/dbname
+//
 const connectionString = process.env.DATABASE_URL;
 
 // Lazy initialization of PrismaClient

@@ -399,3 +399,20 @@
 
 - **[PM-026]** 2026-03-26 — AutoDream Wave 1 complete. ~225K tokens, 113 tool calls. Committed as `734f6c9`. TypeScript clean, 95 tests passing.
 
+**AD4: Encryption/Audit Tests** (76K tokens, 25 tool calls) — DONE
+- 34 encryption roundtrip tests (all 8 models, edge cases, 10KB payloads)
+- 30 audit logger tests (PHI access, auth events, silent fallback, HIPAA fields)
+- 8 no-PHI-in-console static analysis tests (scans all 80 API route files)
+
+**AD5: Patient MFA** (96K tokens, 50 tool calls) — DONE
+- MFA APIs opened to patients (setup, verify-setup)
+- Login form: MFA 6-digit code step when requiresMFA returned
+- Patient layout: MFA gate after intake gate (7-day grace period)
+- /patient/mfa-setup page with MFASetup component
+- Dashboard: MFA setup prompt (dismissible during grace, required after)
+
+- **[PM-027]** 2026-03-26 — Fixed intake-gate test for MFA gate compatibility (added user.findUnique mock). All 356 tests passing.
+- **[PM-028]** 2026-03-26 — AutoDream Wave 2 complete. ~172K tokens, 75 tool calls. Committed as `581283a`.
+
+**ALL P1 TASKS COMPLETE.** Remaining: P2, P3, Compliance Phase 2-3, Evaluation.
+

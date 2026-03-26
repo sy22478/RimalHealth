@@ -57,6 +57,9 @@ export enum AuditEventType {
   PREFERENCES_UPDATED = 'PREFERENCES_UPDATED',
   PROFILE_UPDATED = 'PROFILE_UPDATED',
 
+  // Consent events
+  CONSENT_RECORDED = 'CONSENT_RECORDED',
+
   // MFA events
   MFA_SETUP = 'mfa_setup',
   MFA_VERIFIED = 'mfa_verified',

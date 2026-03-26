@@ -16,6 +16,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { rateLimit, rateLimitPresets } from '@/lib/middleware/rate-limit';
 import { requireCSRF } from '@/lib/security/csrf';
+import { AuditEventType } from '@/lib/audit/types';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -78,7 +79,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     await prisma.auditLog.create({
       data: {
-        eventType: 'CONSENT_RECORDED',
+        eventType: AuditEventType.CONSENT_RECORDED,
         severity: 'INFO',
         ipAddress: clientIp,
         userAgent: request.headers.get('user-agent') ?? 'unknown',

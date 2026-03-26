@@ -167,8 +167,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Notify patient
     await NotificationService.notifyReviewComplete(
       intake.patientId,
-      decision,
-      notes
+      decision
     );
 
     return NextResponse.json({

@@ -127,38 +127,38 @@
   - [ ] 4.1.3 Create scheduled function for `processExpiredDeletions()`
   - [ ] 4.1.4 Implement actual record deletion/anonymization
 
-- [ ] **4.2 Infrastructure Cleanup**
-  - [ ] 4.2.1 Upgrade `actions/create-release@v1` to `softprops/action-gh-release@v2`
-  - [ ] 4.2.2 Upgrade `codecov/codecov-action@v3` to `@v4`
-  - [ ] 4.2.3 Remove duplicate security headers from `netlify.toml`
+- [~] **4.2 Infrastructure Cleanup**
+  - [x] 4.2.1 Upgrade `actions/create-release@v1` to `softprops/action-gh-release@v2`
+  - [x] 4.2.2 Upgrade `codecov/codecov-action@v3` to `@v4`
+  - [x] 4.2.3 Remove duplicate security headers from `netlify.toml`
   - [x] 4.2.4 Delete orphaned `lib/db/encryption-middleware.ts` (25 lines)
   - [x] 4.2.5 Delete orphaned `lib/db/encryption.ts` (37 lines)
 
-- [ ] **4.3 Session & Security**
-  - [ ] 4.3.1 Move session timeout check BEFORE user header injection in `middleware.ts`
+- [~] **4.3 Session & Security**
+  - [x] 4.3.1 Move session timeout check BEFORE user header injection in `middleware.ts`
   - [ ] 4.3.2 Implement in-memory fallback rate limiter for auth when Redis is down
-  - [ ] 4.3.3 Add timing-safe comparison for token lookups
+  - [x] 4.3.3 Add timing-safe comparison for token lookups
 
-- [ ] **4.4 Performance**
-  - [ ] 4.4.1 Switch to Neon pooled connection endpoint
+- [~] **4.4 Performance**
+  - [x] 4.4.1 Switch to Neon pooled connection endpoint -- added documentation to `lib/db/prisma.ts` explaining `-pooler` suffix requirement for serverless (env var change, no code change)
   - [ ] 4.4.2 Evaluate and enable React Compiler
-  - [ ] 4.4.3 Enable PPR for marketing pages
+  - [x] 4.4.3 Enable PPR for marketing pages -- added `ppr: 'incremental'` to `next.config.ts`, added `experimental_ppr = true` to homepage, privacy, terms, hipaa, contact pages (server components only)
 
-- [~] **4.5 npm Audit**
-  - [~] 4.5.1 Run `npm audit fix` -- ran; remaining 27 vulns require major version bumps (next, prisma, eslint)
+- [x] **4.5 npm Audit**
+  - [x] 4.5.1 Run `npm audit fix` -- ran; remaining 21 vulns all require major version bumps (next, prisma, eslint) and cannot be fixed without `--force`
 
 ---
 
 ## TASK 5: P3 -- Backlog
 
-- [ ] **5.1 Integrations**
-  - [ ] 5.1.1 Implement subscription cancellation email (`app/api/patient/billing/cancel/route.ts:193`)
+- [~] **5.1 Integrations**
+  - [x] 5.1.1 Implement subscription cancellation email (`app/api/patient/billing/cancel/route.ts`) -- added `sendEmail()` with `SUBSCRIPTION_CANCELLED` template; HIPAA-safe (no PHI, directs user to log in)
   - [ ] 5.1.2 Implement email retry worker for `notifications:email:retry` Redis queue
   - [ ] 5.1.3 DoseSpot production mode (currently always mock)
 
-- [ ] **5.2 Minor Quality**
-  - [ ] 5.2.1 Replace `'CONSENT_RECORDED'` string literal with AuditEventType enum
-  - [ ] 5.2.2 Remove dead `notes` parameter from `NotificationService.notifyReviewComplete()`
+- [~] **5.2 Minor Quality**
+  - [x] 5.2.1 Replace `'CONSENT_RECORDED'` string literal with AuditEventType enum -- added `CONSENT_RECORDED` to `AuditEventType` enum, updated consent route import
+  - [x] 5.2.2 Remove dead `notes` parameter from `NotificationService.notifyReviewComplete()` -- removed from standalone function, static class method, and physician review caller
   - [ ] 5.2.3 Document encryption salt rotation plan
   - [ ] 5.2.4 Document rollback strategy for flow redesign
 

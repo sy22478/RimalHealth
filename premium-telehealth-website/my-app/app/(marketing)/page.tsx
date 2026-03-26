@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Hero } from "@/components/sections/Hero";
 
+export const experimental_ppr = true;
+
 export const metadata: Metadata = {
   title: "Medication-Assisted Treatment for Alcohol Addiction",
   description:

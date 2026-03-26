@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { ContactForm } from "@/components/forms/ContactForm";
 import { Mail, Clock, Shield } from "lucide-react";
 
+export const experimental_ppr = true;
+
 export const metadata: Metadata = {
   title: "Contact Us",
   description:

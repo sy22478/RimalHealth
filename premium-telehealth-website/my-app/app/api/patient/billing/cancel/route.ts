@@ -17,6 +17,8 @@ import { getStripe } from '@/lib/stripe/stripe-server';
 import { auditLogger, createAuditContext } from '@/lib/audit/index';
 import { z } from 'zod';
 import { verifyAccessToken } from '@/lib/auth/jwt';
+import { sendEmail } from '@/lib/integrations/sendgrid';
+import { EmailTemplate } from '@/lib/notifications/templates';
 
 // ============================================================================
 // Types & Validation
@@ -189,9 +191,27 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         } as Record<string, unknown>
       );
 
-      // Send cancellation confirmation email (async)
-      // TODO: Implement email notification
-      // await sendCancellationEmail(userId, subscription);
+      // Send cancellation confirmation email (async, best-effort)
+      // HIPAA: No PHI in the email — just directs the user to log in.
+      try {
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { email: true },
+        });
+        if (user?.email) {
+          await sendEmail({
+            to: user.email,
+            template: EmailTemplate.SUBSCRIPTION_CANCELLED,
+            data: {
+              periodEnd: updatedSubscription.currentPeriodEnd.toISOString().split('T')[0],
+              dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://rimalhealth.com'}/patient/billing`,
+            },
+          });
+        }
+      } catch (emailError) {
+        // Email failure must not block the cancellation response
+        console.error('[Cancel API] Failed to send cancellation email:', emailError instanceof Error ? emailError.message : 'Unknown error');
+      }
 
       const response: CancelResponse = {
         success: true,

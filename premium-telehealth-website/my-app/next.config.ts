@@ -28,6 +28,11 @@ const nextConfig: NextConfig = {
 
   // Experimental features for performance
   experimental: {
+    // Partial Prerendering (PPR) — streams the static shell immediately and
+    // defers dynamic/client portions. Opt-in per route via
+    // `export const experimental_ppr = true` in the page file.
+    ppr: 'incremental',
+
     // Optimize package imports for faster builds and smaller bundles
     optimizePackageImports: [
       "@radix-ui/react-icons",

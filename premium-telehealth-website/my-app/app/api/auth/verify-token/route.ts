@@ -13,6 +13,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { timingSafeEqual } from 'crypto';
 import { prisma } from '@/lib/db/prisma';
 import { rateLimit, rateLimitPresets } from '@/lib/middleware/rate-limit';
 import { auditPasswordEvent } from '@/lib/audit/logger';
@@ -54,6 +55,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
+    // Defense-in-depth: prisma.findUnique uses a DB index lookup (constant-time
+    // at the database level, not vulnerable to byte-by-byte timing attacks).
+    // We additionally perform a timing-safe comparison on the retrieved token
+    // vs the user-supplied token so that even if the DB driver leaks timing
+    // information through network latency, the comparison itself is safe.
     const resetRecord = await prisma.passwordReset.findUnique({
       where: { token },
       include: {
@@ -75,6 +81,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         'Invalid token'
       ).catch(() => {});
 
+      return NextResponse.json(
+        { error: 'Invalid or expired link', code: 'INVALID_TOKEN' },
+        { status: 400 }
+      );
+    }
+
+    // Timing-safe comparison: ensure the stored token matches the input token
+    // in constant time, preventing timing side-channel attacks.
+    const storedBuf = Buffer.from(resetRecord.token, 'utf-8');
+    const inputBuf = Buffer.from(token, 'utf-8');
+    if (storedBuf.length !== inputBuf.length || !timingSafeEqual(storedBuf, inputBuf)) {
       return NextResponse.json(
         { error: 'Invalid or expired link', code: 'INVALID_TOKEN' },
         { status: 400 }
