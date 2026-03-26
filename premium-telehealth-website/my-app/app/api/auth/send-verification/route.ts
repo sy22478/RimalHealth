@@ -26,9 +26,10 @@ const sendVerificationSchema = z.object({
 });
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  // Rate limiting: strict — 5 requests per 15 minutes per IP
+  // Rate limiting: auth preset — 5 requests per 15 minutes per IP
+  // (strict was too aggressive at 3/hour — users hit it during normal create-account flow)
   const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
-  const rateLimitResult = await rateLimit(clientIp, rateLimitPresets.strict);
+  const rateLimitResult = await rateLimit(clientIp, rateLimitPresets.auth);
   if (!rateLimitResult.success) {
     return NextResponse.json(
       { error: 'Too many requests. Please try again later.', code: 'RATE_LIMITED' },

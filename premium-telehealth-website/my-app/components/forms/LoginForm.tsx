@@ -79,6 +79,9 @@ export function LoginForm() {
   const [showPassword, setShowPassword] = React.useState(false);
   const [isLocked, setIsLocked] = React.useState(false);
   const [remainingSeconds, setRemainingSeconds] = React.useState(0);
+  const [needsVerification, setNeedsVerification] = React.useState(false);
+  const [resendingVerification, setResendingVerification] = React.useState(false);
+  const [resendSuccess, setResendSuccess] = React.useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const from = searchParams.get("from");
@@ -122,6 +125,7 @@ export function LoginForm() {
 
         // Handle email not verified
         if (result.code === "EMAIL_NOT_VERIFIED") {
+          setNeedsVerification(true);
           setError(
             "Please verify your email address before signing in. Check your inbox for the verification link."
           );
@@ -168,10 +172,62 @@ export function LoginForm() {
     }
   };
 
+  const handleResendVerification = async (): Promise<void> => {
+    const email = (document.getElementById("email") as HTMLInputElement)?.value;
+    if (!email) return;
+
+    setResendingVerification(true);
+    setResendSuccess(false);
+    try {
+      const response = await fetch("/api/auth/send-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      if (response.ok) {
+        setResendSuccess(true);
+        setError("");
+      } else if (response.status === 429) {
+        setError("Too many attempts. Please wait a few minutes before trying again.");
+      } else {
+        setError("Failed to send verification email. Please try again.");
+      }
+    } catch {
+      setError("Failed to send verification email. Please try again.");
+    } finally {
+      setResendingVerification(false);
+    }
+  };
+
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardContent className="pt-6">
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" autoComplete="on">
+          {/* Hidden username field for browser autofill accessibility (Chrome DOM warning fix) */}
+          <input type="text" name="username" autoComplete="username" className="sr-only" tabIndex={-1} aria-hidden="true" />
+          {/* Error Alert */}
+          {/* Verification Success */}
+          <AnimatePresence mode="wait">
+            {resendSuccess && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="p-3 rounded-lg bg-green-50 border border-green-200 flex items-start gap-2"
+                role="status"
+                aria-live="polite"
+              >
+                <svg className="size-4 text-green-600 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-sm text-green-700">
+                  Verification email sent! Check your inbox and click the link to verify your account.
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* Error Alert */}
           <AnimatePresence mode="wait">
             {error && (
@@ -194,6 +250,16 @@ export function LoginForm() {
                         setError("");
                       }}
                     />
+                  )}
+                  {needsVerification && !resendSuccess && (
+                    <button
+                      type="button"
+                      onClick={handleResendVerification}
+                      disabled={resendingVerification}
+                      className="mt-2 text-sm font-medium text-ocean-600 hover:text-ocean-700 underline underline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {resendingVerification ? "Sending..." : "Resend verification email"}
+                    </button>
                   )}
                 </div>
               </motion.div>
