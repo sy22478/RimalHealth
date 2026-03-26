@@ -15,7 +15,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { stripe } from '@/lib/integrations/stripe';
+import { getStripe } from '@/lib/stripe/stripe-server';
 import { auditLogger, createAuditContext } from '@/lib/audit/index';
 import { verifyAccessToken } from '@/lib/auth/jwt';
 
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
       // Create Stripe Customer Portal session
-      const portalSession = await stripe.billingPortal.sessions.create({
+      const portalSession = await getStripe().billingPortal.sessions.create({
         customer: subscription.stripeCustomerId,
         return_url: `${appUrl}/patient/billing`,
         flow_data: {

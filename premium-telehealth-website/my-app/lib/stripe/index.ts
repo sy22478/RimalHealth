@@ -30,11 +30,14 @@ export {
   // Checkout
   createCheckoutSession,
   getCheckoutSession,
-  
+
   // Customer Portal
   createCustomerPortalSession,
   configureCustomerPortal,
-  
+
+  // Payment Methods
+  getDefaultPaymentMethod,
+
   // Invoices
   getInvoice,
   listInvoices,

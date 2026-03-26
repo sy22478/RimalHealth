@@ -375,3 +375,9 @@
   - Key decisions: tasks.md is the single source of truth for all work; agents update it as work completes
   - Architecture score baseline: 3.7/5 (up from 2.8/5 after Phase 5-7 fixes)
 
+- **[PM-024]** 2026-03-26 — Fixed login verification flow: rate limit relaxed (strict->auth), resend button added, a11y hidden username field. Deployed to production.
+
+### Phase 9 — AutoDream: P1 Remaining (2026-03-26)
+
+- **[PM-025]** 2026-03-26 — AutoDream started. Deploying 3 agents for remaining P1 tasks: Stripe consolidation (2.6), webhook dedup (2.9), consent linkage (3.4) + remaining tests (3.3). Patient MFA (2.8) deferred — requires UX design decisions.
+

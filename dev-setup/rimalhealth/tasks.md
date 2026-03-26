@@ -66,10 +66,10 @@
   - [x] 2.5.2 Fix any TypeScript errors that surface (none found after cache clean)
   - [ ] 2.5.3 Verify CI pipeline passes end-to-end
 
-- [ ] **2.6 Dual Stripe Consolidation**
-  - [ ] 2.6.1 Identify all 7 routes importing from `lib/integrations/stripe.ts`
-  - [ ] 2.6.2 Migrate each to use `lib/stripe/stripe-server.ts`
-  - [ ] 2.6.3 Delete `lib/integrations/stripe.ts` after migration
+- [~] **2.6 Dual Stripe Consolidation**
+  - [x] 2.6.1 Identify all 7 routes importing from `lib/integrations/stripe.ts`
+  - [x] 2.6.2 Migrate each to use `lib/stripe/stripe-server.ts`
+  - [x] 2.6.3 Delete `lib/integrations/stripe.ts` after migration
   - [ ] 2.6.4 Verify checkout, billing, subscription, webhook all work
 
 - [x] **2.7 Database Connection Pooling**
@@ -80,10 +80,10 @@
   - [ ] 2.8.2 Add MFA verification step to patient login
   - [ ] 2.8.3 Add MFA bypass for first login (before setup)
 
-- [ ] **2.9 Stripe Webhook Deduplication**
-  - [ ] 2.9.1 Create `WebhookEvent` Prisma model with unique `stripeEventId`
-  - [ ] 2.9.2 Add dedup check at start of webhook handler
-  - [ ] 2.9.3 Record event ID after successful processing
+- [x] **2.9 Stripe Webhook Deduplication**
+  - [x] 2.9.1 Create `WebhookEvent` Prisma model with unique `stripeEventId`
+  - [x] 2.9.2 Add dedup check at start of webhook handler
+  - [x] 2.9.3 Record event ID after successful processing
 
 - [ ] **2.10 Encryption & Audit Tests**
   - [ ] 2.10.1 Write encrypt/store/retrieve/decrypt roundtrip tests for all 7 models
@@ -102,17 +102,17 @@
 - [x] **3.2 Webhook Secret Safety**
   - [x] 3.2.1 Replace `process.env.STRIPE_WEBHOOK_SECRET!` with runtime check in `app/api/webhooks/stripe/route.ts`
 
-- [ ] **3.3 Test Coverage (Currently 2.6%)**
-  - [ ] 3.3.1 Tests for verify-token, verify-email, send-verification API routes
-  - [ ] 3.3.2 Tests for consent API route
+- [x] **3.3 Test Coverage (Currently 2.6%)**
+  - [x] 3.3.1 Tests for verify-token, verify-email, send-verification API routes
+  - [x] 3.3.2 Tests for consent API route
   - [x] 3.3.3 Tests for 4 new scoring functions
-  - [ ] 3.3.4 Tests for patient layout intake gate
+  - [x] 3.3.4 Tests for patient layout intake gate
   - [x] 3.3.5 Tests for encryption extension with expanded PHI fields
   - [x] 3.3.6 Fix `vitest.config.ts` to include both unit AND integration tests
 
-- [ ] **3.4 Consent-to-User Linkage**
-  - [ ] 3.4.1 Pass `consentRecordId` as Stripe session metadata
-  - [ ] 3.4.2 Store `consentRecordId` on User/PatientProfile in webhook
+- [x] **3.4 Consent-to-User Linkage**
+  - [x] 3.4.1 Pass `consentRecordId` as Stripe session metadata
+  - [x] 3.4.2 Store `consentRecordId` on User/PatientProfile in webhook
 
 - [x] **3.5 Public Checkout URL Validation**
   - [x] 3.5.1 Validate `successUrl`/`cancelUrl` start with `NEXT_PUBLIC_APP_URL` (both checkout routes)

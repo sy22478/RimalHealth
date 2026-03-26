@@ -14,7 +14,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { stripe } from '@/lib/integrations/stripe';
+import { getStripe } from '@/lib/stripe/stripe-server';
 import { auditLogger, createAuditContext } from '@/lib/audit/index';
 import { verifyAccessToken } from '@/lib/auth/jwt';
 
@@ -68,7 +68,7 @@ function formatInvoiceNumber(invoiceId: string, createdAt: Date): string {
  */
 async function getStripeInvoicePdfUrl(stripeInvoiceId: string): Promise<string | null> {
   try {
-    const invoice = await stripe.invoices.retrieve(stripeInvoiceId);
+    const invoice = await getStripe().invoices.retrieve(stripeInvoiceId);
     
     // Stripe invoice object has invoice_pdf property
     if (invoice.invoice_pdf) {

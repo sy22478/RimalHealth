@@ -13,7 +13,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { stripe, getDefaultPaymentMethod } from '@/lib/integrations/stripe';
+import { getDefaultPaymentMethod } from '@/lib/stripe/stripe-server';
 import { auditLogger, createAuditContext } from '@/lib/audit/index';
 import { verifyAccessToken } from '@/lib/auth/jwt';
 

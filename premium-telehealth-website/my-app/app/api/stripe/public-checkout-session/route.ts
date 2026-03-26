@@ -17,6 +17,7 @@ const publicCheckoutSchema = z.object({
   planType: z.enum(['ACTIVE_TREATMENT']),
   successUrl: z.string().url('Invalid success URL'),
   cancelUrl: z.string().url('Invalid cancel URL'),
+  consentId: z.string().uuid('Invalid consent ID').optional(),
 });
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -35,7 +36,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     getOrCreateCustomer,
     getPriceId,
     isStripeConfigured,
-  } = await import('@/lib/integrations/stripe');
+    getStripe,
+  } = await import('@/lib/stripe/stripe-server');
 
   if (!isStripeConfigured()) {
     return NextResponse.json(
@@ -59,7 +61,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const { planType, successUrl, cancelUrl } = validationResult.data;
+    const { planType, successUrl, cancelUrl, consentId } = validationResult.data;
 
     // Validate redirect URLs start with the app URL to prevent open redirect
     const appUrl = process.env.NEXT_PUBLIC_APP_URL;
@@ -80,7 +82,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Create a Stripe Checkout session without a pre-existing customer.
     // Stripe collects the customer email and creates the customer automatically
     // when no `customer` param is provided in subscription mode.
-    const stripe = (await import('@/lib/integrations/stripe')).stripe;
+    const stripe = getStripe();
+
+    const sessionMetadata: Record<string, string> = { planType };
+    if (consentId) {
+      sessionMetadata.consentRecordId = consentId;
+    }
 
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
@@ -89,7 +96,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       cancel_url: cancelUrl,
       billing_address_collection: 'required',
       payment_method_collection: 'always',
-      metadata: { planType },
+      metadata: sessionMetadata,
       subscription_data: { metadata: { planType } },
     });
 

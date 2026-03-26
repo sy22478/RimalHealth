@@ -905,3 +905,18 @@ enum AdminAction {
   SETTINGS_UPDATE
   EXPORT_DATA
 }
+
+// ============================================
+// WEBHOOK EVENT DEDUPLICATION
+// ============================================
+
+model WebhookEvent {
+  id            String   @id @default(cuid())
+  stripeEventId String   @unique
+  eventType     String
+  processedAt   DateTime @default(now())
+  status        String   @default("processed")
+
+  @@index([stripeEventId])
+  @@index([processedAt])
+}

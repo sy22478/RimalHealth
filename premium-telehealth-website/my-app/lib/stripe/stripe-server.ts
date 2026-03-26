@@ -446,6 +446,37 @@ export async function configureCustomerPortal(): Promise<Stripe.BillingPortal.Co
 }
 
 // ============================================
+// Payment Method Management
+// ============================================
+
+/**
+ * Get customer's default payment method
+ *
+ * @param customerId - Stripe customer ID
+ * @returns Payment method or null
+ */
+export async function getDefaultPaymentMethod(
+  customerId: string
+): Promise<Stripe.PaymentMethod | null> {
+  const stripe = getStripe();
+
+  const customer = await stripe.customers.retrieve(customerId);
+
+  if (customer.deleted) {
+    return null;
+  }
+
+  const defaultPaymentMethodId = (customer as Stripe.Customer)
+    .invoice_settings?.default_payment_method;
+
+  if (!defaultPaymentMethodId || typeof defaultPaymentMethodId !== 'string') {
+    return null;
+  }
+
+  return stripe.paymentMethods.retrieve(defaultPaymentMethodId);
+}
+
+// ============================================
 // Invoice Management
 // ============================================
 

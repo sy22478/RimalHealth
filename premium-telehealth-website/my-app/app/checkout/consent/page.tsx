@@ -364,11 +364,24 @@ function ConsentContent(): React.ReactElement {
       console.warn('[consent] Failed to submit consent record; proceeding to payment.');
     }
 
-    // Preserve any query params (e.g., ?plan=active-treatment)
+    // Preserve any query params (e.g., ?plan=active-treatment) and pass consentId
     const plan = searchParams.get('plan');
-    const paymentUrl = plan
-      ? `/checkout/payment?plan=${encodeURIComponent(plan)}`
-      : '/checkout/payment';
+    const params = new URLSearchParams();
+    if (plan) {
+      params.set('plan', plan);
+    }
+    // Retrieve consentRecordId to pass through the checkout flow
+    let consentId: string | null = null;
+    try {
+      consentId = sessionStorage.getItem('consentRecordId');
+    } catch {
+      // sessionStorage may be unavailable
+    }
+    if (consentId) {
+      params.set('consentId', consentId);
+    }
+    const qs = params.toString();
+    const paymentUrl = qs ? `/checkout/payment?${qs}` : '/checkout/payment';
 
     router.push(paymentUrl);
   };

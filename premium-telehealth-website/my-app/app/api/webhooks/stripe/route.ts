@@ -98,7 +98,26 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   console.info(`[Stripe Webhook] Event: ${event.type}`);
 
   // ========================================================================
-  // 2. Handle the event
+  // 2. Deduplication check — reject already-processed events
+  // ========================================================================
+  try {
+    const prisma = await getPrisma();
+    const existingEvent = await prisma.webhookEvent.findUnique({
+      where: { stripeEventId: event.id },
+    });
+    if (existingEvent) {
+      console.info(`[Stripe Webhook] Duplicate event ${event.id}, skipping`);
+      return NextResponse.json({ received: true, deduplicated: true });
+    }
+  } catch {
+    // If the dedup check fails (e.g., DB unavailable), proceed with processing
+    // to avoid dropping legitimate events. The per-handler idempotency guards
+    // still protect against double-creates.
+    console.warn('[Stripe Webhook] Dedup check failed, proceeding with processing');
+  }
+
+  // ========================================================================
+  // 3. Handle the event
   // ========================================================================
   try {
     switch (event.type) {
@@ -129,6 +148,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       default:
         console.info(`[Stripe Webhook] Unhandled event type: ${event.type}`);
     }
+
+    // Record processed event for deduplication
+    await getPrisma()
+      .then((p) =>
+        p.webhookEvent.create({
+          data: { stripeEventId: event.id, eventType: event.type },
+        })
+      )
+      .catch(() => {
+        // Don't fail the webhook if dedup recording fails
+        console.warn('[Stripe Webhook] Failed to record webhook event for dedup');
+      });
 
     return NextResponse.json({ received: true });
 
@@ -362,6 +393,51 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
       accessReason: isNewUser ? 'Auto-created after payment (payment-first flow)' : 'Subscription created after payment',
     }
   );
+
+  // ========================================================================
+  // 6. Link consent record to user (Task 3.4)
+  // ========================================================================
+  const consentRecordId = session.metadata?.consentRecordId;
+  if (consentRecordId) {
+    try {
+      // Update the original consent AuditLog entry to link it to the user
+      await prisma.auditLog.updateMany({
+        where: {
+          eventType: 'CONSENT_RECORDED',
+          resourceType: 'CONSENT',
+          resourceId: consentRecordId,
+        },
+        data: {
+          userId,
+          targetUserId: userId,
+        },
+      });
+
+      // Also create a linkage audit entry for traceability
+      await prisma.auditLog.create({
+        data: {
+          eventType: 'CONSENT_LINKED',
+          severity: 'INFO',
+          userId,
+          userRole: 'PATIENT',
+          ipAddress: 'stripe-webhook',
+          userAgent: 'stripe',
+          resourceType: 'CONSENT',
+          resourceId: consentRecordId,
+          targetUserId: userId,
+          metadata: {
+            stripeSessionId: session.id,
+            consentRecordId,
+            linkedAt: new Date().toISOString(),
+          },
+          success: true,
+        },
+      });
+    } catch {
+      // Don't fail checkout if consent linkage fails — it's logged for compliance
+      console.warn('[Stripe Webhook] Failed to link consent record to user');
+    }
+  }
 
   // Checkout processing complete
 }

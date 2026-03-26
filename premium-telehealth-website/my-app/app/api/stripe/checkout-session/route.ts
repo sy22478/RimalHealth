@@ -123,7 +123,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     getOrCreateCustomer,
     getPriceId,
     isStripeConfigured,
-  } = await import('@/lib/integrations/stripe');
+  } = await import('@/lib/stripe/stripe-server');
 
   // Check Stripe configuration
   if (!isStripeConfigured()) {
@@ -326,7 +326,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   // Lazy load Stripe integration
-  const { getCheckoutSession, isStripeConfigured } = await import('@/lib/integrations/stripe');
+  const { getCheckoutSession, isStripeConfigured } = await import('@/lib/stripe/stripe-server');
 
   // Check Stripe configuration
   if (!isStripeConfigured()) {

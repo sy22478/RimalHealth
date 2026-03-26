@@ -65,5 +65,3 @@ export {
 // Other integrations
 export { sendEmail, sendMultipleEmails, initializeSendGrid } from './sendgrid';
 export type { SendEmailOptions } from './sendgrid';
-
-export { stripe } from './stripe';

@@ -111,7 +111,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     getPriceId,
     isStripeConfigured,
     getPlanAmount,
-  } = await import('@/lib/integrations/stripe');
+  } = await import('@/lib/stripe/stripe-server');
 
   if (!isStripeConfigured()) {
     return NextResponse.json(
@@ -299,7 +299,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const {
     getSubscription,
     isStripeConfigured,
-  } = await import('@/lib/integrations/stripe');
+  } = await import('@/lib/stripe/stripe-server');
 
   // Lazy load database
   const { prisma } = await import('@/lib/db/prisma');
@@ -422,7 +422,7 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
     cancelSubscription,
     resumeSubscription,
     isStripeConfigured,
-  } = await import('@/lib/integrations/stripe');
+  } = await import('@/lib/stripe/stripe-server');
 
   // Lazy load database
   const { prisma } = await import('@/lib/db/prisma');
@@ -566,7 +566,7 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
     cancelSubscription,
     resumeSubscription,
     isStripeConfigured,
-  } = await import('@/lib/integrations/stripe');
+  } = await import('@/lib/stripe/stripe-server');
 
   // Lazy load database
   const { prisma } = await import('@/lib/db/prisma');

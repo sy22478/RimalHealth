@@ -131,8 +131,9 @@ function CheckoutPaymentContent() {
 
   const [plans] = React.useState<PlanInfo[]>(getPlans());
 
-  // Get pre-selected plan from URL
+  // Get pre-selected plan and consent ID from URL
   const preselectedPlan = searchParams.get('plan') || 'ACTIVE_TREATMENT';
+  const consentId = searchParams.get('consentId');
 
   const [selectedPlanId, setSelectedPlanId] = React.useState<string>(preselectedPlan);
 
@@ -163,6 +164,7 @@ function CheckoutPaymentContent() {
           planType: selectedPlanId,
           successUrl,
           cancelUrl,
+          ...(consentId ? { consentId } : {}),
         }),
       });
 

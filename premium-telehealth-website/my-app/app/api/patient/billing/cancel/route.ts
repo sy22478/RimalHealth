@@ -13,7 +13,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { stripe } from '@/lib/integrations/stripe';
+import { getStripe } from '@/lib/stripe/stripe-server';
 import { auditLogger, createAuditContext } from '@/lib/audit/index';
 import { z } from 'zod';
 import { verifyAccessToken } from '@/lib/auth/jwt';
@@ -155,7 +155,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
       // Cancel in Stripe
       if (subscription.stripeSubscriptionId) {
-        await stripe.subscriptions.update(subscription.stripeSubscriptionId, {
+        await getStripe().subscriptions.update(subscription.stripeSubscriptionId, {
           cancel_at_period_end: true,
         });
       }
