@@ -43,7 +43,6 @@ jobs:
 
       - name: Check code formatting
         run: npx prettier --check "**/*.{ts,tsx,js,jsx,json,md}"
-        continue-on-error: true
 
   # Unit tests
   unit-test:

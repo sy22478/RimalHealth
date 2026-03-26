@@ -142,17 +142,19 @@ jobs:
           NEXT_PUBLIC_GA_MEASUREMENT_ID: ${{ vars.NEXT_PUBLIC_GA_MEASUREMENT_ID }}
           NETLIFY: 'true'
 
+      - name: Run database migrations
+        id: db-migrate
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
       - name: Deploy to Netlify
+        if: steps.db-migrate.outcome == 'success'
         id: netlify-deploy
         env:
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
         run: netlify deploy --prod --dir=.next --site="$NETLIFY_SITE_ID" --auth="$NETLIFY_AUTH_TOKEN"
-
-      - name: Run database migrations
-        run: npx prisma migrate deploy
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Health check
         run: |

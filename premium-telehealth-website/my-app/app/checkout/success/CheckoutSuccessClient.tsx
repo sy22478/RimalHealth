@@ -1,18 +1,24 @@
 /**
  * Checkout Success Client Component
- * 
+ *
  * Shown after successful payment through Stripe Checkout.
- * Verifies the session and shows confirmation to user.
- * 
+ * Displays a static confirmation page directing users to check their email
+ * for account setup instructions.
+ *
+ * Security:
+ * - Does NOT call authenticated API endpoints (user has no account yet)
+ * - Does NOT display customer email, tokens, or any PHI
+ * - The Stripe webhook handles user creation and sends the set-password email
+ *
  * @module app/checkout/success/CheckoutSuccessClient
  */
 
 'use client';
 
 import * as React from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { CheckCircle, Loader2, AlertCircle, ArrowRight, KeyRound, Mail } from 'lucide-react';
+import { CheckCircle, AlertCircle, ArrowRight, KeyRound, Mail } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,126 +26,15 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 
 // ============================================
-// Types
-// ============================================
-
-type VerificationStatus = 'verifying' | 'success' | 'error';
-
-interface SessionDetails {
-  id: string;
-  status: string;
-  paymentStatus: string;
-  planType: string;
-  amount: number;
-  customerEmail: string;
-}
-
-// ============================================
 // Main Page Component
 // ============================================
 
 export default function CheckoutSuccessPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session_id');
 
-  const [status, setStatus] = React.useState<VerificationStatus>('verifying');
-  const [error, setError] = React.useState<string>('');
-  const [sessionDetails, setSessionDetails] = React.useState<SessionDetails | null>(null);
-  const [setPasswordUrl, setSetPasswordUrl] = React.useState<string>('');
-  const [tokenLoading, setTokenLoading] = React.useState(true);
-
-  // Verify the checkout session
-  React.useEffect(() => {
-    if (!sessionId) {
-      setStatus('error');
-      setError('No session ID found. Please contact support.');
-      return;
-    }
-
-    const verifySession = async () => {
-      try {
-        const response = await fetch(`/api/stripe/checkout-session?sessionId=${sessionId}`);
-
-        if (!response.ok) {
-          throw new Error('Failed to verify payment');
-        }
-
-        const data = await response.json();
-
-        if (data.paymentStatus === 'paid') {
-          const email = data.customerEmail || '';
-          setSessionDetails({
-            id: data.sessionId,
-            status: data.status,
-            paymentStatus: data.paymentStatus,
-            planType: data.metadata?.planType || 'ACTIVE_TREATMENT',
-            amount: data.amount_total || 5000,
-            customerEmail: email,
-          });
-          setStatus('success');
-
-          // Use the token returned inline from the session verification
-          if (data.setPasswordToken) {
-            setSetPasswordUrl(`/set-password?token=${data.setPasswordToken}`);
-            setTokenLoading(false);
-          } else if (email) {
-            // Webhook may not have fired yet — poll the session endpoint for the token
-            const pollForToken = async (): Promise<void> => {
-              for (let i = 0; i < 6; i++) {
-                await new Promise((r) => setTimeout(r, 3000 * (i + 1)));
-                try {
-                  const retryRes = await fetch(`/api/stripe/checkout-session?sessionId=${sessionId}`);
-                  if (retryRes.ok) {
-                    const retryData = await retryRes.json();
-                    if (retryData.setPasswordToken) {
-                      setSetPasswordUrl(`/set-password?token=${retryData.setPasswordToken}`);
-                      return;
-                    }
-                  }
-                } catch {
-                  // Network error, will retry
-                }
-              }
-            };
-            pollForToken().finally(() => setTokenLoading(false));
-          } else {
-            setTokenLoading(false);
-          }
-        } else {
-          setStatus('error');
-          setError('Payment not completed. Please try again.');
-        }
-      } catch (err) {
-        console.error('Error verifying session:', err);
-        // Even if verification fails, we show success since Stripe redirected here
-        // The webhook will handle the actual provisioning
-        setStatus('success');
-      }
-    };
-
-    verifySession();
-  }, [sessionId]);
-
-  // Loading state
-  if (status === 'verifying') {
-    return (
-      <div className="container mx-auto max-w-lg py-16 px-4">
-        <Card className="text-center">
-          <CardContent className="pt-12 pb-8">
-            <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
-            <h2 className="mt-6 text-2xl font-semibold">Verifying your payment...</h2>
-            <p className="mt-2 text-muted-foreground">
-              Please wait while we confirm your subscription.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // Error state
-  if (status === 'error') {
+  // If no session_id in URL, Stripe didn't redirect here properly
+  if (!sessionId) {
     return (
       <div className="container mx-auto max-w-lg py-16 px-4">
         <Card className="text-center">
@@ -147,7 +42,7 @@ export default function CheckoutSuccessPage() {
             <AlertCircle className="mx-auto h-12 w-12 text-destructive" />
             <h2 className="mt-6 text-2xl font-semibold">Something went wrong</h2>
             <p className="mt-2 text-muted-foreground">
-              {error || 'We could not verify your payment.'}
+              No session ID found. Please contact support.
             </p>
           </CardContent>
           <CardFooter className="flex flex-col gap-3">
@@ -167,7 +62,8 @@ export default function CheckoutSuccessPage() {
     );
   }
 
-  // Success state
+  // Success state — Stripe redirected here after successful payment.
+  // The webhook will handle user creation and send the set-password email.
   return (
     <div className="container mx-auto max-w-2xl py-12 px-4">
       <Card className="text-center">
@@ -185,7 +81,7 @@ export default function CheckoutSuccessPage() {
           <Alert className="bg-success/10 border-success/20">
             <CheckCircle className="h-4 w-4 text-success" />
             <AlertDescription className="text-success-foreground">
-              Payment successful! Check your email for a receipt.
+              Payment successful! A receipt has been sent to your email.
             </AlertDescription>
           </Alert>
 
@@ -202,7 +98,7 @@ export default function CheckoutSuccessPage() {
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Amount</span>
                 <span className="font-medium">
-                  ${sessionDetails ? (sessionDetails.amount / 100).toFixed(2) : '50.00'}/month
+                  $50.00/month
                 </span>
               </div>
               <Separator className="my-2" />
@@ -219,58 +115,42 @@ export default function CheckoutSuccessPage() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex items-start gap-3 rounded-lg border p-4">
-                <KeyRound className="mt-0.5 h-5 w-5 text-primary" />
+                <Mail className="mt-0.5 h-5 w-5 text-primary" />
                 <div>
-                  <p className="font-medium">Create Your Password</p>
+                  <p className="font-medium">Check Your Email</p>
                   <p className="text-sm text-muted-foreground">
-                    Set a password for your account to log in and complete your intake form.
+                    We sent you a link to set your password and activate your account.
                   </p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3 rounded-lg border p-4">
-                <Mail className="mt-0.5 h-5 w-5 text-primary" />
+                <KeyRound className="mt-0.5 h-5 w-5 text-primary" />
                 <div>
-                  <p className="font-medium">Physician Review</p>
+                  <p className="font-medium">Complete Your Intake</p>
                   <p className="text-sm text-muted-foreground">
-                    After your intake, a CA-licensed physician will review within 24 hours.
+                    After setting your password, log in and complete your intake form.
                   </p>
                 </div>
               </div>
             </div>
           </div>
 
-          {sessionDetails?.customerEmail && (
-            <Alert className="bg-primary/5 border-primary/20">
-              <Mail className="h-4 w-4 text-primary" />
-              <AlertDescription>
-                We sent a password setup link to <strong>{sessionDetails.customerEmail}</strong>. Check your inbox (and spam folder).
-              </AlertDescription>
-            </Alert>
-          )}
+          <Alert className="text-left">
+            <Mail className="h-4 w-4" />
+            <AlertDescription>
+              Check your email (including spam/junk folder) for a link to set your password. If you do not receive it within a few minutes, use the &quot;Forgot Password&quot; link on the login page.
+            </AlertDescription>
+          </Alert>
         </CardContent>
 
         <CardFooter className="flex flex-col gap-3">
-          {tokenLoading ? (
-            <Button className="w-full" size="lg" disabled>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Preparing your account...
-            </Button>
-          ) : setPasswordUrl ? (
-            <Button asChild className="w-full" size="lg">
-              <Link href={setPasswordUrl}>
-                Set Your Password
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-          ) : (
-            <Alert className="text-left">
-              <Mail className="h-4 w-4" />
-              <AlertDescription>
-                Your account is being set up. Check your email for a password setup link, or refresh this page in a moment.
-              </AlertDescription>
-            </Alert>
-          )}
+          <Button asChild className="w-full" size="lg">
+            <Link href="/set-password">
+              Set Your Password
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
 
           <Button variant="outline" asChild className="w-full">
             <Link href="/login">

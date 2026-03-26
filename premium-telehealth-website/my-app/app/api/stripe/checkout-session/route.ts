@@ -194,6 +194,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const { planType, successUrl, cancelUrl }: CheckoutSessionInput = validationResult.data;
 
+    // Validate redirect URLs start with the app URL to prevent open redirect
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+    if (appUrl) {
+      if (!successUrl.startsWith(appUrl) || !cancelUrl.startsWith(appUrl)) {
+        return NextResponse.json(
+          {
+            error: 'Invalid redirect URL',
+            code: 'INVALID_REDIRECT',
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     // Get user from database
     const user = await getUserWithProfile(userPayload.userId);
 
@@ -302,8 +316,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
 /**
  * GET /api/stripe/checkout-session?sessionId=cs_...
- * Retrieves a checkout session by ID
- * Used for verifying payment status after redirect
+ * Retrieves a checkout session by ID (authenticated).
+ * Used for verifying payment status after redirect.
+ *
+ * Security:
+ * - Requires authentication (middleware headers or Bearer token)
+ * - Validates the authenticated user owns the Stripe session
+ * - Never exposes set-password tokens or customer email in the response
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   // Lazy load Stripe integration
@@ -317,6 +336,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         code: 'STRIPE_NOT_CONFIGURED',
       },
       { status: 503 }
+    );
+  }
+
+  // ========================================================================
+  // Authentication: require a valid user session
+  // ========================================================================
+  const userPayload = await getAuthenticatedUser(request);
+
+  if (!userPayload) {
+    return NextResponse.json(
+      {
+        error: 'Authentication required',
+        code: 'UNAUTHORIZED',
+      },
+      { status: 401 }
     );
   }
 
@@ -334,52 +368,42 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         { status: 400 }
       );
     }
-    
+
     const session = await getCheckoutSession(sessionId);
 
-    const customerEmail = session.customer_email || session.customer_details?.email || '';
+    // ========================================================================
+    // Ownership check: verify the authenticated user owns this session
+    // ========================================================================
+    const { prisma } = await import('@/lib/db/prisma');
+    const user = await prisma.user.findUnique({
+      where: { id: userPayload.userId },
+      select: { email: true },
+    });
 
-    // Try to include the set-password token so the success page doesn't need a separate call
-    let setPasswordToken: string | null = null;
-    if (customerEmail && session.payment_status === 'paid') {
-      try {
-        const { prisma } = await import('@/lib/db/prisma');
-        const user = await prisma.user.findUnique({
-          where: { email: customerEmail.toLowerCase() },
-          select: { id: true, emailVerified: true },
-        });
-        if (user && !user.emailVerified) {
-          const resetToken = await prisma.passwordReset.findFirst({
-            where: {
-              userId: user.id,
-              usedAt: null,
-              expiresAt: { gt: new Date() },
-            },
-            orderBy: { createdAt: 'desc' },
-            select: { token: true },
-          });
-          setPasswordToken = resetToken?.token || null;
-        }
-      } catch {
-        // Token lookup failed — not critical, user can use email link
-      }
+    const sessionEmail = (session.customer_email || session.customer_details?.email || '').toLowerCase().trim();
+
+    if (!user || user.email.toLowerCase().trim() !== sessionEmail) {
+      return NextResponse.json(
+        {
+          error: 'You do not have access to this checkout session',
+          code: 'FORBIDDEN',
+        },
+        { status: 403 }
+      );
     }
 
-    // Return session status
+    // Return session status — no tokens, no email, no sensitive data
     return NextResponse.json({
       sessionId: session.id,
       status: session.status,
       paymentStatus: session.payment_status,
       subscriptionId: session.subscription,
-      customerId: session.customer,
-      customerEmail,
       amount_total: session.amount_total,
       metadata: session.metadata,
-      setPasswordToken,
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    
+
     console.error('[Stripe Checkout] Error retrieving checkout session:', errorMessage);
 
     return NextResponse.json(

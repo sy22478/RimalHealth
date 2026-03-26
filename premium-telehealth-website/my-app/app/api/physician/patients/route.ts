@@ -17,7 +17,6 @@ import { ValidationService } from '@/lib/services/validation-service';
 import { patientsQuerySchema } from '@/lib/validation/schemas';
 import { Role } from '@prisma/client';
 import { PHIResourceType } from '@/lib/audit/index';
-import { decryptPHI } from '@/lib/encryption/phi';
 
 // ============================================================================
 // GET - List Patients
@@ -58,37 +57,35 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const { search, limit = 20, offset = 0 } = validation.data!;
 
+    // Build where clause using Prisma's type-safe query builder (no raw SQL)
+    const whereClause = search
+      ? {
+          OR: [
+            { firstName: { contains: search } },
+            { lastName: { contains: search } },
+            { user: { email: { contains: search, mode: 'insensitive' as const } } },
+          ],
+        }
+      : {};
+
     // Get patients with their user data - ordered by last name ascending
-    const patients = await prisma.$queryRaw<Array<{
-      user_id: string;
-      first_name: string;
-      last_name: string;
-      email: string;
-      date_of_birth: string;
-      primary_concern: string | null;
-      treatment_goal: string | null;
-      created_at: Date;
-    }>>`
-      SELECT 
-        pp.user_id,
-        pp.first_name,
-        pp.last_name,
-        u.email,
-        pp.date_of_birth,
-        pp.primary_concern,
-        pp.treatment_goal,
-        pp.created_at
-      FROM patient_profiles pp
-      JOIN users u ON u.id = pp.user_id
-      ${search ? `
-        WHERE pp.first_name ILIKE ${`%${search}%`} 
-        OR pp.last_name ILIKE ${`%${search}%`}
-        OR u.email ILIKE ${`%${search}%`}
-      ` : ''}
-      ORDER BY pp.last_name ASC, pp.first_name ASC
-      LIMIT ${limit}
-      OFFSET ${offset}
-    `;
+    const [patients, total] = await Promise.all([
+      prisma.patientProfile.findMany({
+        where: whereClause,
+        include: {
+          user: {
+            select: { email: true },
+          },
+        },
+        orderBy: [
+          { lastName: 'asc' },
+          { firstName: 'asc' },
+        ],
+        take: limit,
+        skip: offset,
+      }),
+      prisma.patientProfile.count({ where: whereClause }),
+    ]);
 
     // Log access
     await AuditService.logPHIAccess(
@@ -102,29 +99,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     );
 
     // Decrypt and format patient data
+    // Note: The Prisma encryption extension handles decryption automatically
+    // for fields registered in PHI_FIELDS. decryptPHI is used as a safety net
+    // for raw query results, but with findMany the extension does the work.
     const formattedPatients = patients.map((patient) => ({
-      id: patient.user_id,
-      firstName: decryptPHI(patient.first_name),
-      lastName: decryptPHI(patient.last_name),
-      email: patient.email,
-      dateOfBirth: decryptPHI(patient.date_of_birth),
-      primaryConcern: patient.primary_concern,
-      treatmentGoal: patient.treatment_goal,
-      createdAt: patient.created_at.toISOString(),
+      id: patient.userId,
+      firstName: patient.firstName,
+      lastName: patient.lastName,
+      email: patient.user.email,
+      dateOfBirth: patient.dateOfBirth,
+      primaryConcern: patient.primaryConcern,
+      treatmentGoal: patient.treatmentGoal,
+      createdAt: patient.createdAt.toISOString(),
     }));
-
-    // Get total count for pagination
-    const countResult = await prisma.$queryRaw<[{ count: bigint }]>`
-      SELECT COUNT(*) as count
-      FROM patient_profiles pp
-      JOIN users u ON u.id = pp.user_id
-      ${search ? `
-        WHERE pp.first_name ILIKE ${`%${search}%`} 
-        OR pp.last_name ILIKE ${`%${search}%`}
-        OR u.email ILIKE ${`%${search}%`}
-      ` : ''}
-    `;
-    const total = Number(countResult[0].count);
 
     return NextResponse.json({
       patients: formattedPatients,
@@ -136,7 +123,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       },
     });
   } catch (error) {
-    console.error('List patients error:', error);
+    console.error('List patients error:', error instanceof Error ? error.message : 'Unknown error');
     
     await AuditService.logApiError(
       error instanceof Error ? error : new Error('Unknown error'),

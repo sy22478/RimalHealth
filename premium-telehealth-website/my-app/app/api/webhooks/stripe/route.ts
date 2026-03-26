@@ -54,13 +54,19 @@ const getPrismaClient = async () => {
   return { PlanType, SubscriptionStatus, Role };
 };
 
-// Webhook secret
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
-
 /**
  * POST handler for Stripe webhooks
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    console.error('[stripe-webhook] STRIPE_WEBHOOK_SECRET not configured');
+    return NextResponse.json(
+      { error: 'Webhook not configured' },
+      { status: 500 }
+    );
+  }
+
   const payload = await request.text();
   const headersList = await headers();
   const signature = headersList.get('stripe-signature');
@@ -129,18 +135,23 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error(`[Stripe Webhook] Error handling event ${event.type}: ${errorMessage}`);
-    
-    // Return 200 to prevent Stripe from retrying (we'll handle errors internally)
-    // But log the error for monitoring
-    return NextResponse.json({ received: true, error: 'Processing error' });
+
+    // Return 500 so Stripe retries the webhook for events we handle but failed to process.
+    // This prevents silent data loss (e.g., customer pays but account is never created).
+    return NextResponse.json(
+      { received: true, error: 'Processing error' },
+      { status: 500 }
+    );
   }
 }
 
 /**
  * Handle checkout.session.completed
  * Auto-creates user + profile + subscription after successful payment.
- * For new users (payment-first flow), sends a "Set Your Password" email.
+ * For new users (payment-first flow), sends receipt + "Create Account" emails.
  * For existing users, links subscription and sends welcome email.
+ *
+ * Email order: Receipt FIRST, then Create Account (or Welcome for existing users).
  */
 async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise<void> {
   // Processing checkout.session.completed
@@ -152,7 +163,7 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
   const { auditLogger, PHIResourceType } = await getAuditLogger();
   const { hashPassword } = await import('@/lib/auth/password');
 
-  const customerEmail = session.customer_email;
+  const customerEmail = (session.customer_email || session.customer_details?.email || '').toLowerCase().trim();
   const customerId = session.customer as string;
   const subscriptionId = session.subscription as string;
 
@@ -161,36 +172,7 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
   }
 
   // ========================================================================
-  // 1. Find or create user
-  // ========================================================================
-  let user = await prisma.user.findUnique({
-    where: { email: customerEmail },
-  });
-
-  let isNewUser = false;
-
-  if (!user) {
-    // Auto-create user with a random temporary password
-    const randomPassword = crypto.randomUUID() + crypto.randomUUID();
-    const passwordHash = await hashPassword(randomPassword);
-
-    user = await prisma.user.create({
-      data: {
-        email: customerEmail,
-        passwordHash,
-        role: Role.PATIENT,
-        emailVerified: false,
-      },
-    });
-
-    isNewUser = true;
-    console.info('[Stripe Webhook] Auto-created user after checkout');
-  }
-
-  const userId = user.id;
-
-  // ========================================================================
-  // 2. Idempotency: check if subscription already recorded
+  // 1. Idempotency: check if subscription already recorded
   // ========================================================================
   if (subscriptionId) {
     const existingSub = await prisma.subscription.findFirst({
@@ -203,40 +185,14 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
   }
 
   // ========================================================================
-  // 3. Create PatientProfile if it doesn't exist
+  // 2. Retrieve Stripe subscription details (needed for DB records)
   // ========================================================================
-  const existingProfile = await prisma.patientProfile.findUnique({
-    where: { userId },
-  });
-
-  if (!existingProfile) {
-    // Create a minimal profile — patient will complete it later
-    // PHI fields are auto-encrypted by the Prisma encryption extension
-    await prisma.patientProfile.create({
-      data: {
-        userId,
-        firstName: '',
-        lastName: '',
-        dateOfBirth: '',
-        phone: '',
-        addressStreet: '',
-        addressCity: '',
-        addressState: 'CA',
-        addressZip: '',
-      },
-    });
-    // Patient profile created via webhook
-  }
-
-  // ========================================================================
-  // 4. Create Subscription record
-  // ========================================================================
-  let subscription: Stripe.Subscription | null = null;
+  let stripeSubscription: Stripe.Subscription | null = null;
   if (subscriptionId) {
-    subscription = await getStripe().subscriptions.retrieve(subscriptionId);
+    stripeSubscription = await getStripe().subscriptions.retrieve(subscriptionId);
   }
 
-  const stripeSub = subscription as unknown as { current_period_start?: number; current_period_end?: number };
+  const stripeSub = stripeSubscription as unknown as { current_period_start?: number; current_period_end?: number };
   const periodStart = stripeSub?.current_period_start
     ? new Date(stripeSub.current_period_start * 1000)
     : new Date();
@@ -246,53 +202,138 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
 
   const planType = (session.metadata?.planType as typeof PlanType[keyof typeof PlanType]) || PlanType.ACTIVE_TREATMENT;
 
-  await prisma.subscription.create({
-    data: {
-      userId,
-      planType,
-      status: SubscriptionStatus.ACTIVE,
-      amount: session.amount_total || 5000,
-      currency: session.currency?.toUpperCase() || 'USD',
-      interval: 'month',
-      stripeCustomerId: customerId,
-      stripeSubscriptionId: subscriptionId || '',
-      stripePriceId: subscription?.items.data[0]?.price.id || '',
-      currentPeriodStart: periodStart,
-      currentPeriodEnd: periodEnd,
-    },
+  // ========================================================================
+  // 3. Find or create User + PatientProfile + Subscription in a transaction
+  //    (Task 3.5: Transaction safety — no orphaned records on partial failure)
+  // ========================================================================
+  let isNewUser = false;
+  let createAccountToken: string | null = null;
+
+  const user = await prisma.$transaction(async (tx) => {
+    // Find existing user
+    let txUser = await tx.user.findUnique({
+      where: { email: customerEmail },
+    });
+
+    if (!txUser) {
+      // Auto-create user with a random temporary password
+      const randomPassword = crypto.randomUUID() + crypto.randomUUID();
+      const passwordHash = await hashPassword(randomPassword);
+
+      txUser = await tx.user.create({
+        data: {
+          email: customerEmail,
+          passwordHash,
+          role: Role.PATIENT,
+          emailVerified: false,
+        },
+      });
+
+      isNewUser = true;
+      console.info('[Stripe Webhook] Auto-created user after checkout');
+    }
+
+    const userId = txUser.id;
+
+    // Create PatientProfile if it doesn't exist
+    const existingProfile = await tx.patientProfile.findUnique({
+      where: { userId },
+    });
+
+    if (!existingProfile) {
+      // Create a minimal profile — patient will complete it later
+      // PHI fields are auto-encrypted by the Prisma encryption extension
+      await tx.patientProfile.create({
+        data: {
+          userId,
+          firstName: '',
+          lastName: '',
+          dateOfBirth: '',
+          phone: '',
+          addressStreet: '',
+          addressCity: '',
+          addressState: 'CA',
+          addressZip: '',
+        },
+      });
+    }
+
+    // Create Subscription record
+    await tx.subscription.create({
+      data: {
+        userId,
+        planType,
+        status: SubscriptionStatus.ACTIVE,
+        amount: session.amount_total || 5000,
+        currency: session.currency?.toUpperCase() || 'USD',
+        interval: 'month',
+        stripeCustomerId: customerId,
+        stripeSubscriptionId: subscriptionId || '',
+        stripePriceId: stripeSubscription?.items.data[0]?.price.id || '',
+        currentPeriodStart: periodStart,
+        currentPeriodEnd: periodEnd,
+      },
+    });
+
+    // Generate create-account token for new/unverified users
+    if (isNewUser || !txUser.emailVerified) {
+      const token = crypto.randomUUID();
+      await tx.passwordReset.create({
+        data: {
+          userId,
+          token,
+          expiresAt: new Date(Date.now() + 72 * 60 * 60 * 1000), // 72 hours
+        },
+      });
+      createAccountToken = token;
+    }
+
+    return txUser;
   });
 
-  // Subscription record created
+  const userId = user.id;
 
   // ========================================================================
-  // 5. Send appropriate emails (directly, not queued, for reliability)
+  // 4. Send emails (directly, not queued, for reliability)
+  //    Order: Receipt FIRST, then Create Account / Welcome
   // ========================================================================
   const { sendEmail } = await import('@/lib/integrations/sendgrid');
 
-  if (isNewUser) {
-    // Generate a password reset token (72-hour expiry) for "Set Your Password"
-    const token = crypto.randomUUID();
-    await prisma.passwordReset.create({
-      data: {
-        userId,
-        token,
-        expiresAt: new Date(Date.now() + 72 * 60 * 60 * 1000), // 72 hours
-      },
-    });
+  // 4a. Send payment receipt to ALL users (Task 3.1)
+  const nextBillingDate = periodEnd.toLocaleDateString();
+  const planLabel = planType === PlanType.ACTIVE_TREATMENT ? 'Active Treatment' : 'Maintenance';
 
-    const setPasswordUrl = `${process.env.NEXT_PUBLIC_APP_URL}/set-password?token=${token}`;
+  await sendEmail({
+    to: customerEmail,
+    template: EmailTemplate.PAYMENT_RECEIPT,
+    data: {
+      firstName: 'there',
+      amount: `$${((session.amount_total || 0) / 100).toFixed(2)}`,
+      date: new Date().toLocaleDateString(),
+      description: `Rimal Health - ${planLabel} Plan`,
+      transactionId: session.payment_intent as string || session.id,
+      nextBillingDate,
+    },
+  });
 
-    await sendEmail({
+  // 4b. Send Create Account or Welcome email
+  if (createAccountToken) {
+    // New or unverified user — send Create Account email (Task 3.2)
+    const createAccountUrl = `${process.env.NEXT_PUBLIC_APP_URL}/create-account?token=${createAccountToken}`;
+
+    const createAccountResult = await sendEmail({
       to: customerEmail,
-      template: EmailTemplate.SET_PASSWORD,
+      template: EmailTemplate.CREATE_ACCOUNT,
       data: {
-        setPasswordUrl,
+        createAccountUrl,
       },
     });
 
-    // Set-password email sent
+    if (!createAccountResult.success) {
+      console.error('[Stripe Webhook] CRITICAL: Failed to send create-account email for session:', session.id);
+    }
   } else {
-    // Existing user — send welcome/payment receipt
+    // Verified existing user — send welcome email
     await sendEmail({
       to: user.email,
       template: EmailTemplate.WELCOME,
@@ -303,21 +344,8 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
     });
   }
 
-  // Payment receipt for all users
-  await sendEmail({
-    to: customerEmail,
-    template: EmailTemplate.PAYMENT_RECEIPT,
-    data: {
-      firstName: 'there',
-      amount: `$${((session.amount_total || 0) / 100).toFixed(2)}`,
-      date: new Date().toLocaleDateString(),
-      description: `Rimal Health - ${planType === PlanType.ACTIVE_TREATMENT ? 'Active Treatment' : 'Maintenance'} Plan`,
-      transactionId: session.payment_intent as string || session.id,
-    },
-  });
-
   // ========================================================================
-  // 6. Audit log
+  // 5. Audit log
   // ========================================================================
   await auditLogger.logPHIAccess(
     'CREATE',
@@ -451,7 +479,7 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice): Promise<void
       type: 'PAYMENT_FAILED',
       title: 'Payment Failed',
       message: 'We were unable to process your payment. Please update your payment method to avoid service interruption.',
-      actionUrl: '/dashboard/billing',
+      actionUrl: '/patient/billing',
     },
   });
 
@@ -607,7 +635,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription): Pro
       type: 'SUBSCRIPTION_CANCELLED',
       title: 'Subscription Cancelled',
       message: 'Your subscription has been cancelled. We\'re sorry to see you go.',
-      actionUrl: '/dashboard/billing',
+      actionUrl: '/patient/billing',
     },
   });
 
