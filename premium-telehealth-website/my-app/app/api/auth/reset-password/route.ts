@@ -168,12 +168,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Perform all updates in a transaction
     await prisma.$transaction(async (tx) => {
-      // Update user password and verify email if not already verified
+      // Update user password
+      // Note: emailVerified is NOT set here — email verification is a separate step
+      // handled by the /api/auth/verify-email endpoint
       await tx.user.update({
         where: { id: userId },
         data: {
           passwordHash,
-          emailVerified: true,
           // Increment token version to invalidate all existing sessions
           tokenVersion: {
             increment: 1,
@@ -208,7 +209,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       message: 'Password has been reset successfully. Please log in with your new password.',
     });
   } catch (error) {
-    console.error('Reset password error:', error);
+    console.error('Reset password error:', error instanceof Error ? error.message : 'Unknown error');
 
     return NextResponse.json(
       {

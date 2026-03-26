@@ -378,9 +378,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    // Check if email is verified
-    // Note: In development, you might want to skip this check
-    if (!user.emailVerified && process.env.REQUIRE_EMAIL_VERIFICATION === 'true') {
+    // Check if email is verified — always enforced for PATIENT role.
+    // Physicians/Admins skip this check (they are created by admin, not via payment flow).
+    if (!user.emailVerified && user.role === 'PATIENT') {
       const authMetadata: AuthenticationMetadata = {
         authMethod: 'password',
         failureReason: 'Email not verified',
@@ -447,13 +447,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       refreshToken,
       auditContext.ipAddress,
       auditContext.userAgent
-    ).catch((err) => console.error('Session creation failed (non-fatal):', err));
+    ).catch((err) => console.error('Session creation failed (non-fatal):', err instanceof Error ? err.message : 'Unknown error'));
 
     // Update lastLoginAt timestamp (best-effort)
     await prisma.user.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
-    }).catch((err) => console.error('lastLoginAt update failed:', err));
+    }).catch((err) => console.error('lastLoginAt update failed:', err instanceof Error ? err.message : 'Unknown error'));
 
     // Log successful login audit event (best-effort)
     const authMetadata: AuthenticationMetadata = {
@@ -501,7 +501,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       redirectUrl,
     });
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('Login error:', error instanceof Error ? error.message : 'Unknown error');
 
     return NextResponse.json(
       {

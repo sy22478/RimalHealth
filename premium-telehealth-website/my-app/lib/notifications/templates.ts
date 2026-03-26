@@ -32,6 +32,7 @@ export enum EmailTemplate {
   PAYMENT_FAILED = 'payment_failed',
   SUBSCRIPTION_CANCELLED = 'subscription_cancelled',
   SET_PASSWORD = 'set_password',
+  CREATE_ACCOUNT = 'create_account',
   GENERIC_NOTIFICATION = 'generic_notification',
   ADMIN_ALERT = 'admin_alert',
 }
@@ -313,37 +314,32 @@ Questions? Contact us at ${siteConfig.supportEmail}`;
 
   [EmailTemplate.INTAKE_APPROVED]: (data) => {
     const html = wrapEmail(`
-      <h2 style="color: #0a2540; margin-top: 0;">Great News! Your Intake is Approved</h2>
+      <h2 style="color: #0a2540; margin-top: 0;">You Have a New Update</h2>
       <p>Hi ${data.firstName || 'there'},</p>
-      <p>A California-licensed physician has reviewed and approved your intake.</p>
-      <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 6px; padding: 16px; margin: 20px 0;">
-        <p style="margin: 0; color: #166534;">
-          <strong>Your treatment plan is ready!</strong>
-        </p>
-      </div>
-      <p>Your prescription has been sent to {{pharmacyName}}. You can pick it up or have it delivered.</p>
+      <p>Your intake has been reviewed. Please log in to your Rimal Health portal to view the details and next steps.</p>
       <p style="margin-top: 24px;">
         <a href="{{dashboardUrl}}" style="background: #0a2540; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
-          View Treatment Plan
+          Log In to View Update
         </a>
       </p>
+      <p style="color: #6b7280; font-size: 14px; margin-top: 16px;">
+        For your privacy and security, details about your care are only available within your secure portal.
+      </p>
     `);
-    const text = `Great News! Your Intake is Approved
+    const text = `You Have a New Update
 
 Hi ${data.firstName || 'there'},
 
-A California-licensed physician has reviewed and approved your intake.
+Your intake has been reviewed. Please log in to your Rimal Health portal to view the details and next steps.
 
-Your treatment plan is ready!
+Log In to View Update: {{dashboardUrl}}
 
-Your prescription has been sent to {{pharmacyName}}. You can pick it up or have it delivered.
-
-View Treatment Plan: {{dashboardUrl}}
+For your privacy and security, details about your care are only available within your secure portal.
 
 Questions? Contact us at ${siteConfig.supportEmail}`;
 
     return {
-      subject: 'Your Intake Has Been Approved',
+      subject: 'You Have a New Update on Your Rimal Health Portal',
       html: interpolateTemplate(html, data),
       text: interpolateTemplate(text, data),
     };
@@ -351,31 +347,33 @@ Questions? Contact us at ${siteConfig.supportEmail}`;
 
   [EmailTemplate.INTAKE_REJECTED]: (data) => {
     const html = wrapEmail(`
-      <h2 style="color: #0a2540; margin-top: 0;">Update on Your Intake</h2>
+      <h2 style="color: #0a2540; margin-top: 0;">You Have a New Update</h2>
       <p>Hi ${data.firstName || 'there'},</p>
-      <p>After careful review, our medical team has determined that our telehealth service may not be the best fit for your current needs.</p>
-      <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 16px; margin: 20px 0;">
-        <p style="margin: 0; color: #991b1b;">
-          <strong>Reason:</strong> ${data.reason || 'Your condition requires in-person medical care.'}
-        </p>
-      </div>
-      <p>We recommend consulting with your primary care physician or visiting a local clinic for the care you need.</p>
-      <p>If you have questions about this decision, please contact our support team.</p>
+      <p>Your intake has been reviewed. Please log in to your Rimal Health portal to view the details and next steps.</p>
+      <p style="margin-top: 24px;">
+        <a href="{{dashboardUrl}}" style="background: #0a2540; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+          Log In to View Update
+        </a>
+      </p>
+      <p style="color: #6b7280; font-size: 14px; margin-top: 16px;">
+        For your privacy and security, details about your care are only available within your secure portal.
+      </p>
+      <p>If you have questions, please contact our support team.</p>
     `);
-    const text = `Update on Your Intake
+    const text = `You Have a New Update
 
 Hi ${data.firstName || 'there'},
 
-After careful review, our medical team has determined that our telehealth service may not be the best fit for your current needs.
+Your intake has been reviewed. Please log in to your Rimal Health portal to view the details and next steps.
 
-Reason: ${data.reason || 'Your condition requires in-person medical care.'}
+Log In to View Update: {{dashboardUrl}}
 
-We recommend consulting with your primary care physician or visiting a local clinic for the care you need.
+For your privacy and security, details about your care are only available within your secure portal.
 
-If you have questions about this decision, please contact our support team at ${siteConfig.supportEmail}`;
+If you have questions, please contact our support team at ${siteConfig.supportEmail}`;
 
     return {
-      subject: 'Update on Your Intake',
+      subject: 'You Have a New Update on Your Rimal Health Portal',
       html: interpolateTemplate(html, data),
       text: interpolateTemplate(text, data),
     };
@@ -416,32 +414,28 @@ Questions? Contact us at ${siteConfig.supportEmail}`;
     const html = wrapEmail(`
       <h2 style="color: #0a2540; margin-top: 0;">Refill Request Received</h2>
       <p>Hi ${data.firstName || 'there'},</p>
-      <p>We've received your prescription refill request.</p>
-      <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 6px; padding: 16px; margin: 20px 0;">
-        <p style="margin: 0; color: #166534; font-size: 14px;">
-          <strong>Medication:</strong> ${data.medicationName || '{{medicationName}}'}<br>
-          <strong>Status:</strong> Under Review
-        </p>
-      </div>
-      <p>Your physician will review your request within 24 hours. Once approved, your prescription will be sent to your pharmacy.</p>
+      <p>You have a refill update. Log in to view details.</p>
+      <p>Your physician will review your request within 24 hours.</p>
       <p style="margin-top: 24px;">
         <a href="{{dashboardUrl}}" style="background: #0a2540; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
-          View Request Status
+          Log In to View Details
         </a>
+      </p>
+      <p style="color: #6b7280; font-size: 14px; margin-top: 16px;">
+        For your privacy and security, details about your care are only available within your secure portal.
       </p>
     `);
     const text = `Refill Request Received
 
 Hi ${data.firstName || 'there'},
 
-We've received your prescription refill request.
+You have a refill update. Log in to view details.
 
-Medication: ${data.medicationName || '{{medicationName}}'}
-Status: Under Review
+Your physician will review your request within 24 hours.
 
-Your physician will review your request within 24 hours. Once approved, your prescription will be sent to your pharmacy.
+Log In to View Details: {{dashboardUrl}}
 
-View Request Status: {{dashboardUrl}}
+For your privacy and security, details about your care are only available within your secure portal.
 
 Questions? Contact us at ${siteConfig.supportEmail}`;
 
@@ -454,35 +448,32 @@ Questions? Contact us at ${siteConfig.supportEmail}`;
 
   [EmailTemplate.PRESCRIPTION_SENT]: (data) => {
     const html = wrapEmail(`
-      <h2 style="color: #0a2540; margin-top: 0;">Your Prescription Has Been Sent</h2>
+      <h2 style="color: #0a2540; margin-top: 0;">You Have a New Update</h2>
       <p>Hi ${data.firstName || 'there'},</p>
-      <p>Your prescription has been sent to <strong>{{pharmacyName}}</strong>.</p>
-      <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 6px; padding: 16px; margin: 20px 0;">
-        <p style="margin: 0; color: #166534;">
-          <strong>Pharmacy:</strong> {{pharmacyName}}<br>
-          <strong>Estimated ready time:</strong> {{readyTime}}
-        </p>
-      </div>
-      <p>You can pick up your prescription or arrange for delivery through the pharmacy.</p>
-      <p>Questions about your medication? Message your doctor anytime through your dashboard.</p>
+      <p>You have a new update regarding your treatment. Please log in to your Rimal Health portal to view the details.</p>
+      <p style="margin-top: 24px;">
+        <a href="{{dashboardUrl}}" style="background: #0a2540; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+          Log In to View Update
+        </a>
+      </p>
+      <p style="color: #6b7280; font-size: 14px; margin-top: 16px;">
+        For your privacy and security, details about your care are only available within your secure portal.
+      </p>
     `);
-    const text = `Your Prescription Has Been Sent
+    const text = `You Have a New Update
 
 Hi ${data.firstName || 'there'},
 
-Your prescription has been sent to {{pharmacyName}}.
+You have a new update regarding your treatment. Please log in to your Rimal Health portal to view the details.
 
-Pharmacy: {{pharmacyName}}
-Estimated ready time: {{readyTime}}
+Log In to View Update: {{dashboardUrl}}
 
-You can pick up your prescription or arrange for delivery through the pharmacy.
+For your privacy and security, details about your care are only available within your secure portal.
 
-Questions about your medication? Message your doctor anytime through your dashboard.
-
-${siteConfig.supportEmail}`;
+Questions? Contact us at ${siteConfig.supportEmail}`;
 
     return {
-      subject: 'Your Prescription Has Been Sent',
+      subject: 'You Have a New Update on Your Rimal Health Portal',
       html: interpolateTemplate(html, data),
       text: interpolateTemplate(text, data),
     };
@@ -490,34 +481,32 @@ ${siteConfig.supportEmail}`;
 
   [EmailTemplate.MESSAGE_RECEIVED]: (data) => {
     const html = wrapEmail(`
-      <h2 style="color: #0a2540; margin-top: 0;">New Message from Your Care Team</h2>
+      <h2 style="color: #0a2540; margin-top: 0;">You Have a New Message</h2>
       <p>Hi ${data.firstName || 'there'},</p>
-      <p>You have a new message from Dr. {{doctorName}}:</p>
-      <div style="background: #f9fafb; border-left: 4px solid #0a2540; padding: 16px; margin: 20px 0; border-radius: 0 6px 6px 0;">
-        <p style="margin: 0; color: #374151; font-style: italic;">
-          "{{preview}}"
-        </p>
-      </div>
+      <p>You have a new message in your Rimal Health portal. Please log in to read and respond.</p>
       <p style="margin-top: 24px;">
-        <a href="{{messageUrl}}" style="background: #0a2540; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
-          Read Full Message
+        <a href="{{dashboardUrl}}" style="background: #0a2540; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+          Log In to View Message
         </a>
       </p>
+      <p style="color: #6b7280; font-size: 14px; margin-top: 16px;">
+        For your privacy and security, message content is only available within your secure portal.
+      </p>
     `);
-    const text = `New Message from Your Care Team
+    const text = `You Have a New Message
 
 Hi ${data.firstName || 'there'},
 
-You have a new message from Dr. {{doctorName}}:
+You have a new message in your Rimal Health portal. Please log in to read and respond.
 
-"{{preview}}"
+Log In to View Message: {{dashboardUrl}}
 
-Read Full Message: {{messageUrl}}
+For your privacy and security, message content is only available within your secure portal.
 
 Questions? Contact us at ${siteConfig.supportEmail}`;
 
     return {
-      subject: 'New Message from Your Care Team',
+      subject: 'You Have a New Message on Your Rimal Health Portal',
       html: interpolateTemplate(html, data),
       text: interpolateTemplate(text, data),
     };
@@ -617,30 +606,32 @@ Questions? Contact us at ${siteConfig.supportEmail}`;
 
   [EmailTemplate.INTAKE_NEEDS_INFO]: (data) => {
     const html = wrapEmail(`
-      <h2 style="color: #0a2540; margin-top: 0;">Additional Information Needed</h2>
+      <h2 style="color: #0a2540; margin-top: 0;">Your Physician Has a Question</h2>
       <p>Hi ${data.firstName || 'there'},</p>
-      <p>We need some additional information to complete your intake review.</p>
-      <p>${data.message || 'Please log in to your account to provide the required information.'}</p>
+      <p>Your physician needs additional information to complete your intake review. Please log in to your Rimal Health portal to respond.</p>
       <p style="margin-top: 24px;">
         <a href="{{dashboardUrl}}" style="background: #0a2540; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
-          Update Intake
+          Log In to Respond
         </a>
       </p>
+      <p style="color: #6b7280; font-size: 14px; margin-top: 16px;">
+        For your privacy and security, details about your care are only available within your secure portal.
+      </p>
     `);
-    const text = `Additional Information Needed
+    const text = `Your Physician Has a Question
 
 Hi ${data.firstName || 'there'},
 
-We need some additional information to complete your intake review.
+Your physician needs additional information to complete your intake review. Please log in to your Rimal Health portal to respond.
 
-${data.message || 'Please log in to your account to provide the required information.'}
+Log In to Respond: {{dashboardUrl}}
 
-Update Intake: {{dashboardUrl}}
+For your privacy and security, details about your care are only available within your secure portal.
 
 Questions? Contact us at ${siteConfig.supportEmail}`;
 
     return {
-      subject: 'Additional Information Needed for Your Intake',
+      subject: 'Your Physician Has a Question - Please Log In',
       html: interpolateTemplate(html, data),
       text: interpolateTemplate(text, data),
     };
@@ -753,12 +744,12 @@ Questions? Contact us at ${siteConfig.supportEmail}`;
 
   [EmailTemplate.SET_PASSWORD]: (data) => {
     const html = wrapEmail(`
-      <h2 style="color: #0a2540; margin-top: 0;">Set Your Password</h2>
-      <p>Welcome to Rimal Health! Your payment was successful and your account has been created.</p>
-      <p>Please set your password to access your account and begin your intake form:</p>
+      <h2 style="color: #0a2540; margin-top: 0;">Create Your Account</h2>
+      <p>Welcome to Rimal Health! Your payment was successful and your account is ready to be activated.</p>
+      <p>Click below to create your account and begin your intake form:</p>
       <div style="text-align: center; margin: 30px 0;">
         <a href="{{setPasswordUrl}}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #3b82f6, #0284c7); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
-          Set Your Password
+          Create Your Account
         </a>
       </div>
       <p style="color: #6b7280; font-size: 14px;">
@@ -767,14 +758,45 @@ Questions? Contact us at ${siteConfig.supportEmail}`;
     `);
     const text = `Welcome to Rimal Health!
 
-Your payment was successful and your account has been created.
+Your payment was successful and your account is ready to be activated.
 
-Set your password here: {{setPasswordUrl}}
+Create your account here: {{setPasswordUrl}}
 
 This link expires in 72 hours.`;
 
     return {
-      subject: 'Set Your Password — Rimal Health',
+      subject: 'Create Your Account — Rimal Health',
+      html: interpolateTemplate(html, data),
+      text: interpolateTemplate(text, data),
+    };
+  },
+
+  [EmailTemplate.CREATE_ACCOUNT]: (data) => {
+    const html = wrapEmail(`
+      <h2 style="color: #0a2540; margin-top: 0;">Create Your Rimal Health Account</h2>
+      <p>Welcome to Rimal Health! Your payment was successful and your account is ready to be set up.</p>
+      <p>Click the button below to create your account by setting a password. Once your account is created, you'll verify your email and then complete your health intake form.</p>
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="{{createAccountUrl}}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #3b82f6, #0284c7); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+          Create Your Account
+        </a>
+      </div>
+      <p style="color: #6b7280; font-size: 14px;">
+        This link expires in 72 hours. If you did not make this purchase, please contact support at ${siteConfig.supportEmail}.
+      </p>
+    `);
+    const text = `Welcome to Rimal Health!
+
+Your payment was successful and your account is ready to be set up.
+
+Create your account here: {{createAccountUrl}}
+
+Once your account is created, you'll verify your email and then complete your health intake form.
+
+This link expires in 72 hours. If you did not make this purchase, please contact support at ${siteConfig.supportEmail}.`;
+
+    return {
+      subject: 'Create Your Rimal Health Account',
       html: interpolateTemplate(html, data),
       text: interpolateTemplate(text, data),
     };
@@ -831,16 +853,16 @@ export const smsTemplates: Record<SMSTemplate, (data: Record<string, string>) =>
     return `Reminder: You have a ${siteConfig.name} appointment on ${data.date || ''} at ${data.time || ''}. Reply CANCEL to reschedule.`;
   },
 
-  [SMSTemplate.MESSAGE_NOTIFICATION]: (data) => {
-    return `You have a new message from Dr. ${data.doctorName || 'your doctor'} on ${siteConfig.name}. Reply STOP to opt out of SMS.`;
+  [SMSTemplate.MESSAGE_NOTIFICATION]: () => {
+    return `You have a new message on ${siteConfig.name}. Log in to your portal to view. Reply STOP to opt out of SMS.`;
   },
 
   [SMSTemplate.STATUS_UPDATE]: (data) => {
-    return `Your ${siteConfig.name} status has been updated: ${data.status || ''}. ${data.message || ''}`.slice(0, 160);
+    return `${data.message || `You have a new update on ${siteConfig.name}. Log in to your portal to view.`}`.slice(0, 160);
   },
 
-  [SMSTemplate.MESSAGE_RECEIVED]: (data) => {
-    return `You have a new message on ${siteConfig.name}. ${data.preview || 'Check your account for details.'}`.slice(0, 160);
+  [SMSTemplate.MESSAGE_RECEIVED]: () => {
+    return `You have a new message on ${siteConfig.name}. Log in to your portal to read and respond.`.slice(0, 160);
   },
 };
 

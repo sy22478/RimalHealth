@@ -21,6 +21,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { verifyAccessToken, decodeTokenUnsafe } from '@/lib/auth/jwt';
 import { Role } from '@prisma/client';
+import { SESSION_CONFIG } from '@/lib/constants';
 
 // ============================================
 // Route Configuration
@@ -34,6 +35,8 @@ const PUBLIC_ROUTES = [
   '/forgot-password',
   '/reset-password',
   '/set-password',
+  '/create-account',
+  '/verify-email',
   '/physician/login',
   '/about',
   '/how-it-works',
@@ -267,6 +270,22 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
 
     // Expose request ID on the response for client-side correlation
     response.headers.set('x-request-id', requestId);
+
+    // Enforce absolute session timeout (P1-014)
+    // If the token was issued more than ABSOLUTE_TIMEOUT seconds ago,
+    // force re-login instead of refreshing the session.
+    const issuedAt = payload.iat;
+    if (issuedAt) {
+      const now = Math.floor(Date.now() / 1000);
+      const sessionAge = now - issuedAt;
+      if (sessionAge > SESSION_CONFIG.ABSOLUTE_TIMEOUT) {
+        // Session has exceeded absolute timeout — force re-login
+        const expiredResponse = NextResponse.redirect(new URL('/login', request.url));
+        expiredResponse.cookies.delete('accessToken');
+        expiredResponse.cookies.delete('refreshToken');
+        return expiredResponse;
+      }
+    }
 
     // Refresh token cookie if it exists (extend session)
     const tokenCookie = request.cookies.get('accessToken');
