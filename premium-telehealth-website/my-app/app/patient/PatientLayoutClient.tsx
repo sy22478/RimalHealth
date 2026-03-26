@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
   LayoutDashboard,
@@ -14,11 +14,13 @@ import {
   LogOut,
   Menu,
   X,
-  CreditCard
+  CreditCard,
+  ShieldCheck
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { usePatientUnreadCount } from '@/hooks/usePatientUnreadCount';
+import { Card, CardContent } from '@/components/ui/card';
 
 // ============================================================================
 // Navigation Configuration
@@ -239,17 +241,62 @@ function MobileNav({ currentPath, unreadCount = 0 }: MobileNavProps) {
 
 interface PatientLayoutProps {
   children: React.ReactNode;
+  /** Whether MFA is not yet set up for this patient */
+  mfaRequired?: boolean;
+  /** Whether the 7-day grace period has expired */
+  mfaGracePeriodExpired?: boolean;
 }
 
-export default function PatientLayoutClient({ children }: PatientLayoutProps) {
+export default function PatientLayoutClient({
+  children,
+  mfaRequired = false,
+  mfaGracePeriodExpired = false,
+}: PatientLayoutProps) {
   const pathname = usePathname();
-  
+  const router = useRouter();
+
   const { unreadCount } = usePatientUnreadCount();
+
+  // If MFA is required and grace period expired, redirect to MFA setup
+  // (unless already on the MFA setup page to avoid redirect loop)
+  const isMFASetupPage = pathname === '/patient/mfa-setup';
+
+  React.useEffect(() => {
+    if (mfaRequired && mfaGracePeriodExpired && !isMFASetupPage) {
+      router.replace('/patient/mfa-setup');
+    }
+  }, [mfaRequired, mfaGracePeriodExpired, isMFASetupPage, router]);
+
+  // If grace period expired and not on MFA setup page, show a blocking overlay
+  // while the redirect is in progress (prevents flash of portal content)
+  if (mfaRequired && mfaGracePeriodExpired && !isMFASetupPage) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Card className="max-w-md w-full mx-4">
+          <CardContent className="p-8 text-center">
+            <div className="p-3 bg-ocean-50 rounded-full inline-flex mb-4">
+              <ShieldCheck className="h-8 w-8 text-ocean-600" />
+            </div>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">
+              Two-Factor Authentication Required
+            </h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              For the security of your health information, you must set up
+              two-factor authentication to continue using the patient portal.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Redirecting to setup...
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <MobileNav currentPath={pathname} unreadCount={unreadCount} />
-      
+
       <div className="flex">
         {/* Sidebar - Desktop */}
         <Sidebar currentPath={pathname} unreadCount={unreadCount} />

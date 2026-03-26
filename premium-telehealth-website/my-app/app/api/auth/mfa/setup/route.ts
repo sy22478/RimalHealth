@@ -1,10 +1,12 @@
 /**
  * POST /api/auth/mfa/setup
- * Initiate MFA setup for a physician or admin.
+ * Initiate MFA setup for any authenticated user (patient, physician, or admin).
  *
  * Generates a TOTP secret, encrypts it, and stores it on the user record
  * (with mfaEnabled still false). Only the otpauth URI is returned to the
  * client — the plaintext secret never leaves the server.
+ *
+ * 2026 HIPAA Security Rule mandates MFA for all ePHI access, including patients.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -15,8 +17,8 @@ import { auditLogger } from '@/lib/audit/logger';
 import { AuditEventType } from '@/lib/audit/types';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  // Require PHYSICIAN or ADMIN role
-  const auth = await requireRole(request, ['PHYSICIAN', 'ADMIN']);
+  // Require any authenticated role (PATIENT, PHYSICIAN, or ADMIN)
+  const auth = await requireRole(request, ['PATIENT', 'PHYSICIAN', 'ADMIN']);
   if (auth instanceof NextResponse) {
     return auth;
   }

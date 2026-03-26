@@ -75,20 +75,20 @@
 - [x] **2.7 Database Connection Pooling**
   - [x] 2.7.1 Add pool config to `lib/db/prisma.ts` (max: 5, idleTimeoutMillis: 10000, connectionTimeoutMillis: 5000)
 
-- [ ] **2.8 Patient MFA**
-  - [ ] 2.8.1 Extend MFA setup UI to include patients
-  - [ ] 2.8.2 Add MFA verification step to patient login
-  - [ ] 2.8.3 Add MFA bypass for first login (before setup)
+- [x] **2.8 Patient MFA**
+  - [x] 2.8.1 Extend MFA setup UI to include patients
+  - [x] 2.8.2 Add MFA verification step to patient login
+  - [x] 2.8.3 Add MFA bypass for first login (before setup)
 
 - [x] **2.9 Stripe Webhook Deduplication**
   - [x] 2.9.1 Create `WebhookEvent` Prisma model with unique `stripeEventId`
   - [x] 2.9.2 Add dedup check at start of webhook handler
   - [x] 2.9.3 Record event ID after successful processing
 
-- [ ] **2.10 Encryption & Audit Tests**
-  - [ ] 2.10.1 Write encrypt/store/retrieve/decrypt roundtrip tests for all 7 models
-  - [ ] 2.10.2 Write audit logger coverage tests for all PHI access routes
-  - [ ] 2.10.3 Write no-PHI-in-console tests across all API routes
+- [x] **2.10 Encryption & Audit Tests**
+  - [x] 2.10.1 Write encrypt/store/retrieve/decrypt roundtrip tests for all 7 models
+  - [x] 2.10.2 Write audit logger coverage tests for all PHI access routes
+  - [x] 2.10.3 Write no-PHI-in-console tests across all API routes
   - [x] 2.10.4 Write DSM-5 scoring edge case tests
 
 ---

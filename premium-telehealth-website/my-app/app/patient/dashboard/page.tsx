@@ -6,6 +6,11 @@ import { prisma } from "@/lib/db/prisma";
 import { SenderType, Role } from "@prisma/client";
 import { requireRole } from "@/lib/auth/session-helpers";
 
+interface UserMFAInfo {
+  mfaEnabled: boolean;
+  accountAgeDays: number;
+}
+
 async function getDashboardData(userId: string): Promise<DashboardData> {
   const results = await Promise.allSettled([
     prisma.patientProfile.findUnique({
@@ -142,17 +147,43 @@ async function getDashboardData(userId: string): Promise<DashboardData> {
   };
 }
 
+async function getUserMFAInfo(userId: string): Promise<UserMFAInfo> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { mfaEnabled: true, createdAt: true },
+  });
+
+  if (!user) {
+    return { mfaEnabled: false, accountAgeDays: 0 };
+  }
+
+  const accountAgeDays = Math.floor(
+    (Date.now() - new Date(user.createdAt).getTime()) / (1000 * 60 * 60 * 24)
+  );
+
+  return { mfaEnabled: user.mfaEnabled, accountAgeDays };
+}
+
 export default async function PatientDashboardPage() {
   const user = await requireRole([Role.PATIENT]);
 
-  const data = await getDashboardData(user.id);
+  const [data, mfaInfo] = await Promise.all([
+    getDashboardData(user.id),
+    getUserMFAInfo(user.id),
+  ]);
+
   if (!data.profile) {
     redirect("/intake");
   }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      <PatientDashboard data={data} userId={user.id} />
+      <PatientDashboard
+        data={data}
+        userId={user.id}
+        mfaEnabled={mfaInfo.mfaEnabled}
+        accountAgeDays={mfaInfo.accountAgeDays}
+      />
     </div>
   );
 }

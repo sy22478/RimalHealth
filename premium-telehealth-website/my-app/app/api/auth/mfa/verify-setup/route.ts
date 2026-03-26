@@ -27,7 +27,8 @@ const verifySetupSchema = z.object({
 });
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const auth = await requireRole(request, ['PHYSICIAN', 'ADMIN']);
+  // Allow any authenticated role (PATIENT, PHYSICIAN, or ADMIN) — 2026 HIPAA mandates MFA for all ePHI access
+  const auth = await requireRole(request, ['PATIENT', 'PHYSICIAN', 'ADMIN']);
   if (auth instanceof NextResponse) {
     return auth;
   }

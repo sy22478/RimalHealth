@@ -25,6 +25,7 @@ const {
   mockRedirect,
   mockVerifyAccessToken,
   mockIntakeFindFirst,
+  mockUserFindUnique,
 } = vi.hoisted(() => {
   const _mockRedirect = vi.fn().mockImplementation((url: string) => {
     throw new _RedirectError(url);
@@ -43,6 +44,7 @@ const {
     mockRedirect: _mockRedirect,
     mockVerifyAccessToken: vi.fn(),
     mockIntakeFindFirst: vi.fn(),
+    mockUserFindUnique: vi.fn(),
     RedirectError: _RedirectError,
   };
 });
@@ -68,6 +70,7 @@ vi.mock('@/lib/auth/jwt', () => ({
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     intake: { findFirst: mockIntakeFindFirst },
+    user: { findUnique: mockUserFindUnique },
   },
 }));
 
@@ -163,6 +166,8 @@ describe('Patient Layout Intake Gate', () => {
     setCookie('valid-token');
     mockVerifyAccessToken.mockResolvedValue({ userId: 'user-2', role: 'PATIENT' });
     mockIntakeFindFirst.mockResolvedValue({ id: 'intake-1' });
+    // MFA gate: user with MFA enabled (passes gate) or within grace period
+    mockUserFindUnique.mockResolvedValue({ mfaEnabled: true, createdAt: new Date() });
 
     // Should NOT throw -- layout renders children
     const result = await PatientLayout({

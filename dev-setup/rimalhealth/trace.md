@@ -379,5 +379,23 @@
 
 ### Phase 9 — AutoDream: P1 Remaining (2026-03-26)
 
-- **[PM-025]** 2026-03-26 — AutoDream started. Deploying 3 agents for remaining P1 tasks: Stripe consolidation (2.6), webhook dedup (2.9), consent linkage (3.4) + remaining tests (3.3). Patient MFA (2.8) deferred — requires UX design decisions.
+- **[PM-025]** 2026-03-26 — AutoDream started. Deploying 3 agents for remaining P1 tasks.
+
+**AD1: Stripe Consolidation** (68K tokens, 40 tool calls) — DONE
+- Migrated 7 routes from legacy `lib/integrations/stripe.ts` to canonical `lib/stripe/stripe-server.ts`
+- Ported `getDefaultPaymentMethod()` to canonical module
+- Deleted legacy file (693 lines)
+
+**AD2: Webhook Dedup + Consent Linkage** (68K tokens, 33 tool calls) — DONE
+- Added `WebhookEvent` Prisma model with unique `stripeEventId`
+- Dedup check at webhook start, event recording after success
+- Consent flows: consent page -> payment URL param -> Stripe metadata -> webhook -> linked to user
+
+**AD3: Tests** (89K tokens, 40 tool calls) — DONE
+- 23 auth route tests (verify-token, verify-email, send-verification)
+- 23 consent route tests (all 8 consent booleans, CSRF, rate limiting)
+- 4 intake gate tests (no cookie, invalid token, no intake, has intake)
+- Total: 95 unit tests, all passing
+
+- **[PM-026]** 2026-03-26 — AutoDream Wave 1 complete. ~225K tokens, 113 tool calls. Committed as `734f6c9`. TypeScript clean, 95 tests passing.
 

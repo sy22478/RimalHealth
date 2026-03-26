@@ -3,7 +3,8 @@
 /**
  * MFASetup Component
  *
- * A multi-step wizard for physicians and admins to enable TOTP-based MFA.
+ * A multi-step wizard to enable TOTP-based MFA for any user role
+ * (patients, physicians, admins).
  *
  * Steps:
  * 1. Start setup - calls POST /api/auth/mfa/setup
@@ -11,9 +12,12 @@
  * 3. Display backup codes on success
  *
  * Uses React Hook Form + Zod for the verification input.
+ *
+ * 2026 HIPAA Security Rule mandates MFA for all ePHI access.
  */
 
 import { useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -49,11 +53,19 @@ interface SetupState {
   otpauthUri: string;
 }
 
+interface MFASetupProps {
+  /** URL to redirect to after the user acknowledges backup codes */
+  redirectUrl?: string;
+  /** Callback fired after MFA setup is fully complete (backup codes shown) */
+  onComplete?: () => void;
+}
+
 // ============================================
 // Component
 // ============================================
 
-export function MFASetup(): React.ReactElement {
+export function MFASetup({ redirectUrl, onComplete }: MFASetupProps = {}): React.ReactElement {
+  const router = useRouter();
   const [step, setStep] = useState<SetupStep>('start');
   const [setupState, setSetupState] = useState<SetupState | null>(null);
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
@@ -266,6 +278,18 @@ export function MFASetup(): React.ReactElement {
               Two-factor authentication is now enabled. You will need to enter a
               code from your authenticator app each time you sign in.
             </p>
+
+            {(redirectUrl || onComplete) && (
+              <Button
+                className="w-full btn-primary"
+                onClick={() => {
+                  if (onComplete) onComplete();
+                  if (redirectUrl) router.push(redirectUrl);
+                }}
+              >
+                Continue
+              </Button>
+            )}
           </div>
         )}
       </CardContent>

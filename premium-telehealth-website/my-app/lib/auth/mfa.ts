@@ -1,9 +1,11 @@
 /**
  * MFA (Multi-Factor Authentication) Utilities
- * TOTP-based MFA for physicians and admins
+ * TOTP-based MFA for all user roles (patients, physicians, admins)
  *
  * Uses the otpauth library for TOTP generation and verification.
  * MFA secrets and backup codes are encrypted at rest using PHI encryption.
+ *
+ * 2026 HIPAA Security Rule mandates MFA for all ePHI access.
  *
  * @module lib/auth/mfa
  */
