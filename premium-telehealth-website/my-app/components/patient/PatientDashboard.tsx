@@ -10,19 +10,98 @@ import { QuickActions } from './QuickActions';
 import { RecentMessages } from './RecentMessages';
 import { PrescriptionCard } from './PrescriptionCard';
 import { TreatmentProgress } from './TreatmentProgress';
-import { 
-  DashboardData, 
-  DashboardStatus, 
+import {
+  DashboardData,
+  DashboardStatus,
   getDashboardStatus,
-  formatCurrency
+  formatCurrency,
+  getProfileCompletionStatus
 } from '@/types/dashboard';
 import { 
   IntakeStatus, 
   SubscriptionStatus, 
   PrescriptionStatus 
 } from '@prisma/client';
-import { AlertCircle, ChevronRight, Sparkles } from 'lucide-react';
+import { AlertCircle, ChevronRight, Sparkles, User, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+// ============================================================================
+// Profile Completion Prompt Component
+// ============================================================================
+
+interface ProfileCompletionPromptProps {
+  profile: DashboardData['profile'];
+}
+
+function ProfileCompletionPrompt({ profile }: ProfileCompletionPromptProps) {
+  const [dismissed, setDismissed] = React.useState(false);
+  const completionStatus = getProfileCompletionStatus(profile);
+
+  if (completionStatus.isComplete || dismissed) return null;
+
+  return (
+    <Card className="mb-6 border-ocean-200 bg-gradient-to-r from-ocean-50 to-blue-50">
+      <CardContent className="p-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex items-start gap-3 flex-1">
+            <div className="p-2 bg-ocean-100 rounded-lg flex-shrink-0">
+              <User className="h-5 w-5 text-ocean-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-gray-900">Complete Your Profile</h3>
+              <p className="text-sm text-gray-600 mt-1">
+                Help us serve you better by completing your profile. This ensures your physician has
+                the information needed for your care.
+              </p>
+              {completionStatus.missingFields.length > 0 && (
+                <div className="mt-2">
+                  <p className="text-xs text-gray-500 mb-1">Missing information:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {completionStatus.missingFields.map((field) => (
+                      <span
+                        key={field}
+                        className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-ocean-100 text-ocean-700"
+                      >
+                        {field}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {/* Progress bar */}
+              <div className="mt-3 flex items-center gap-2">
+                <div className="flex-1 bg-ocean-100 rounded-full h-2">
+                  <div
+                    className="bg-ocean-500 h-2 rounded-full transition-all"
+                    style={{ width: `${completionStatus.completionPercentage}%` }}
+                  />
+                </div>
+                <span className="text-xs text-gray-500 font-medium">{completionStatus.completionPercentage}%</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link href="/patient/profile">
+              <Button className="bg-ocean-600 hover:bg-ocean-700 text-white flex-shrink-0">
+                Complete Profile
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </Link>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="flex-shrink-0 text-gray-400 hover:text-gray-600"
+              onClick={() => setDismissed(true)}
+              aria-label="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 // ============================================================================
 // Types
@@ -212,6 +291,9 @@ export function PatientDashboard({ data, userId, className }: PatientDashboardPr
       {data.subscription && (
         <SubscriptionAlert subscription={data.subscription} />
       )}
+
+      {/* Profile Completion Prompt - Show if profile is incomplete */}
+      <ProfileCompletionPrompt profile={data.profile} />
 
       {/* Status & Next Steps Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">

@@ -183,7 +183,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       },
     });
   } catch (error) {
-    console.error('List physicians error:', error);
+    console.error('List physicians error:', error instanceof Error ? error.message : 'Unknown error');
 
     await AuditService.logApiError(
       error instanceof Error ? error : new Error('Unknown error'),

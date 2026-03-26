@@ -1,15 +1,16 @@
 /**
  * Document Download API
  * GET: Generate presigned URL for document download
- * 
+ *
  * @module app/api/patient/documents/[id]/download
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { requireRole } from '@/lib/auth/require-auth';
 import { prisma } from '@/lib/db/prisma';
 import { generateDownloadUrl } from '@/lib/integrations/s3';
 import { auditPHIAccess, createAuditContext, PHIResourceType } from '@/lib/audit/index';
-import { DocumentStatus } from '@prisma/client';
+import { DocumentStatus, Role } from '@prisma/client';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -18,33 +19,29 @@ interface RouteParams {
 /**
  * GET /api/patient/documents/[id]/download
  * Generate presigned download URL for a document
- * 
+ *
  * Flow:
- * 1. Validate user is authenticated
+ * 1. Validate user is authenticated and has PATIENT role
  * 2. Verify document ownership
  * 3. Generate presigned download URL (5 min expiry)
  * 4. Log audit event
  * 5. Return download URL
- * 
+ *
  * HIPAA: Download access is logged with document ID
  */
 export async function GET(
   request: NextRequest,
   { params }: RouteParams
 ): Promise<NextResponse> {
+  // Require patient role
+  const auth = await requireRole(request, [Role.PATIENT]);
+  if (auth instanceof NextResponse) {
+    return auth;
+  }
+
   try {
     const { id } = await params;
-    
-    // Get user ID from headers (set by auth middleware)
-    const userId = request.headers.get('x-user-id');
-    const userRole = request.headers.get('x-user-role') || 'PATIENT';
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
+    const userId = auth.user.userId;
 
     // Get patient profile
     const patientProfile = await prisma.patientProfile.findUnique({
@@ -113,7 +110,7 @@ export async function GET(
     });
 
   } catch (error) {
-    console.error('Error generating download URL:', error);
+    console.error('Error generating download URL:', error instanceof Error ? error.message : 'Unknown error');
     return NextResponse.json(
       { error: 'Failed to generate download URL' },
       { status: 500 }

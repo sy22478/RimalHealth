@@ -129,7 +129,7 @@ export async function PUT(
     });
 
   } catch (error) {
-    console.error('[Physician Notes PUT] Error:', error);
+    console.error('[Physician Notes PUT] Error:', error instanceof Error ? error.message : 'Unknown error');
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -182,7 +182,7 @@ export async function DELETE(
     });
 
   } catch (error) {
-    console.error('[Physician Notes DELETE] Error:', error);
+    console.error('[Physician Notes DELETE] Error:', error instanceof Error ? error.message : 'Unknown error');
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

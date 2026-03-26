@@ -16,8 +16,6 @@ import { AlcoholQuestions } from "./AlcoholQuestions";
 import {
   draftIntakeSchema,
   createIntakeSchema,
-  createAutoSaveHandler,
-  calculateProgress,
   calculateIntakeScores,
   generateRiskAssessment,
   type DraftIntakeData,
@@ -356,50 +354,62 @@ export function IntakeForm({
   const { handleSubmit, watch, trigger, formState: { isDirty } } = methods;
   const formData = watch();
 
-  // Calculate progress
+  // Calculate progress (simple inline calculation, no sessionStorage)
   const progress = React.useMemo(() => {
-    return calculateProgress(formData, primaryConcern as "ALCOHOL");
-  }, [formData, primaryConcern]);
+    const allFields = Object.keys(formData);
+    const filledFields = allFields.filter((key) => {
+      const value = formData[key as keyof DraftIntakeData];
+      return value !== undefined && value !== '' && value !== null;
+    });
+    const percent = allFields.length > 0 ? Math.round((filledFields.length / allFields.length) * 100) : 0;
+    return { percent, completedSections: [] as string[], totalSections: sections.length };
+  }, [formData, sections.length]);
 
-  // Setup auto-save
-  const autoSaveHandler = React.useMemo(() => {
-    return createAutoSaveHandler({
-      intakeId,
-      primaryConcern,
-      onSave: (newIntakeId) => {
-        setIntakeId(newIntakeId);
+  // Server-side auto-save (no browser storage — HIPAA compliant)
+  const saveToServer = React.useCallback(async (data: DraftIntakeData): Promise<void> => {
+    try {
+      const url = intakeId ? `/api/patient/intake/${intakeId}` : '/api/patient/intake';
+      const method = intakeId ? 'PATCH' : 'POST';
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ formData: data, primaryConcern, isDraft: true }),
+      });
+      if (response.ok) {
+        const result = await response.json();
+        if (result.id) setIntakeId(result.id);
         setSaveStatus("saved");
         setLastSaved(new Date());
         setTimeout(() => setSaveStatus("idle"), 2000);
-      },
-      onError: (error) => {
-        console.error("Auto-save error:", error);
+      } else {
         setSaveStatus("error");
-      },
-    });
+      }
+    } catch {
+      setSaveStatus("error");
+    }
   }, [intakeId, primaryConcern]);
 
-  // Auto-save effect
+  // Auto-save effect (server-only, every 30 seconds)
   React.useEffect(() => {
     if (!isDirty || isSubmitted) return;
 
     const interval = setInterval(() => {
       if (isDirty) {
         setSaveStatus("saving");
-        autoSaveHandler.scheduleSave(formData);
+        saveToServer(formData);
       }
-    }, 30000); // Auto-save every 30 seconds
+    }, 30000);
 
     return () => clearInterval(interval);
-  }, [isDirty, formData, autoSaveHandler, isSubmitted]);
+  }, [isDirty, formData, saveToServer, isSubmitted]);
 
-  // Save on field blur
+  // Save on field blur (server-only)
   const handleFieldBlur = React.useCallback(() => {
     if (isDirty && !isSubmitted) {
       setSaveStatus("saving");
-      autoSaveHandler.scheduleSave(formData);
+      saveToServer(formData);
     }
-  }, [isDirty, formData, autoSaveHandler, isSubmitted]);
+  }, [isDirty, formData, saveToServer, isSubmitted]);
 
   // Validate current section before proceeding
   const validateCurrentSection = async (): Promise<boolean> => {
@@ -470,7 +480,7 @@ export function IntakeForm({
       }
 
       setIsSubmitted(true);
-      autoSaveHandler.clearSavedData();
+      // No browser storage to clear — auto-save is server-side only
       onSubmitSuccess?.();
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "An unexpected error occurred");

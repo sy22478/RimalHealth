@@ -283,7 +283,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       expiresIn: ACCESS_TOKEN_EXPIRY_SECONDS,
     });
   } catch (error) {
-    console.error('Token refresh error:', error);
+    console.error('Token refresh error:', error instanceof Error ? error.message : 'Unknown error');
 
     return NextResponse.json(
       {

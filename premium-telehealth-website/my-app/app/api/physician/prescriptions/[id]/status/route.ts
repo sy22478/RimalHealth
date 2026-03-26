@@ -217,7 +217,7 @@ export async function GET(
     });
 
   } catch (error) {
-    console.error('Prescription status check error:', error);
+    console.error('Prescription status check error:', error instanceof Error ? error.message : 'Unknown error');
 
     // Log the error
     await auditLogger.log({

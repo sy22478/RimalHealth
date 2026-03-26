@@ -7,56 +7,6 @@
  * @module lib/hipaa
  */
 
-// PHI Encryption
-export {
-  encryptPHI,
-  decryptPHI,
-  encryptPHIToString,
-  decryptPHIFromString,
-  encryptFields,
-  decryptFields,
-  encryptMany,
-  decryptMany,
-  deriveKeyFromPassword,
-  hashIdentifier,
-  generateDataEncryptionKey,
-  decryptDataEncryptionKey,
-  reencryptWithNewKey,
-  isEncrypted,
-  secureCompare,
-  type EncryptedData,
-  type EncryptionOptions,
-  type FieldEncryptionOptions,
-  type KeyDerivationOptions,
-} from './encryption';
-
-// Audit Logging
-export {
-  logAuditEvent,
-  logPhiRead,
-  logPhiCreate,
-  logPhiUpdate,
-  logPhiDelete,
-  logAuthEvent,
-  logExportEvent,
-  queryAuditLogs,
-  countAuditLogs,
-  getUserActivity,
-  getResourceAccessHistory,
-  getFailedLoginAttempts,
-  withAuditLogging,
-  generatePatientAccessReport,
-  initAuditStorage,
-  setAuditLoggingEnabled,
-  isAuditLoggingEnabled,
-  createAuditEvent,
-  extractRequestInfo,
-  type AuditEvent,
-  type AuditEventDetails,
-  type AuditQuery,
-  type AuditLogStorage,
-} from './audit-logger';
-
 // PHI Identifiers
 export {
   getPHIField,

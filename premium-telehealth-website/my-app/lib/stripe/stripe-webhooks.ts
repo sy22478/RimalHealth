@@ -282,7 +282,7 @@ export async function handleInvoicePaymentFailed(
         type: 'PAYMENT_FAILED',
         title: 'Payment Failed',
         message: 'We were unable to process your payment. Please update your payment method to avoid service interruption.',
-        actionUrl: '/dashboard/billing',
+        actionUrl: '/patient/billing',
       },
     });
 
@@ -454,7 +454,7 @@ export async function handleSubscriptionDeleted(
         type: 'SUBSCRIPTION_CANCELLED',
         title: 'Subscription Cancelled',
         message: 'Your subscription has been cancelled. We\'re sorry to see you go.',
-        actionUrl: '/dashboard/billing',
+        actionUrl: '/patient/billing',
       },
     });
 

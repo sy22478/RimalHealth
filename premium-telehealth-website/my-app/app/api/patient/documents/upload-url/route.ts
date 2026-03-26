@@ -1,12 +1,13 @@
 /**
  * Document Upload URL API
  * POST: Generate presigned URL for direct S3 upload
- * 
+ *
  * @module app/api/patient/documents/upload-url
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { requireRole } from '@/lib/auth/require-auth';
 import { prisma } from '@/lib/db/prisma';
 import {
   generateUploadUrl,
@@ -15,7 +16,7 @@ import {
   MAX_FILE_SIZE,
 } from '@/lib/integrations/s3';
 import { auditLog, createAuditContext, AuditEventType } from '@/lib/audit/index';
-import { DocumentType } from '@prisma/client';
+import { DocumentType, Role } from '@prisma/client';
 
 // Validation schema
 const uploadUrlSchema = z.object({
@@ -34,29 +35,27 @@ const uploadUrlSchema = z.object({
 /**
  * POST /api/patient/documents/upload-url
  * Generate presigned URL for document upload
- * 
+ *
  * Flow:
- * 1. Validate user is authenticated
+ * 1. Validate user is authenticated and has PATIENT role
  * 2. Validate file type and size
  * 3. Generate unique S3 key
  * 4. Generate presigned URL
  * 5. Log audit event
  * 6. Return URL to client
- * 
+ *
  * HIPAA: All document uploads are logged
  */
-export async function POST(request: NextRequest) {
-  try {
-    // Get user ID from headers (set by auth middleware)
-    const userId = request.headers.get('x-user-id');
-    const userRole = request.headers.get('x-user-role') || 'PATIENT';
+export async function POST(request: NextRequest): Promise<NextResponse> {
+  // Require patient role
+  const auth = await requireRole(request, [Role.PATIENT]);
+  if (auth instanceof NextResponse) {
+    return auth;
+  }
 
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
+  try {
+    const userId = auth.user.userId;
+    const userRole = 'PATIENT';
 
     // Parse and validate request body
     const body = await request.json();
@@ -163,7 +162,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error generating upload URL:', error);
+    console.error('Error generating upload URL:', error instanceof Error ? error.message : 'Unknown error');
     return NextResponse.json(
       { error: 'Failed to generate upload URL' },
       { status: 500 }

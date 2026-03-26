@@ -69,7 +69,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       expiresAt: result.expiresAt,
     });
   } catch (error) {
-    console.error('Document upload error:', error);
+    console.error('Document upload error:', error instanceof Error ? error.message : 'Unknown error');
     
     await AuditService.logApiError(
       error instanceof Error ? error : new Error('Unknown error'),
@@ -128,7 +128,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({ documents });
   } catch (error) {
-    console.error('List documents error:', error);
+    console.error('List documents error:', error instanceof Error ? error.message : 'Unknown error');
     
     await AuditService.logApiError(
       error instanceof Error ? error : new Error('Unknown error'),

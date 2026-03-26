@@ -133,7 +133,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         'MFA enabled successfully. Save your backup codes in a secure location.',
     });
   } catch (error) {
-    console.error('MFA verify-setup error:', error);
+    console.error('MFA verify-setup error:', error instanceof Error ? error.message : 'Unknown error');
     return NextResponse.json(
       { error: 'Failed to complete MFA setup', code: 'MFA_SETUP_ERROR' },
       { status: 500 }

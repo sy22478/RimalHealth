@@ -40,6 +40,14 @@ export interface SendEmailOptions {
 }
 
 /**
+ * Result of an email send attempt
+ */
+export interface SendEmailResult {
+  success: boolean;
+  error?: string;
+}
+
+/**
  * Queue job for retry on failure
  */
 interface RetryQueueJob {
@@ -108,18 +116,21 @@ async function queueForRetry(job: RetryQueueJob): Promise<void> {
  * Queues for retry on transient failures
  * 
  * @param options - Email sending options
- * @returns Promise<void>
- * 
+ * @returns Promise<SendEmailResult> indicating success or failure
+ *
  * @example
  * ```typescript
- * await sendEmail({
+ * const result = await sendEmail({
  *   to: 'patient@example.com',
  *   template: EmailTemplate.WELCOME,
  *   data: { firstName: 'John', dashboardUrl: 'https://...' },
  * });
+ * if (!result.success) {
+ *   console.error('Email failed:', result.error);
+ * }
  * ```
  */
-export async function sendEmail(options: SendEmailOptions): Promise<void> {
+export async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
   // Initialize if needed
   if (!isInitialized) {
     initializeSendGrid();
@@ -127,7 +138,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<void> {
 
   if (!SENDGRID_API_KEY) {
     console.error('[SendGrid] Cannot send email: SENDGRID_API_KEY not configured');
-    return;
+    return { success: false, error: 'SENDGRID_API_KEY not configured' };
   }
 
   const { to, template, data, from = SENDGRID_FROM_EMAIL, bcc, replyTo } = options;
@@ -137,7 +148,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<void> {
     const templateGenerator = emailTemplates[template];
     if (!templateGenerator) {
       console.error(`[SendGrid] Unknown template: ${template}`);
-      return;
+      return { success: false, error: `Unknown template: ${template}` };
     }
 
     const { subject, html, text } = templateGenerator(data);
@@ -165,6 +176,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<void> {
     // Send email
     await sgMail.send(msg);
     console.log('[SendGrid] Email sent successfully');
+    return { success: true };
   } catch (error) {
     // Log error without exposing recipient details
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -172,7 +184,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<void> {
 
     // Check if it's a retryable error
     const isRetryable = isRetryableError(error);
-    
+
     if (isRetryable) {
       await queueForRetry({
         type: 'email',
@@ -184,6 +196,8 @@ export async function sendEmail(options: SendEmailOptions): Promise<void> {
         maxRetries: 3,
       });
     }
+
+    return { success: false, error: errorMessage };
   }
 }
 

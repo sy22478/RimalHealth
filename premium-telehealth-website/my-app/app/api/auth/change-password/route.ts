@@ -129,7 +129,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       requireReLogin: true,
     });
   } catch (error) {
-    console.error('Change password error:', error);
+    console.error('Change password error:', error instanceof Error ? error.message : 'Unknown error');
     return NextResponse.json(
       { error: 'An unexpected error occurred', code: 'INTERNAL_ERROR' },
       { status: 500 }

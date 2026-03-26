@@ -87,6 +87,10 @@ export function StatusCard({ status, intakeSubmittedAt, className }: StatusCardP
         return 'text-purple-600';
       case 'active_treatment':
         return 'text-success-600';
+      case 'intake_rejected':
+        return 'text-red-600';
+      case 'intake_needs_info':
+        return 'text-amber-600';
       default:
         return 'text-gray-600';
     }

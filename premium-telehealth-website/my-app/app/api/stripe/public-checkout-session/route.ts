@@ -61,6 +61,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const { planType, successUrl, cancelUrl } = validationResult.data;
 
+    // Validate redirect URLs start with the app URL to prevent open redirect
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+    if (appUrl) {
+      if (!successUrl.startsWith(appUrl) || !cancelUrl.startsWith(appUrl)) {
+        return NextResponse.json(
+          {
+            error: 'Invalid redirect URL',
+            code: 'INVALID_REDIRECT',
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     const priceId = getPriceId(planType as PlanType);
 
     // Create a Stripe Checkout session without a pre-existing customer.

@@ -163,7 +163,7 @@ Rimal Health Team`,
       message: 'Physician authorized successfully. Secret key has been sent via email.',
     });
   } catch (error) {
-    console.error('Authorize physician error:', error);
+    console.error('Authorize physician error:', error instanceof Error ? error.message : 'Unknown error');
 
     const { id } = await params;
 

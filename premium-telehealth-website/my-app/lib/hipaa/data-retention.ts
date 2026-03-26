@@ -14,7 +14,15 @@
  */
 
 import { DATA_RETENTION, type PHIResourceType } from '@/lib/constants';
-import { logPhiDelete, logAuditEvent, createAuditEvent } from './audit-logger';
+// Stub functions — audit-logger.ts was removed as dead code (P1-012).
+// data-retention.ts itself is also unused (zero external imports).
+// These stubs prevent compile errors without reintroducing dead code.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const logAuditEvent = async (_event: any): Promise<void> => { /* no-op */ };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const logPhiDelete = async (_details: any): Promise<void> => { /* no-op */ };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const createAuditEvent = (details: any): any => details;
 
 // ============================================
 // Types

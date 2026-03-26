@@ -91,7 +91,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error('Get intake error:', error);
+    console.error('Get intake error:', error instanceof Error ? error.message : 'Unknown error');
 
     await AuditService.logApiError(
       error instanceof Error ? error : new Error('Unknown error'),
@@ -221,7 +221,7 @@ export async function PATCH(
       },
     });
   } catch (error) {
-    console.error('Update intake error:', error);
+    console.error('Update intake error:', error instanceof Error ? error.message : 'Unknown error');
 
     await AuditService.logApiError(
       error instanceof Error ? error : new Error('Unknown error'),

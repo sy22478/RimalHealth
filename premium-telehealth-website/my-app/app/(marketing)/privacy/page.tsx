@@ -90,7 +90,7 @@ export default function PrivacyPolicyPage() {
               (HIPAA). We implement appropriate administrative, physical, and
               technical safeguards to protect PHI. For details on your rights
               under HIPAA, please see our{" "}
-              <a href="/hipaa" className="text-ocean-500 hover:underline">
+              <a href="/hipaa" className="text-ocean-600 hover:underline">
                 HIPAA Notice of Privacy Practices
               </a>
               .
@@ -99,7 +99,56 @@ export default function PrivacyPolicyPage() {
 
           <section>
             <h2 className="text-xl font-semibold text-gray-900 mb-3">
-              5. Information Sharing
+              5. Substance Use Disorder Record Protections (42 CFR Part 2)
+            </h2>
+            <p className="mb-3">
+              Because Rimal Health provides treatment for substance use
+              disorders, your treatment records receive additional federal
+              protections under 42 CFR Part 2, the Confidentiality of
+              Substance Use Disorder Patient Records regulation.
+            </p>
+            <p className="mb-3">These protections mean:</p>
+            <ul className="list-disc pl-6 space-y-2">
+              <li>
+                We will not disclose your SUD treatment records without your
+                specific written consent, except in limited circumstances
+                permitted by law (such as medical emergencies or qualified
+                audits).
+              </li>
+              <li>
+                Your SUD records cannot be used against you in any legal
+                proceeding without your consent or a qualifying court order.
+              </li>
+              <li>
+                When we share your records with your consent (for example,
+                with your pharmacy or treating physician), we include a notice
+                prohibiting unauthorized redisclosure.
+              </li>
+              <li>
+                You have the right to an accounting of disclosures of your SUD
+                records and the right to request restrictions on how your
+                records are used or disclosed.
+              </li>
+            </ul>
+            <p className="mt-3">
+              For full details on these protections, please review our{" "}
+              <a href="/hipaa" className="text-ocean-600 hover:underline">
+                HIPAA Notice of Privacy Practices
+              </a>
+              , which includes our 42 CFR Part 2 Patient Notice.
+            </p>
+            <p className="mt-3">
+              These protections apply in addition to, and not in place of, the
+              general privacy protections described elsewhere in this Privacy
+              Policy. Where 42 CFR Part 2 provides greater protection than
+              HIPAA, the more protective standard applies to your SUD
+              treatment records.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold text-gray-900 mb-3">
+              6. Information Sharing
             </h2>
             <p className="mb-3">
               We do not sell your personal information. We may share your
@@ -124,7 +173,7 @@ export default function PrivacyPolicyPage() {
 
           <section>
             <h2 className="text-xl font-semibold text-gray-900 mb-3">
-              6. Data Security
+              7. Data Security
             </h2>
             <p>
               We use industry-standard encryption (TLS/SSL) for all data in
@@ -137,7 +186,7 @@ export default function PrivacyPolicyPage() {
 
           <section>
             <h2 className="text-xl font-semibold text-gray-900 mb-3">
-              7. Cookies &amp; Tracking
+              8. Cookies &amp; Tracking
             </h2>
             <p>
               We use cookies and similar tracking technologies to improve your
@@ -149,7 +198,7 @@ export default function PrivacyPolicyPage() {
 
           <section>
             <h2 className="text-xl font-semibold text-gray-900 mb-3">
-              8. Your Rights
+              9. Your Rights
             </h2>
             <p className="mb-3">You have the right to:</p>
             <ul className="list-disc pl-6 space-y-2">
@@ -166,14 +215,14 @@ export default function PrivacyPolicyPage() {
 
           <section>
             <h2 className="text-xl font-semibold text-gray-900 mb-3">
-              9. Contact Us
+              10. Contact Us
             </h2>
             <p>
               For privacy-related questions or to exercise your rights, contact
               us at:{" "}
               <a
                 href="mailto:support@rimalhealth.com"
-                className="text-ocean-500 hover:underline"
+                className="text-ocean-600 hover:underline"
               >
                 support@rimalhealth.com
               </a>

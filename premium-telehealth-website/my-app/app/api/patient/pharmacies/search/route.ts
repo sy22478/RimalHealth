@@ -54,7 +54,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({ pharmacies });
   } catch (error) {
-    console.error('Pharmacy search error:', error);
+    console.error('Pharmacy search error:', error instanceof Error ? error.message : 'Unknown error');
     return NextResponse.json(
       { error: 'Failed to search pharmacies', code: 'INTERNAL_ERROR' },
       { status: 500 }

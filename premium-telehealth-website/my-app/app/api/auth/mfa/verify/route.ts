@@ -217,7 +217,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         ipAddress,
         userAgent,
       },
-    }).catch((err) => console.error('Session creation failed (non-fatal):', err));
+    }).catch((err) => console.error('Session creation failed (non-fatal):', err instanceof Error ? err.message : 'Unknown error'));
 
     // Update lastLoginAt
     await prisma.user.update({
@@ -277,7 +277,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       redirectUrl,
     });
   } catch (error) {
-    console.error('MFA verify error:', error);
+    console.error('MFA verify error:', error instanceof Error ? error.message : 'Unknown error');
     return NextResponse.json(
       { error: 'MFA verification failed', code: 'MFA_VERIFY_ERROR' },
       { status: 500 }

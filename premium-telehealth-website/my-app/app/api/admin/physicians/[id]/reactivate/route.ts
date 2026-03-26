@@ -153,7 +153,7 @@ Rimal Health Team`,
       message: 'Physician reactivated successfully.',
     });
   } catch (error) {
-    console.error('Reactivate physician error:', error);
+    console.error('Reactivate physician error:', error instanceof Error ? error.message : 'Unknown error');
 
     const { id } = await params;
 

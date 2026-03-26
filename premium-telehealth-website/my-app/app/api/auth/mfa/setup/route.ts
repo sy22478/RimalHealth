@@ -53,7 +53,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       otpauthUri,
     });
   } catch (error) {
-    console.error('MFA setup error:', error);
+    console.error('MFA setup error:', error instanceof Error ? error.message : 'Unknown error');
     return NextResponse.json(
       { error: 'Failed to initiate MFA setup', code: 'MFA_SETUP_ERROR' },
       { status: 500 }

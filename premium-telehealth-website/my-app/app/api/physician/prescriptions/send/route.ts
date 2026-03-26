@@ -199,7 +199,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       _mock: 'mock' in sendResult ? sendResult.mock : false,
     });
   } catch (error) {
-    console.error('Send prescription error:', error);
+    console.error('Send prescription error:', error instanceof Error ? error.message : 'Unknown error');
     
     await AuditService.logApiError(
       error instanceof Error ? error : new Error('Unknown error'),

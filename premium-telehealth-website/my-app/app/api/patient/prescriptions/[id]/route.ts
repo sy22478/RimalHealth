@@ -47,7 +47,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     // Audit log
     auditPrescriptionAccess(userId, prescriptionId, ipAddress, userAgent).catch(
-      (err) => { console.error('Audit log failed:', err); }
+      (err) => { console.error('Audit log failed:', err instanceof Error ? err.message : 'Unknown error'); }
     );
 
     return NextResponse.json({
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       })),
     });
   } catch (error) {
-    console.error('Error fetching prescription details:', error);
+    console.error('Error fetching prescription details:', error instanceof Error ? error.message : 'Unknown error');
     return NextResponse.json(
       { error: 'Failed to fetch prescription details', code: 'INTERNAL_ERROR' },
       { status: 500 }

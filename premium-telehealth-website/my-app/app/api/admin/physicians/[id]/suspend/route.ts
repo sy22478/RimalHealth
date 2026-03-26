@@ -163,7 +163,7 @@ export async function POST(
         await redis.del(...keys);
       }
     } catch (redisError) {
-      console.error('Redis session cleanup error:', redisError);
+      console.error('Redis session cleanup error:', redisError instanceof Error ? redisError.message : 'Unknown error');
       // Non-fatal error - continue
     }
 
@@ -213,7 +213,7 @@ Rimal Health Team`,
       message: 'Physician suspended successfully. All sessions revoked.',
     });
   } catch (error) {
-    console.error('Suspend physician error:', error);
+    console.error('Suspend physician error:', error instanceof Error ? error.message : 'Unknown error');
 
     const { id } = await params;
 

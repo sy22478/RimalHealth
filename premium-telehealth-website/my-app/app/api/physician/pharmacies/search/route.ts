@@ -157,7 +157,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
 
   } catch (error) {
-    console.error('Pharmacy search error:', error);
+    console.error('Pharmacy search error:', error instanceof Error ? error.message : 'Unknown error');
 
     // Log the error
     await auditLogger.log({

@@ -19,6 +19,12 @@ async function getDashboardData(userId: string): Promise<DashboardData> {
         treatmentGoal: true,
         createdAt: true,
         updatedAt: true,
+        phone: true,
+        addressStreet: true,
+        addressCity: true,
+        addressState: true,
+        addressZip: true,
+        preferredPharmacyId: true,
       },
     }),
     prisma.intake.findFirst({
@@ -141,7 +147,7 @@ export default async function PatientDashboardPage() {
 
   const data = await getDashboardData(user.id);
   if (!data.profile) {
-    redirect("/profile/setup");
+    redirect("/intake");
   }
 
   return (

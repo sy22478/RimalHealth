@@ -18,6 +18,7 @@ import { NotificationService } from '@/lib/services/notification-service';
 import { sendMessageSchema, getMessagesQuerySchema } from '@/lib/validation/schemas';
 import { Role, SenderType } from '@prisma/client';
 import { PHIResourceType } from '@/lib/audit/index';
+import { requireCSRF } from '@/lib/security/csrf';
 import {
   getPatientMessagingThreads,
   getPatientThreadMessages,
@@ -63,7 +64,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // If threadId provided, get messages in thread
     if (threadId) {
       // Verify thread access
-      const hasAccess = threadId.includes(userId);
+      const hasAccess = threadId === `thread-${userId}` || threadId.startsWith(`thread-${userId}-`) || threadId.includes(`-${userId}-`) || threadId.endsWith(`-${userId}`);
       if (!hasAccess) {
         await AuditService.logUnauthorizedAccess(
           userId,
@@ -111,7 +112,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({ threads, limit, offset });
   } catch (error) {
-    console.error('Get messages error:', error);
+    console.error('Get messages error:', error instanceof Error ? error.message : 'Unknown error');
     
     await AuditService.logApiError(
       error instanceof Error ? error : new Error('Unknown error'),
@@ -132,9 +133,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 // ============================================================================
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  // CSRF validation (double-submit cookie pattern)
+  const csrfError = requireCSRF(request);
+  if (csrfError) return csrfError;
+
   // Require patient role
   const auth = await requireRole(request, [Role.PATIENT]);
-  
+
   if (auth instanceof NextResponse) {
     return auth;
   }
@@ -163,7 +168,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const { threadId, body, subject } = validation.data!;
 
     // Verify thread access
-    const hasAccess = threadId.includes(userId);
+    const hasAccess = threadId === `thread-${userId}` || threadId.startsWith(`thread-${userId}-`) || threadId.includes(`-${userId}-`) || threadId.endsWith(`-${userId}`);
     if (!hasAccess) {
       await AuditService.logUnauthorizedAccess(
         userId,
@@ -225,7 +230,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { status: 201 }
     );
   } catch (error) {
-    console.error('Send message error:', error);
+    console.error('Send message error:', error instanceof Error ? error.message : 'Unknown error');
     
     await AuditService.logApiError(
       error instanceof Error ? error : new Error('Unknown error'),

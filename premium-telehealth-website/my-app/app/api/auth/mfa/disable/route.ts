@@ -108,7 +108,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       message: 'MFA has been disabled.',
     });
   } catch (error) {
-    console.error('MFA disable error:', error);
+    console.error('MFA disable error:', error instanceof Error ? error.message : 'Unknown error');
     return NextResponse.json(
       { error: 'Failed to disable MFA', code: 'MFA_DISABLE_ERROR' },
       { status: 500 }

@@ -456,10 +456,10 @@ export default function PricingPage() {
             Ready to start your treatment?
           </h2>
           <Link
-            href="/checkout/payment?plan=active-treatment"
-            className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-500 to-ocean-500 text-white text-lg font-semibold py-4 px-8 rounded-lg shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5 transition-all duration-200"
+            href="/checkout/consent?plan=active-treatment"
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-500 to-ocean-500 text-white text-lg font-semibold py-4.5 px-10 rounded-full shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 hover:scale-[1.03] active:scale-[0.98] transition-all duration-200"
           >
-            Start for $50/month
+            Get Started — $50/month
             <ArrowRight className="w-5 h-5" />
           </Link>
           <p className="text-gray-600 mt-4">

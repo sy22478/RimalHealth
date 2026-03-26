@@ -97,7 +97,7 @@ export async function GET(
     return NextResponse.json({ thread });
 
   } catch (error) {
-    console.error('Error fetching patient thread:', error);
+    console.error('Error fetching patient thread:', error instanceof Error ? error.message : 'Unknown error');
 
     // Log error
     await auditLogger.log({

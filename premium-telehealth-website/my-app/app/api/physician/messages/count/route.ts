@@ -31,7 +31,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({ unreadCount });
   } catch (error) {
-    console.error('Unread message count error:', error);
+    console.error('Unread message count error:', error instanceof Error ? error.message : 'Unknown error');
     return NextResponse.json(
       { error: 'Failed to fetch unread count', code: 'INTERNAL_ERROR' },
       { status: 500 }

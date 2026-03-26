@@ -10,6 +10,7 @@ import { IntakeStatus, ReviewDecision } from '@prisma/client';
 import { IntakeFormData, IntakeScores, RiskAssessment } from '@/types/intake';
 import { AuditEventType, PHIResourceType, AuditSeverity } from '@/lib/audit/types';
 import { prisma } from '@/lib/db/prisma';
+import { calculateIntakeScores, generateRiskAssessment, generateProviderDecisionSummary } from '@/lib/intake/scoring';
 
 // Import types for internal use
 import type {
@@ -197,13 +198,25 @@ export async function getIntakeForReview(
     // Note: In production, decrypt PHI fields here
     const profile = intake.patient?.patientProfile;
     
+    // Compute scores and risk assessment from formData
+    const formDataRecord = intake.formData as Record<string, unknown> || {};
+    const scores = calculateIntakeScores(formDataRecord);
+    const riskAssessment = generateRiskAssessment(scores);
+    const providerSummary = generateProviderDecisionSummary(formDataRecord);
+
+    // Attach provider decision summary to formData for the review UI
+    const enrichedFormData = {
+      ...(intake.formData as Record<string, unknown>),
+      _providerDecisionSummary: providerSummary,
+    } as unknown as IntakeFormData;
+
     const data: IntakeWithPatient = {
       id: intake.id,
       patientId: intake.patientId,
       status: intake.status,
-      formData: intake.formData as unknown as IntakeFormData,
-      scores: undefined, // Calculate from formData if needed
-      riskAssessment: undefined, // Calculate from formData if needed
+      formData: enrichedFormData,
+      scores,
+      riskAssessment,
       submittedAt: intake.submittedAt,
       createdAt: intake.createdAt,
       updatedAt: intake.updatedAt,

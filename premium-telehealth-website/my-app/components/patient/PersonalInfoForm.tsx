@@ -194,6 +194,7 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
               <Input
                 id="phone"
                 type="tel"
+                autoComplete="tel"
                 placeholder="(555) 123-4567"
                 className="mt-1.5"
                 aria-invalid={!!errors.phone}
@@ -237,6 +238,7 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
               </Label>
               <Input
                 id="addressStreet"
+                autoComplete="street-address"
                 placeholder="123 Main Street, Apt 4B"
                 className="mt-1.5"
                 aria-invalid={!!errors.addressStreet}
@@ -267,6 +269,7 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
                 </Label>
                 <Input
                   id="addressCity"
+                  autoComplete="address-level2"
                   placeholder="Los Angeles"
                   className="mt-1.5"
                   aria-invalid={!!errors.addressCity}
@@ -293,6 +296,7 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
                 <Label htmlFor="addressState">State</Label>
                 <Input
                   id="addressState"
+                  autoComplete="address-level1"
                   value="CA"
                   disabled
                   className="mt-1.5 bg-gray-100"
@@ -306,6 +310,7 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
                 </Label>
                 <Input
                   id="addressZip"
+                  autoComplete="postal-code"
                   placeholder="90210"
                   className="mt-1.5"
                   aria-invalid={!!errors.addressZip}

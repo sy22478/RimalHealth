@@ -18,7 +18,6 @@ import { NotificationService } from '@/lib/services/notification-service';
 import { submitReviewSchema } from '@/lib/validation/schemas';
 import { Role, IntakeStatus, ReviewDecision, PrescriptionStatus } from '@prisma/client';
 import { DataModificationAction } from '@/lib/audit/index';
-import { encryptPHI } from '@/lib/encryption/phi';
 
 // ============================================================================
 // POST - Submit Review
@@ -110,11 +109,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
               : decision === 'DECLINED'
               ? ReviewDecision.REJECT
               : ReviewDecision.NEEDS_INFO,
-          clinicalNotes: notes ? encryptPHI(notes) : null,
-          rejectionReason: rejectionReason ? encryptPHI(rejectionReason) : null,
-          alternativeRecommendation: alternativeRecommendation
-            ? encryptPHI(alternativeRecommendation)
-            : null,
+          clinicalNotes: notes || null,
+          rejectionReason: rejectionReason || null,
+          alternativeRecommendation: alternativeRecommendation || null,
           completedAt: new Date(),
         },
       });
@@ -145,7 +142,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             quantity: prescriptionDetails.quantity,
             refills: prescriptionDetails.refills,
             refillsRemaining: prescriptionDetails.refills,
-            instructions: encryptPHI(prescriptionDetails.instructions),
+            instructions: prescriptionDetails.instructions,
             pharmacyName: 'Pending', // Will be updated when sent
             pharmacyNcpdpId: 'PENDING',
             status: PrescriptionStatus.PENDING,
@@ -191,7 +188,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         : null,
     });
   } catch (error) {
-    console.error('Submit review error:', error);
+    console.error('Submit review error:', error instanceof Error ? error.message : 'Unknown error');
     
     await AuditService.logApiError(
       error instanceof Error ? error : new Error('Unknown error'),

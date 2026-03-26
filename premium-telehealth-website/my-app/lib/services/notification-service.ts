@@ -90,19 +90,20 @@ export async function notifyReviewComplete(
         message = 'Your intake review status has been updated.';
     }
 
+    // HIPAA: Do NOT include clinical notes or decision details in email/SMS.
+    // The templates direct the patient to log in to their secure portal.
+    const dashboardUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://rimalhealth.com'}/patient/dashboard`;
     await notifyUser({
       userId: patientId,
       email: {
         template,
         data: {
-          status,
-          notes: notes || '',
-          message,
+          dashboardUrl,
         },
       },
       sms: {
         template: SMSTemplate.STATUS_UPDATE,
-        data: { message: truncateForSMS(message) },
+        data: { message: 'You have a new update on your Rimal Health portal. Please log in to view.' },
       },
       priority: status === 'APPROVED' ? 'high' : 'normal',
     });

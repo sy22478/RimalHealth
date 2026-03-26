@@ -122,7 +122,12 @@ let prismaExtendedInstance: PrismaClient | null = null;
  */
 function createBasePrismaClient(): PrismaClient {
   const dbUrl = connectionString || 'postgresql://localhost:5432/dummy';
-  const pool = new Pool({ connectionString: dbUrl });
+  const pool = new Pool({
+    connectionString: dbUrl,
+    max: 5,
+    idleTimeoutMillis: 10000,
+    connectionTimeoutMillis: 5000,
+  });
   const adapter = new PrismaPg(pool);
   
   const client = new PrismaClient({

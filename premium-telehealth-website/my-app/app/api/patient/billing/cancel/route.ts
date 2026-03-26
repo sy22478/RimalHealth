@@ -203,7 +203,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json(response);
 
     } catch (dbError) {
-      console.error('[Cancel API] Database error:', dbError);
+      console.error('[Cancel API] Database error:', dbError instanceof Error ? dbError.message : 'Unknown error');
       return NextResponse.json(
         { error: 'Failed to cancel subscription' },
         { status: 500 }
@@ -211,7 +211,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
   } catch (error) {
-    console.error('[Cancel API] Error:', error);
+    console.error('[Cancel API] Error:', error instanceof Error ? error.message : 'Unknown error');
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

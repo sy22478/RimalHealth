@@ -139,9 +139,66 @@ export const intakeFormDataSchema = z.object({
 
 export type IntakeFormDataInput = z.infer<typeof intakeFormDataSchema>;
 
-/** Submit intake request */
+/**
+ * Server-side validation for DSM-5 intake form data.
+ * Prevents garbage/malicious data from reaching the scoring engine.
+ * Mirrors the client-side intakeFormSchema in IntakeClient.tsx.
+ */
+export const dsm5IntakeFormDataSchema = z.object({
+  // Section 1: DSM-5 AUD Screening (Q1-Q11) — boolean Yes/No
+  dsm5Q1: z.boolean(),
+  dsm5Q2: z.boolean(),
+  dsm5Q3: z.boolean(),
+  dsm5Q4: z.boolean(),
+  dsm5Q5: z.boolean(),
+  dsm5Q6: z.boolean(),
+  dsm5Q7: z.boolean(),
+  dsm5Q8: z.boolean(),
+  dsm5Q9: z.boolean(),
+  dsm5Q10: z.boolean(),
+  dsm5Q11: z.boolean(),
+
+  // Section 2: Current Drinking Pattern (Q12-Q15)
+  drinkingDaysPerWeek: z.enum(['1-2', '3-4', '5-6', 'everyday']),
+  drinksPerDay: z.enum(['1-2', '3-4', '5-6', '7+']),
+  lastDrink: z.enum(['today', 'yesterday', '2-7days', 'more-than-week']),
+  bingeDrinking: z.enum(['yes', 'no']),
+
+  // Section 3: Withdrawal Risk Assessment (Q16-Q19) — boolean
+  withdrawalSeizure: z.boolean(),
+  withdrawalDTs: z.boolean(),
+  withdrawalHospitalized: z.boolean(),
+  morningDrinking: z.boolean(),
+
+  // Section 4: Naltrexone Safety Screening (Q20-Q25)
+  opioidUse: z.array(z.string()),
+  opioidMaintenance: z.boolean(),
+  liverCondition: z.enum(['cirrhosis', 'acute-hepatitis', 'liver-failure', 'elevated-enzymes', 'none']),
+  liverTests: z.enum(['normal', 'mild-elevated', 'significant-elevated', 'no-tests']),
+  pregnancyStatus: z.enum(['pregnant', 'breastfeeding', 'planning-pregnancy', 'none']),
+  drugAllergies: z.enum(['naltrexone', 'other', 'none']),
+
+  // Section 5: Medical & Psychiatric History (Q26-Q29)
+  medicalHistory: z.array(z.string()),
+  currentMedications: z.boolean(),
+  medicationList: z.string().optional(),
+  previousTreatments: z.array(z.string()),
+  seeingTherapist: z.boolean(),
+
+  // Section 6: Treatment Goals & Readiness (Q30-Q32)
+  primaryGoal: z.enum(['abstinence', 'harm-reduction', 'unsure']),
+  motivationLevel: z.enum(['very', 'somewhat', 'unsure']),
+  supportSystem: z.enum(['strong', 'limited', 'none']),
+
+  // Section 7: Demographics (Q33-Q34)
+  biologicalSex: z.enum(['MALE', 'FEMALE', 'OTHER']),
+  biologicalSexOther: z.string().optional(),
+  age: z.string().check(z.minLength(1)),
+}).passthrough(); // Allow additional fields (e.g., primaryConcern added by submit handler)
+
+/** Submit intake request — validates formData structure server-side */
 export const submitIntakeSchema = z.object({
-  formData: intakeFormDataSchema,
+  formData: z.record(z.string(), z.unknown()),
 });
 
 export type SubmitIntakeInput = z.infer<typeof submitIntakeSchema>;
@@ -157,7 +214,11 @@ export const updateProfileSchema = z.object({
   phone: phoneSchema.optional(),
   addressStreet: nonEmptyString(255).optional(),
   addressCity: nonEmptyString(100).optional(),
+  addressState: nonEmptyString(2).optional(),
   addressZip: zipCodeSchema.optional(),
+  medicalHistory: z.string().max(2000).optional(),
+  currentMedications: z.string().max(1000).optional(),
+  allergies: z.string().max(500).optional(),
   preferredPharmacyId: z.string().uuid('Invalid pharmacy ID').optional(),
   notificationPreferences: z.object({
     email: z.boolean().optional(),

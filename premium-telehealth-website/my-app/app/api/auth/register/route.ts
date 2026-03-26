@@ -254,7 +254,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { status: 201 }
     );
   } catch (error) {
-    console.error('Registration error:', error);
+    console.error('Registration error:', error instanceof Error ? error.message : 'Unknown error');
 
     // Don't leak internal error details
     return NextResponse.json(

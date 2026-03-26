@@ -95,7 +95,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Redirect to login after successful logout
     return NextResponse.redirect(new URL('/login', request.url));
   } catch (error) {
-    console.error('Logout error:', error);
+    console.error('Logout error:', error instanceof Error ? error.message : 'Unknown error');
 
     // Still clear cookies even if something went wrong
     const cookieStore = await cookies();
@@ -139,7 +139,7 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
       message: 'Logged out from all devices',
     });
   } catch (error) {
-    console.error('Logout all error:', error);
+    console.error('Logout all error:', error instanceof Error ? error.message : 'Unknown error');
     
     return NextResponse.json(
       {

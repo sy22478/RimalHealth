@@ -63,6 +63,29 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     });
 
     if (existingIntake) {
+      if (existingIntake.status === IntakeStatus.DRAFT) {
+        // Update existing draft with new form data and return it
+        const updated = await prisma.intake.update({
+          where: { id: existingIntake.id },
+          data: { formData: (formData ?? {}) as Prisma.InputJsonValue },
+        });
+
+        await prisma.patientProfile.update({
+          where: { userId },
+          data: { primaryConcern },
+        });
+
+        return NextResponse.json({
+          success: true,
+          intake: {
+            id: updated.id,
+            status: updated.status,
+            createdAt: updated.createdAt.toISOString(),
+          },
+        });
+      }
+
+      // SUBMITTED or UNDER_REVIEW — can't create a new one
       return NextResponse.json(
         {
           error: 'Active intake already exists',
@@ -117,7 +140,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { status: 201 }
     );
   } catch (error) {
-    console.error('Create intake error:', error);
+    console.error('Create intake error:', error instanceof Error ? error.message : 'Unknown error');
 
     await AuditService.logApiError(
       error instanceof Error ? error : new Error('Unknown error'),

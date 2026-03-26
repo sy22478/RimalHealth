@@ -131,7 +131,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ invoices: response });
 
     } catch (dbError) {
-      console.error('[Invoices API] Database error:', dbError);
+      console.error('[Invoices API] Database error:', dbError instanceof Error ? dbError.message : 'Unknown error');
       return NextResponse.json(
         { error: 'Failed to fetch invoices' },
         { status: 500 }
@@ -139,7 +139,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
   } catch (error) {
-    console.error('[Invoices API] Error:', error);
+    console.error('[Invoices API] Error:', error instanceof Error ? error.message : 'Unknown error');
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

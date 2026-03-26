@@ -176,7 +176,7 @@ Rimal Health Team`,
       message: 'Physician rejected successfully.',
     });
   } catch (error) {
-    console.error('Reject physician error:', error);
+    console.error('Reject physician error:', error instanceof Error ? error.message : 'Unknown error');
 
     const { id } = await params;
 

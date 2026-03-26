@@ -356,7 +356,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       try {
         stripeSubscription = await getSubscription(activeSubscription.stripeSubscriptionId);
       } catch (error) {
-        console.error('[Stripe Subscription] Error fetching Stripe subscription:', error);
+        console.error('[Stripe Subscription] Error fetching Stripe subscription:', error instanceof Error ? error.message : 'Unknown error');
         // Continue without Stripe data
       }
     }
@@ -497,7 +497,7 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
         message: immediate
           ? 'Your subscription has been cancelled immediately.'
           : 'Your subscription will be cancelled at the end of your current billing period.',
-        actionUrl: '/dashboard/billing',
+        actionUrl: '/patient/billing',
       },
     });
 

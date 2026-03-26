@@ -2,15 +2,16 @@
  * Document Detail API
  * GET: Get document details
  * DELETE: Delete a document
- * 
+ *
  * @module app/api/patient/documents/[id]
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { requireRole } from '@/lib/auth/require-auth';
 import { prisma } from '@/lib/db/prisma';
 import { deleteFile } from '@/lib/integrations/s3';
 import { auditPHIAccess, createAuditContext, PHIResourceType } from '@/lib/audit/index';
-import { DocumentStatus } from '@prisma/client';
+import { DocumentStatus, Role } from '@prisma/client';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -19,26 +20,22 @@ interface RouteParams {
 /**
  * GET /api/patient/documents/[id]
  * Get details of a specific document
- * 
+ *
  * HIPAA: Validates patient ownership before returning document info
  */
 export async function GET(
   request: NextRequest,
   { params }: RouteParams
 ): Promise<NextResponse> {
+  // Require patient role
+  const auth = await requireRole(request, [Role.PATIENT]);
+  if (auth instanceof NextResponse) {
+    return auth;
+  }
+
   try {
     const { id } = await params;
-    
-    // Get user ID from headers (set by auth middleware)
-    const userId = request.headers.get('x-user-id');
-    const userRole = request.headers.get('x-user-role') || 'PATIENT';
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
+    const userId = auth.user.userId;
 
     // Get patient profile
     const patientProfile = await prisma.patientProfile.findUnique({
@@ -100,7 +97,7 @@ export async function GET(
     return NextResponse.json({ document });
 
   } catch (error) {
-    console.error('Error fetching document:', error);
+    console.error('Error fetching document:', error instanceof Error ? error.message : 'Unknown error');
     return NextResponse.json(
       { error: 'Failed to fetch document' },
       { status: 500 }
@@ -118,19 +115,15 @@ export async function DELETE(
   request: NextRequest,
   { params }: RouteParams
 ): Promise<NextResponse> {
+  // Require patient role
+  const auth = await requireRole(request, [Role.PATIENT]);
+  if (auth instanceof NextResponse) {
+    return auth;
+  }
+
   try {
     const { id } = await params;
-    
-    // Get user ID from headers (set by auth middleware)
-    const userId = request.headers.get('x-user-id');
-    const userRole = request.headers.get('x-user-role') || 'PATIENT';
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
+    const userId = auth.user.userId;
 
     // Get patient profile
     const patientProfile = await prisma.patientProfile.findUnique({
@@ -171,7 +164,7 @@ export async function DELETE(
     try {
       await deleteFile(document.s3Key);
     } catch (s3Error) {
-      console.error('Error deleting file from S3:', s3Error);
+      console.error('Error deleting file from S3:', s3Error instanceof Error ? s3Error.message : 'Unknown error');
       // Continue with DB update even if S3 deletion fails
       // The file will be orphaned but marked as deleted in DB
     }
@@ -205,7 +198,7 @@ export async function DELETE(
     });
 
   } catch (error) {
-    console.error('Error deleting document:', error);
+    console.error('Error deleting document:', error instanceof Error ? error.message : 'Unknown error');
     return NextResponse.json(
       { error: 'Failed to delete document' },
       { status: 500 }

@@ -258,7 +258,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       data: stats,
     });
   } catch (error) {
-    console.error('Dashboard stats error:', error);
+    console.error('Dashboard stats error:', error instanceof Error ? error.message : 'Unknown error');
     
     await AuditService.logApiError(
       error instanceof Error ? error : new Error('Unknown error'),

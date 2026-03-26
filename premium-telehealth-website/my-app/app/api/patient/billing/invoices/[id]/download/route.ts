@@ -77,7 +77,7 @@ async function getStripeInvoicePdfUrl(stripeInvoiceId: string): Promise<string |
     
     return null;
   } catch (error) {
-    console.error('[Invoice Download] Failed to fetch from Stripe:', error);
+    console.error('[Invoice Download] Failed to fetch from Stripe:', error instanceof Error ? error.message : 'Unknown error');
     return null;
   }
 }
@@ -202,7 +202,7 @@ export async function GET(
       return NextResponse.json(response);
 
     } catch (dbError) {
-      console.error('[Invoice Download] Database error:', dbError);
+      console.error('[Invoice Download] Database error:', dbError instanceof Error ? dbError.message : 'Unknown error');
       return NextResponse.json(
         { error: 'Failed to generate invoice download' },
         { status: 500 }
@@ -210,7 +210,7 @@ export async function GET(
     }
 
   } catch (error) {
-    console.error('[Invoice Download] Error:', error);
+    console.error('[Invoice Download] Error:', error instanceof Error ? error.message : 'Unknown error');
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

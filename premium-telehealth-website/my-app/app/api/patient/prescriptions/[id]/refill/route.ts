@@ -110,7 +110,7 @@ export async function POST(
       message: 'Refill request submitted successfully',
     });
   } catch (error) {
-    console.error('Refill request error:', error);
+    console.error('Refill request error:', error instanceof Error ? error.message : 'Unknown error');
     
     await AuditService.logApiError(
       error instanceof Error ? error : new Error('Unknown error'),

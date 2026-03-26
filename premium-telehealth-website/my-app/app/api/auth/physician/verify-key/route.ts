@@ -320,7 +320,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     });
 
   } catch (error) {
-    console.error('Secret key verification error:', error);
+    console.error('Secret key verification error:', error instanceof Error ? error.message : 'Unknown error');
 
     // Log error
     await auditLogger.log({

@@ -22,6 +22,8 @@ export type DashboardStatus =
   | 'approved_awaiting_rx'
   | 'rx_sent'
   | 'active_treatment'
+  | 'intake_rejected'
+  | 'intake_needs_info'
   | 'unknown';
 
 /**
@@ -35,6 +37,8 @@ export function getDashboardStatus(
   if (intakeStatus === 'DRAFT') return 'intake_incomplete';
   if (intakeStatus === 'SUBMITTED') return 'intake_pending_review';
   if (intakeStatus === 'UNDER_REVIEW') return 'under_review';
+  if (intakeStatus === 'REJECTED') return 'intake_rejected';
+  if (intakeStatus === 'NEEDS_INFO') return 'intake_needs_info';
   if (intakeStatus === 'APPROVED' && !prescriptionStatus) return 'approved_awaiting_rx';
   if (prescriptionStatus === 'SENT') return 'rx_sent';
   if (subscriptionStatus === 'ACTIVE') return 'active_treatment';
@@ -57,6 +61,12 @@ export interface DashboardPatientProfile {
   treatmentGoal: TreatmentGoal | null;
   createdAt: Date;
   updatedAt: Date;
+  phone?: string | null;
+  addressStreet?: string | null;
+  addressCity?: string | null;
+  addressState?: string | null;
+  addressZip?: string | null;
+  preferredPharmacyId?: string | null;
 }
 
 /**
@@ -198,6 +208,20 @@ export const statusConfig: Record<DashboardStatus, StatusConfig> = {
     colorClass: 'border-success-200 bg-success-50',
     badgeVariant: 'default',
   },
+  intake_rejected: {
+    icon: 'alert',
+    title: 'Intake Not Approved',
+    description: 'After careful review, our medical team has determined that our telehealth service may not be the best fit for your current needs. Please see the details below for next steps.',
+    colorClass: 'border-red-200 bg-red-50',
+    badgeVariant: 'destructive',
+  },
+  intake_needs_info: {
+    icon: 'clipboard',
+    title: 'Additional Information Needed',
+    description: 'Your physician needs more information to complete your intake review. Please check your messages and respond promptly.',
+    colorClass: 'border-amber-200 bg-amber-50',
+    badgeVariant: 'secondary',
+  },
   unknown: {
     icon: 'alert',
     title: 'Status Unknown',
@@ -251,6 +275,20 @@ export function getNextSteps(status: DashboardStatus): string[] {
         'Take your medication exactly as prescribed',
         'Message your doctor if you have any questions or concerns',
         'Request refills 7 days before running out'
+      ];
+    case 'intake_rejected':
+      return [
+        'Review the details in your dashboard for specific guidance',
+        'Consider consulting with your primary care physician',
+        'Contact our support team if you have questions about this decision',
+        'You may be eligible for a refund -- check your billing page'
+      ];
+    case 'intake_needs_info':
+      return [
+        'Check your messages for details on what information is needed',
+        'Respond to your physician\'s request as soon as possible',
+        'Your review will continue once the information is received',
+        'Message your doctor if you have questions'
       ];
     default:
       return [
@@ -408,6 +446,38 @@ export function formatTreatmentGoal(goal: TreatmentGoal | null): string {
     EXPLORE: 'Explore Options',
   };
   return goalMap[goal];
+}
+
+/**
+ * Check if a patient profile is complete enough for optimal care.
+ * Returns a list of missing fields that should be filled.
+ */
+export function getProfileCompletionStatus(profile: DashboardPatientProfile | null): {
+  isComplete: boolean;
+  missingFields: string[];
+  completionPercentage: number;
+} {
+  if (!profile) {
+    return { isComplete: false, missingFields: ['Profile not created'], completionPercentage: 0 };
+  }
+
+  const checks: { field: string; label: string; isFilled: boolean }[] = [
+    { field: 'phone', label: 'Phone number', isFilled: !!profile.phone && profile.phone.length > 0 },
+    { field: 'addressStreet', label: 'Street address', isFilled: !!profile.addressStreet && profile.addressStreet.length > 0 },
+    { field: 'addressCity', label: 'City', isFilled: !!profile.addressCity && profile.addressCity.length > 0 },
+    { field: 'addressZip', label: 'ZIP code', isFilled: !!profile.addressZip && profile.addressZip.length > 0 },
+    { field: 'preferredPharmacyId', label: 'Preferred pharmacy', isFilled: !!profile.preferredPharmacyId },
+  ];
+
+  const missingFields = checks.filter(c => !c.isFilled).map(c => c.label);
+  const filledCount = checks.filter(c => c.isFilled).length;
+  const completionPercentage = Math.round((filledCount / checks.length) * 100);
+
+  return {
+    isComplete: missingFields.length === 0,
+    missingFields,
+    completionPercentage,
+  };
 }
 
 /**

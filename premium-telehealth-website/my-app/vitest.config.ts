@@ -1,6 +1,9 @@
 /**
- * Vitest Configuration for Integration Tests
- * 
+ * Vitest Configuration — runs ALL tests (unit + integration + lib)
+ *
+ * NOTE: Integration tests that need a database should import
+ * `tests/integration/setup.ts` directly inside their test files.
+ *
  * @module vitest.config
  */
 
@@ -12,8 +15,12 @@ export default defineConfig({
     // Test environment
     environment: 'node',
     
-    // Test file patterns
-    include: ['tests/integration/**/*.test.ts'],
+    // Test file patterns — run ALL tests (unit + integration + lib)
+    include: [
+      'tests/unit/**/*.test.ts',
+      'tests/integration/**/*.test.ts',
+      'lib/**/*.test.ts',
+    ],
     
     // Exclude patterns
     exclude: [
@@ -23,12 +30,9 @@ export default defineConfig({
       'tests/e2e/**/*',
     ],
     
-    // Setup files to run before tests
-    setupFiles: ['./tests/integration/setup.ts'],
-    
     // Test timeout (30 seconds for database operations)
     testTimeout: 30000,
-    
+
     // Hook timeout
     hookTimeout: 30000,
     

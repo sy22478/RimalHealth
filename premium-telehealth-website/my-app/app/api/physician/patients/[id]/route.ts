@@ -14,7 +14,8 @@ import { prisma } from '@/lib/db/prisma';
 import { AuditService } from '@/lib/services/audit-service';
 import { ValidationService } from '@/lib/services/validation-service';
 import { Role } from '@prisma/client';
-import { decryptPHI } from '@/lib/encryption/phi';
+// PHI decryption is handled automatically by the Prisma encryption extension.
+// Do NOT manually call decryptPHI on fields in PHI_FIELDS — they are already decrypted.
 
 // ============================================================================
 // GET - Get Patient Details
@@ -134,106 +135,65 @@ export async function GET(
       auditContext
     );
 
-    // Parse and decrypt medical history
-    let medicalHistory = null;
-    try {
-      if (patientProfile.medicalHistory) {
-        medicalHistory = JSON.parse(decryptPHI(JSON.stringify(patientProfile.medicalHistory)));
-      }
-    } catch {
-      medicalHistory = null;
-    }
+    // PHI fields (medicalHistory, currentMedications, allergies, insurance*, messages,
+    // notes) are already decrypted by the Prisma encryption extension on read.
+    const medicalHistory = patientProfile.medicalHistory || null;
+    const currentMedications = patientProfile.currentMedications || null;
+    const allergies = patientProfile.allergies || null;
 
-    // Parse and decrypt medications
-    let currentMedications = null;
-    try {
-      if (patientProfile.currentMedications) {
-        currentMedications = JSON.parse(decryptPHI(JSON.stringify(patientProfile.currentMedications)));
-      }
-    } catch {
-      currentMedications = null;
-    }
+    // Insurance info
+    const insurance = patientProfile.insuranceProvider
+      ? {
+          provider: patientProfile.insuranceProvider,
+          memberId: patientProfile.insuranceMemberId || null,
+          groupNumber: patientProfile.insuranceGroupNumber || null,
+        }
+      : null;
 
-    // Parse and decrypt allergies
-    let allergies = null;
-    try {
-      if (patientProfile.allergies) {
-        allergies = JSON.parse(decryptPHI(JSON.stringify(patientProfile.allergies)));
-      }
-    } catch {
-      allergies = null;
-    }
+    // Format messages (already decrypted by Prisma extension)
+    const formattedMessages = messages.map((msg) => ({
+      id: msg.id,
+      subject: msg.subject || null,
+      body: msg.body,
+      senderType: msg.senderType,
+      senderId: msg.senderId,
+      recipientId: msg.recipientId,
+      sentAt: msg.sentAt.toISOString(),
+      readAt: msg.readAt?.toISOString(),
+      status: msg.status,
+    }));
 
-    // Parse and decrypt insurance info
-    let insurance = null;
-    try {
-      if (patientProfile.insuranceProvider) {
-        insurance = {
-          provider: decryptPHI(patientProfile.insuranceProvider),
-          memberId: patientProfile.insuranceMemberId ? decryptPHI(patientProfile.insuranceMemberId) : null,
-          groupNumber: patientProfile.insuranceGroupNumber ? decryptPHI(patientProfile.insuranceGroupNumber) : null,
-        };
-      }
-    } catch {
-      insurance = null;
-    }
+    // Format physician notes (already decrypted by Prisma extension)
+    const formattedNotes = notes.map((note) => ({
+      id: note.id,
+      content: note.content,
+      physician: note.physician ? {
+        firstName: note.physician.firstName,
+        lastName: note.physician.lastName,
+      } : null,
+      createdAt: note.createdAt.toISOString(),
+      updatedAt: note.updatedAt.toISOString(),
+    }));
 
-    // Decrypt messages
-    const decryptedMessages = messages.map((msg) => {
-      try {
-        return {
-          id: msg.id,
-          subject: msg.subject ? decryptPHI(msg.subject) : null,
-          body: decryptPHI(msg.body),
-          senderType: msg.senderType,
-          senderId: msg.senderId,
-          recipientId: msg.recipientId,
-          sentAt: msg.sentAt.toISOString(),
-          readAt: msg.readAt?.toISOString(),
-          status: msg.status,
-        };
-      } catch {
-        return null;
-      }
-    }).filter(Boolean);
-
-    // Decrypt physician notes
-    const decryptedNotes = notes.map((note) => {
-      try {
-        return {
-          id: note.id,
-          content: decryptPHI(note.content),
-          physician: note.physician ? {
-            firstName: note.physician.firstName,
-            lastName: note.physician.lastName,
-          } : null,
-          createdAt: note.createdAt.toISOString(),
-          updatedAt: note.updatedAt.toISOString(),
-        };
-      } catch {
-        return null;
-      }
-    }).filter(Boolean);
-
-    // Format patient data with decrypted PHI
+    // Format patient data — PHI fields are already decrypted by Prisma extension
     const patientDetails = {
       id: patientProfile.userId,
-      firstName: decryptPHI(patientProfile.firstName),
-      lastName: decryptPHI(patientProfile.lastName),
+      firstName: patientProfile.firstName,
+      lastName: patientProfile.lastName,
       email: user.email,
-      dateOfBirth: decryptPHI(patientProfile.dateOfBirth),
-      phone: decryptPHI(patientProfile.phone),
+      dateOfBirth: patientProfile.dateOfBirth,
+      phone: patientProfile.phone,
       address: {
-        street: decryptPHI(patientProfile.addressStreet),
-        city: decryptPHI(patientProfile.addressCity),
+        street: patientProfile.addressStreet,
+        city: patientProfile.addressCity,
         state: patientProfile.addressState,
-        zip: decryptPHI(patientProfile.addressZip),
+        zip: patientProfile.addressZip,
       },
       billingAddress: patientProfile.billingSameAsHome ? null : {
-        street: patientProfile.billingStreet ? decryptPHI(patientProfile.billingStreet) : null,
-        city: patientProfile.billingCity ? decryptPHI(patientProfile.billingCity) : null,
+        street: patientProfile.billingStreet || null,
+        city: patientProfile.billingCity || null,
         state: patientProfile.billingState,
-        zip: patientProfile.billingZip ? decryptPHI(patientProfile.billingZip) : null,
+        zip: patientProfile.billingZip || null,
       },
       primaryConcern: patientProfile.primaryConcern,
       treatmentGoal: patientProfile.treatmentGoal,
@@ -253,42 +213,32 @@ export async function GET(
         },
       },
       notificationPreferences: patientProfile.notificationPreferences,
-      intakes: intakes.map((intake) => {
-        let formData = {};
-        try {
-          if (intake.formData) {
-            formData = JSON.parse(decryptPHI(JSON.stringify(intake.formData)));
-          }
-        } catch {
-          formData = {};
-        }
-
-        return {
+      intakes: intakes.map((intake) => ({
           id: intake.id,
           status: intake.status,
-          formData,
+          formData: intake.formData || {},
           riskScore: intake.riskScore,
           complexityScore: intake.complexityScore,
           isPregnant: intake.isPregnant,
           hasSeizureHistory: intake.hasSeizureHistory,
           hasPsychiatricHistory: intake.hasPsychiatricHistory,
           takingMedications: intake.takingMedications,
-          medicationList: intake.medicationList ? decryptPHI(intake.medicationList) : null,
+          medicationList: intake.medicationList || null,
           paymentStatus: intake.paymentStatus,
           createdAt: intake.createdAt.toISOString(),
           submittedAt: intake.submittedAt?.toISOString(),
           review: intake.review ? {
             id: intake.review.id,
             decision: intake.review.decision,
-            clinicalNotes: intake.review.clinicalNotes ? decryptPHI(intake.review.clinicalNotes) : null,
+            clinicalNotes: intake.review.clinicalNotes || null,
             prescribedMedication: intake.review.prescribedMedication,
             genericName: intake.review.genericName,
             dosage: intake.review.dosage,
             quantity: intake.review.quantity,
             refills: intake.review.refills,
-            instructions: intake.review.instructions ? decryptPHI(intake.review.instructions) : null,
-            rejectionReason: intake.review.rejectionReason ? decryptPHI(intake.review.rejectionReason) : null,
-            alternativeRecommendation: intake.review.alternativeRecommendation ? decryptPHI(intake.review.alternativeRecommendation) : null,
+            instructions: intake.review.instructions || null,
+            rejectionReason: intake.review.rejectionReason || null,
+            alternativeRecommendation: intake.review.alternativeRecommendation || null,
             completedAt: intake.review.completedAt?.toISOString(),
             physician: intake.review.physician ? {
               firstName: intake.review.physician.firstName,
@@ -304,8 +254,7 @@ export async function GET(
             refills: intake.prescription.refills,
             status: intake.prescription.status,
           } : null,
-        };
-      }),
+      })),
       prescriptions: prescriptions.map((rx) => ({
         id: rx.id,
         medicationName: rx.medicationName,
@@ -314,11 +263,11 @@ export async function GET(
         quantity: rx.quantity,
         refills: rx.refills,
         refillsRemaining: rx.refillsRemaining,
-        instructions: rx.instructions ? decryptPHI(rx.instructions) : null,
+        instructions: rx.instructions || null,
         pharmacyName: rx.pharmacyName,
         pharmacyNcpdpId: rx.pharmacyNcpdpId,
         pharmacyPhone: rx.pharmacyPhone,
-        pharmacyAddress: rx.pharmacyAddress ? decryptPHI(rx.pharmacyAddress) : null,
+        pharmacyAddress: rx.pharmacyAddress || null,
         status: rx.status,
         surescriptsRxId: rx.surescriptsRxId,
         sentAt: rx.sentAt?.toISOString(),
@@ -340,8 +289,8 @@ export async function GET(
         mimeType: doc.mimeType,
         uploadedAt: doc.uploadedAt.toISOString(),
       })),
-      notes: decryptedNotes,
-      messages: decryptedMessages,
+      notes: formattedNotes,
+      messages: formattedMessages,
       createdAt: patientProfile.createdAt.toISOString(),
       updatedAt: patientProfile.updatedAt.toISOString(),
       lastVisit: intakes.length > 0 ? intakes[0].createdAt.toISOString() : null,
@@ -349,7 +298,7 @@ export async function GET(
 
     return NextResponse.json({ patient: patientDetails });
   } catch (error) {
-    console.error('Get patient details error:', error);
+    console.error('Get patient details error:', error instanceof Error ? error.message : 'Unknown error');
     
     await AuditService.logApiError(
       error instanceof Error ? error : new Error('Unknown error'),

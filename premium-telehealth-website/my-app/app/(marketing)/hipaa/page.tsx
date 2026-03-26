@@ -107,14 +107,140 @@ export default function HIPAANoticePage() {
 
           <section>
             <h2 className="text-xl font-semibold text-gray-900 mb-3">
-              Special Protections for Substance Use Disorder Records
+              Special Protections for Substance Use Disorder Records (42 CFR Part 2)
             </h2>
+            <p className="mb-4">
+              Rimal Health is a substance use disorder (SUD) treatment program.
+              As such, your treatment records are protected by federal
+              confidentiality regulations at 42 CFR Part 2, in addition to the
+              HIPAA Privacy Rule. These regulations provide heightened
+              protections for your SUD treatment records.
+            </p>
+
+            <h3 className="font-semibold text-gray-900 mt-6 mb-3">
+              How 42 CFR Part 2 Protects Your Records
+            </h3>
+            <ul className="list-disc pl-6 space-y-3">
+              <li>
+                <strong>Consent Required for Most Disclosures:</strong>{" "}
+                Generally, Rimal Health cannot disclose your SUD treatment
+                records without your specific written consent, except in
+                limited circumstances such as a medical emergency, to
+                qualified personnel for audit or evaluation purposes, or as
+                required by a court order that meets the requirements of 42
+                CFR Part 2.
+              </li>
+              <li>
+                <strong>Single Consent for Treatment, Payment, and Operations:</strong>{" "}
+                With your written consent, Rimal Health may use and disclose
+                your SUD treatment records for treatment, payment, and health
+                care operations (TPO). This consent covers future disclosures
+                for these purposes and remains in effect until you revoke it
+                or your treatment relationship ends.
+              </li>
+              <li>
+                <strong>Protection in Legal Proceedings:</strong>{" "}
+                Your SUD treatment records cannot be used in any civil,
+                criminal, administrative, or legislative proceeding against
+                you unless you provide specific written consent or a court
+                issues an order meeting the requirements of 42 CFR Part 2
+                (Subpart E). This protection applies even if your records are
+                subpoenaed.
+              </li>
+              <li>
+                <strong>Redisclosure Limitations:</strong>{" "}
+                When your records are disclosed with your consent, recipients
+                are notified that the records are protected by 42 CFR Part 2
+                and that unauthorized redisclosure is prohibited. However,
+                once records are disclosed pursuant to your TPO consent,
+                recipients who are HIPAA covered entities or business
+                associates may further use and disclose the records in
+                accordance with HIPAA regulations.
+              </li>
+            </ul>
+
+            <h3 className="font-semibold text-gray-900 mt-6 mb-3">
+              Your Rights Under 42 CFR Part 2
+            </h3>
+            <ul className="list-disc pl-6 space-y-3">
+              <li>
+                <strong>Right to Revoke Consent:</strong>{" "}
+                You may revoke your consent to use and disclose your SUD
+                treatment records at any time by submitting a written request
+                to{" "}
+                <a
+                  href="mailto:support@rimalhealth.com"
+                  className="text-ocean-600 hover:underline"
+                >
+                  support@rimalhealth.com
+                </a>
+                . Revocation is not effective for disclosures already made in
+                reliance on your consent. Please note that revoking consent
+                may affect our ability to continue providing treatment.
+              </li>
+              <li>
+                <strong>Right to an Accounting of Disclosures:</strong>{" "}
+                You have the right to receive a list of disclosures of your
+                SUD treatment records made with your written consent for up
+                to three (3) years prior to your request. To request an
+                accounting, contact us at{" "}
+                <a
+                  href="mailto:support@rimalhealth.com"
+                  className="text-ocean-600 hover:underline"
+                >
+                  support@rimalhealth.com
+                </a>
+                .
+              </li>
+              <li>
+                <strong>Right to Request Restrictions:</strong>{" "}
+                You may request that Rimal Health restrict certain uses or
+                disclosures of your SUD treatment records. We are not required
+                to agree to all restrictions, but we will consider your request
+                and notify you of our decision. To request a restriction,
+                contact us at{" "}
+                <a
+                  href="mailto:support@rimalhealth.com"
+                  className="text-ocean-600 hover:underline"
+                >
+                  support@rimalhealth.com
+                </a>
+                .
+              </li>
+            </ul>
+
+            <h3 className="font-semibold text-gray-900 mt-6 mb-3">
+              Complaints
+            </h3>
             <p>
-              Records related to substance use disorder treatment are subject to
-              additional federal protections under 42 CFR Part 2, which
-              generally prohibits disclosure without your specific written
-              consent except in limited circumstances (e.g., medical emergency).
-              We take these protections seriously.
+              If you believe your rights under 42 CFR Part 2 have been
+              violated, you may file a complaint with:
+            </p>
+            <ul className="list-disc pl-6 space-y-2 mt-2">
+              <li>
+                Rimal Health at{" "}
+                <a
+                  href="mailto:support@rimalhealth.com"
+                  className="text-ocean-600 hover:underline"
+                >
+                  support@rimalhealth.com
+                </a>
+              </li>
+              <li>
+                The U.S. Department of Health and Human Services, Office for
+                Civil Rights, at{" "}
+                <a
+                  href="https://www.hhs.gov/hipaa/filing-a-complaint/index.html"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-ocean-600 hover:underline"
+                >
+                  hhs.gov/hipaa/filing-a-complaint
+                </a>
+              </li>
+            </ul>
+            <p className="mt-3">
+              We will not retaliate against you for filing a complaint.
             </p>
           </section>
 
@@ -134,7 +260,7 @@ export default function HIPAANoticePage() {
                 },
                 {
                   title: "Right to an Accounting of Disclosures",
-                  body: "You may request a list of disclosures of your PHI made in the past six years for purposes other than treatment, payment, or operations.",
+                  body: "You may request a list of disclosures of your PHI. For general health information, this covers disclosures made in the past six years for purposes other than treatment, payment, or operations. For substance use disorder treatment records protected by 42 CFR Part 2, you may request an accounting of disclosures made with your written consent for up to three years prior to your request, including disclosures for treatment, payment, and operations.",
                 },
                 {
                   title: "Right to Request Restrictions",
@@ -166,7 +292,7 @@ export default function HIPAANoticePage() {
               file a complaint with us at{" "}
               <a
                 href="mailto:support@rimalhealth.com"
-                className="text-ocean-500 hover:underline"
+                className="text-ocean-600 hover:underline"
               >
                 support@rimalhealth.com
               </a>{" "}
@@ -185,7 +311,7 @@ export default function HIPAANoticePage() {
               <br />
               <a
                 href="mailto:support@rimalhealth.com"
-                className="text-ocean-500 hover:underline"
+                className="text-ocean-600 hover:underline"
               >
                 support@rimalhealth.com
               </a>

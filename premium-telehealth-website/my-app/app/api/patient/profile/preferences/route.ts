@@ -111,7 +111,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
 
   } catch (error) {
-    console.error('Preferences fetch error:', error);
+    console.error('Preferences fetch error:', error instanceof Error ? error.message : 'Unknown error');
     
     return NextResponse.json(
       { error: 'Failed to fetch preferences', code: 'INTERNAL_ERROR' },
@@ -211,7 +211,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
     });
 
   } catch (error) {
-    console.error('Preferences update error:', error);
+    console.error('Preferences update error:', error instanceof Error ? error.message : 'Unknown error');
     
     return NextResponse.json(
       { error: 'Failed to update preferences', code: 'INTERNAL_ERROR' },

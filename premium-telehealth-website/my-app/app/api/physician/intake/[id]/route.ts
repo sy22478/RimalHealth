@@ -14,7 +14,8 @@ import { prisma } from '@/lib/db/prisma';
 import { AuditService } from '@/lib/services/audit-service';
 import { ValidationService } from '@/lib/services/validation-service';
 import { Role, IntakeStatus } from '@prisma/client';
-import { decryptPHI } from '@/lib/encryption/phi';
+// PHI decryption is handled automatically by the Prisma encryption extension.
+// Do NOT manually call decryptPHI on fields in PHI_FIELDS.
 
 // ============================================================================
 // GET - Get Intake for Review
@@ -101,47 +102,33 @@ export async function GET(
       auditContext
     );
 
-    // Decrypt form data
-    let formData = {};
-    try {
-      if (intake.formData && typeof intake.formData === 'object') {
-        const formDataStr = JSON.stringify(intake.formData);
-        formData = JSON.parse(decryptPHI(formDataStr));
-      }
-    } catch (error) {
-      console.error('Failed to decrypt form data:', error);
-      formData = {};
-    }
+    // PHI fields are already decrypted by the Prisma encryption extension on read.
+    const formData = intake.formData && typeof intake.formData === 'object'
+      ? intake.formData
+      : {};
 
-    // Decrypt patient profile
+    // Patient profile fields are already decrypted by Prisma extension
     const profile = intake.patient.patientProfile;
     const patientInfo = profile
       ? {
-          firstName: decryptPHI(profile.firstName),
-          lastName: decryptPHI(profile.lastName),
-          dateOfBirth: decryptPHI(profile.dateOfBirth),
-          phone: decryptPHI(profile.phone),
+          firstName: profile.firstName,
+          lastName: profile.lastName,
+          dateOfBirth: profile.dateOfBirth,
+          phone: profile.phone,
           email: intake.patient.email,
           address: {
-            street: decryptPHI(profile.addressStreet),
-            city: decryptPHI(profile.addressCity),
+            street: profile.addressStreet,
+            city: profile.addressCity,
             state: profile.addressState,
-            zip: decryptPHI(profile.addressZip),
+            zip: profile.addressZip,
           },
           primaryConcern: profile.primaryConcern,
           treatmentGoal: profile.treatmentGoal,
         }
       : null;
 
-    // Parse medical history
-    let medicalHistory = null;
-    try {
-      if (profile?.medicalHistory) {
-        medicalHistory = JSON.parse(decryptPHI(JSON.stringify(profile.medicalHistory)));
-      }
-    } catch {
-      medicalHistory = null;
-    }
+    // Medical history is already decrypted by Prisma extension
+    const medicalHistory = profile?.medicalHistory || null;
 
     return NextResponse.json({
       intake: {
@@ -157,7 +144,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error('Get intake error:', error);
+    console.error('Get intake error:', error instanceof Error ? error.message : 'Unknown error');
     
     await AuditService.logApiError(
       error instanceof Error ? error : new Error('Unknown error'),

@@ -19,7 +19,8 @@ import { ValidationService } from '@/lib/services/validation-service';
 import { Role } from '@prisma/client';
 import { DataModificationAction } from '@/lib/audit/index';
 import { PHIResourceType } from '@/lib/audit/types';
-import { encryptPHI, decryptPHI } from '@/lib/encryption/phi';
+// PHI encryption/decryption is handled automatically by the Prisma encryption extension.
+// Do NOT manually call encryptPHI/decryptPHI on fields in PHI_FIELDS.
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -112,7 +113,7 @@ export async function POST(
       data: {
         patientId,
         physicianId: physician.id,
-        content: encryptPHI(content),
+        content,
       },
     });
 
@@ -155,7 +156,7 @@ export async function POST(
     }, { status: 201 });
 
   } catch (error) {
-    console.error('[Physician Notes POST] Error:', error);
+    console.error('[Physician Notes POST] Error:', error instanceof Error ? error.message : 'Unknown error');
     
     await AuditService.logApiError(
       error instanceof Error ? error : new Error('Unknown error'),
@@ -238,30 +239,24 @@ export async function GET(
       { recordCount: notes.length }
     );
 
-    // Decrypt note content
-    const decryptedNotes = notes.map((note) => {
-      try {
-        return {
-          id: note.id,
-          patientId: note.patientId,
-          physicianId: note.physicianId,
-          content: decryptPHI(note.content),
-          physician: note.physician,
-          createdAt: note.createdAt.toISOString(),
-          updatedAt: note.updatedAt.toISOString(),
-        };
-      } catch {
-        return null;
-      }
-    }).filter(Boolean);
+    // Format notes — content is already decrypted by the Prisma encryption extension
+    const formattedNotes = notes.map((note) => ({
+      id: note.id,
+      patientId: note.patientId,
+      physicianId: note.physicianId,
+      content: note.content,
+      physician: note.physician,
+      createdAt: note.createdAt.toISOString(),
+      updatedAt: note.updatedAt.toISOString(),
+    }));
 
     return NextResponse.json({
       success: true,
-      notes: decryptedNotes,
+      notes: formattedNotes,
     });
 
   } catch (error) {
-    console.error('[Physician Notes GET] Error:', error);
+    console.error('[Physician Notes GET] Error:', error instanceof Error ? error.message : 'Unknown error');
     
     await AuditService.logApiError(
       error instanceof Error ? error : new Error('Unknown error'),

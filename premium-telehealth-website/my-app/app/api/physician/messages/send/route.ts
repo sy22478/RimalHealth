@@ -154,7 +154,7 @@ export async function POST(
     }, { status: 201 });
 
   } catch (error) {
-    console.error('Error sending message:', error);
+    console.error('Error sending message:', error instanceof Error ? error.message : 'Unknown error');
 
     // Log error
     await auditLogger.log({

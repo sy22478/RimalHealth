@@ -267,7 +267,7 @@ const nextConfig: NextConfig = {
   // TypeScript configuration
   typescript: {
     // CI environments may have module resolution differences
-    ignoreBuildErrors: process.env.NODE_ENV === "development" || !!process.env.CI,
+    ignoreBuildErrors: false,
   },
 
   // Environment variables that should be available at build time

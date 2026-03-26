@@ -294,7 +294,7 @@ export async function GET(
     });
 
   } catch (error) {
-    console.error('[Physician Patient History] Error:', error);
+    console.error('[Physician Patient History] Error:', error instanceof Error ? error.message : 'Unknown error');
 
     return NextResponse.json(
       { error: 'Internal server error' },

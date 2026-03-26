@@ -190,7 +190,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     });
 
   } catch (error) {
-    console.error('Password change error:', error);
+    console.error('Password change error:', error instanceof Error ? error.message : 'Unknown error');
     
     return NextResponse.json(
       { error: 'Failed to change password', code: 'INTERNAL_ERROR' },

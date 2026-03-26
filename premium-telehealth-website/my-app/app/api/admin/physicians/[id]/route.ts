@@ -190,7 +190,7 @@ export async function GET(
 
     return NextResponse.json({ physician: response });
   } catch (error) {
-    console.error('Get physician error:', error);
+    console.error('Get physician error:', error instanceof Error ? error.message : 'Unknown error');
 
     const { id } = await params;
 

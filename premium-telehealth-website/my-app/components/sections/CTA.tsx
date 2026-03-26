@@ -51,10 +51,10 @@ export function CTA() {
         </p>
 
         <Link
-          href="/pricing"
-          className="inline-flex items-center justify-center px-10 py-4 bg-gradient-to-r from-blue-500 to-ocean-500 text-white font-semibold rounded-lg shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:-translate-y-0.5 transition-all duration-200 text-lg"
+          href="/checkout/consent"
+          className="inline-flex items-center justify-center px-12 py-4.5 bg-gradient-to-r from-blue-500 to-ocean-500 text-white font-semibold rounded-full shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:scale-[1.03] active:scale-[0.98] transition-all duration-200 text-lg"
         >
-          View Plans — $50/month
+          Get Started — $50/month
         </Link>
 
         <div className="mt-8 flex flex-wrap justify-center gap-6 md:gap-8">

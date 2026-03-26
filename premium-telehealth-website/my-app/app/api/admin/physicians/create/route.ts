@@ -194,7 +194,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { status: 201 }
     );
   } catch (error) {
-    console.error('Create physician error:', error);
+    console.error('Create physician error:', error instanceof Error ? error.message : 'Unknown error');
 
     await AuditService.logApiError(
       error instanceof Error ? error : new Error('Unknown error'),

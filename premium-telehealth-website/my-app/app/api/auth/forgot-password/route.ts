@@ -171,7 +171,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       message: 'If an account with that email exists, a password reset link has been sent.',
     });
   } catch (error) {
-    console.error('Forgot password error:', error);
+    console.error('Forgot password error:', error instanceof Error ? error.message : 'Unknown error');
 
     // Even on error, return generic success to prevent information leakage
     return NextResponse.json({

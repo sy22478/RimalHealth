@@ -58,7 +58,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       },
     });
   } catch (error) {
-    console.error('Physician profile fetch error:', error);
+    console.error('Physician profile fetch error:', error instanceof Error ? error.message : 'Unknown error');
     return NextResponse.json(
       { error: 'Failed to fetch profile', code: 'INTERNAL_ERROR' },
       { status: 500 }

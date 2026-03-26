@@ -1,16 +1,17 @@
 /**
  * Document Upload Confirmation API
  * POST: Confirm successful S3 upload and create database record
- * 
+ *
  * @module app/api/patient/documents/confirm
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { requireRole } from '@/lib/auth/require-auth';
 import { prisma } from '@/lib/db/prisma';
 import { getObjectInfo } from '@/lib/integrations/s3';
 import { auditPHIAccess, createAuditContext, PHIResourceType } from '@/lib/audit/index';
-import { DocumentType, DocumentStatus } from '@prisma/client';
+import { DocumentType, DocumentStatus, Role } from '@prisma/client';
 
 // Validation schema
 const confirmUploadSchema = z.object({
@@ -27,28 +28,25 @@ const confirmUploadSchema = z.object({
 /**
  * POST /api/patient/documents/confirm
  * Confirm document upload and create database record
- * 
+ *
  * Flow:
- * 1. Validate user is authenticated
+ * 1. Validate user is authenticated and has PATIENT role
  * 2. Verify file exists in S3
  * 3. Create Document record in database
  * 4. Log audit event
  * 5. Return document info
- * 
+ *
  * HIPAA: Document creation is logged as PHI access
  */
-export async function POST(request: NextRequest) {
-  try {
-    // Get user ID from headers (set by auth middleware)
-    const userId = request.headers.get('x-user-id');
-    const userRole = request.headers.get('x-user-role') || 'PATIENT';
+export async function POST(request: NextRequest): Promise<NextResponse> {
+  // Require patient role
+  const auth = await requireRole(request, [Role.PATIENT]);
+  if (auth instanceof NextResponse) {
+    return auth;
+  }
 
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
+  try {
+    const userId = auth.user.userId;
 
     // Parse and validate request body
     const body = await request.json();
@@ -141,7 +139,7 @@ export async function POST(request: NextRequest) {
     }, { status: 201 });
 
   } catch (error) {
-    console.error('Error confirming document upload:', error);
+    console.error('Error confirming document upload:', error instanceof Error ? error.message : 'Unknown error');
     return NextResponse.json(
       { error: 'Failed to confirm upload' },
       { status: 500 }

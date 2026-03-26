@@ -426,6 +426,40 @@ export function csrfMiddleware(
 }
 
 // ============================================
+// API Route Helper
+// ============================================
+
+/**
+ * Validate CSRF token inside an API route handler.
+ *
+ * Returns `null` when validation passes, or a 403 NextResponse when it fails.
+ * Usage:
+ * ```ts
+ * const csrfError = requireCSRF(request);
+ * if (csrfError) return csrfError;
+ * ```
+ *
+ * @param req - Incoming NextRequest
+ * @returns null on success, NextResponse(403) on failure
+ */
+export function requireCSRF(req: NextRequest): NextResponse | null {
+  const result = validateCSRFToken(req);
+
+  if (!result.valid) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: result.error || ERROR_MESSAGES.AUTH.CSRF_INVALID,
+        code: 'CSRF_INVALID',
+      },
+      { status: 403 }
+    );
+  }
+
+  return null;
+}
+
+// ============================================
 // React Component Helpers
 // ============================================
 

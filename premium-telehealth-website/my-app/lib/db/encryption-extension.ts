@@ -26,6 +26,7 @@ export const PHI_FIELDS: Record<string, string[]> = {
     'addressZip',
     'billingStreet',
     'billingCity',
+    'billingState',
     'billingZip',
     'medicalHistory',
     'currentMedications',
@@ -46,6 +47,9 @@ export const PHI_FIELDS: Record<string, string[]> = {
     'instructions',
   ],
   Prescription: [
+    'medicationName',
+    'dosage',
+    'pharmacyName',
     'instructions',
     'pharmacyAddress',
   ],
@@ -53,8 +57,16 @@ export const PHI_FIELDS: Record<string, string[]> = {
     'subject',
     'body',
   ],
+  PhysicianMessage: [
+    'subject',
+    'body',
+  ],
   PhysicianNote: [
     'content',
+  ],
+  User: [
+    'mfaSecret',
+    'mfaBackupCodes',
   ],
 };
 
@@ -63,6 +75,7 @@ const JSON_FIELDS: Record<string, string[]> = {
   PatientProfile: ['medicalHistory', 'currentMedications', 'allergies'],
   Intake: ['formData'],
   Review: ['contraindications'],
+  User: ['mfaBackupCodes'],
 };
 
 // Fields that can be null/undefined
@@ -70,6 +83,7 @@ const NULLABLE_FIELDS: Record<string, Set<string>> = {
   PatientProfile: new Set([
     'billingStreet',
     'billingCity',
+    'billingState',
     'billingZip',
     'medicalHistory',
     'currentMedications',
@@ -86,8 +100,10 @@ const NULLABLE_FIELDS: Record<string, Set<string>> = {
     'alternativeRecommendation',
     'instructions',
   ]),
-  Prescription: new Set(['pharmacyAddress']),
+  Prescription: new Set(['pharmacyName', 'pharmacyAddress']),
   Message: new Set(['subject']),
+  PhysicianMessage: new Set(['subject']),
+  User: new Set(['mfaSecret', 'mfaBackupCodes']),
 };
 
 /**

@@ -292,7 +292,7 @@ export async function cancelUserSubscription(
         message: immediate
           ? 'Your subscription has been cancelled immediately.'
           : 'Your subscription will be cancelled at the end of your current billing period.',
-        actionUrl: '/dashboard/billing',
+        actionUrl: '/patient/billing',
       },
     });
 

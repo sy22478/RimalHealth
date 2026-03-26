@@ -169,7 +169,7 @@ Rimal Health Team`,
       message: 'Secret key reset successfully. New key has been sent via email.',
     });
   } catch (error) {
-    console.error('Reset secret key error:', error);
+    console.error('Reset secret key error:', error instanceof Error ? error.message : 'Unknown error');
 
     const { id } = await params;
 

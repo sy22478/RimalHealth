@@ -1,13 +1,15 @@
 'use client';
 
 import * as React from 'react';
-import { User, MapPin, Heart, Pill, History, ClipboardCheck, Wine } from 'lucide-react';
+import { User, MapPin, Heart, Pill, History, ClipboardCheck, Wine, ShieldAlert, AlertTriangle, Activity } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { IntakeFormData, IntakeScores, RiskAssessment, CONCERN_TYPE_LABELS, TREATMENT_GOAL_LABELS } from '@/types/intake';
 import { cn } from '@/lib/utils';
+import type { ProviderDecisionSummary } from '@/lib/intake/scoring';
 
 interface IntakeDataViewProps {
   formData: IntakeFormData;
@@ -63,6 +65,8 @@ function SectionCard({
  * HIPAA: This component displays PHI - ensure proper access controls
  */
 export function IntakeDataView({ formData, scores, riskAssessment }: IntakeDataViewProps) {
+  // Extract provider decision summary if available (attached by review.ts)
+  const providerSummary = (formData as unknown as Record<string, unknown>)?._providerDecisionSummary as ProviderDecisionSummary | undefined;
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '-';
     return new Date(dateStr).toLocaleDateString('en-US', {
@@ -89,6 +93,19 @@ export function IntakeDataView({ formData, scores, riskAssessment }: IntakeDataV
 
   return (
     <div className="space-y-6">
+      {/* 42 CFR Part 2 Redisclosure Notice */}
+      <Alert className="border-amber-400 bg-amber-50">
+        <ShieldAlert className="h-4 w-4 text-amber-700" />
+        <AlertTitle className="text-amber-900 font-semibold">
+          42 CFR Part 2 -- Federal Confidentiality Notice
+        </AlertTitle>
+        <AlertDescription className="text-amber-800 text-sm leading-relaxed">
+          NOTICE: This record is protected by federal confidentiality rules (42
+          CFR Part 2). It may not be re-disclosed without the patient&apos;s
+          written consent or as otherwise permitted by 42 CFR Part 2.
+        </AlertDescription>
+      </Alert>
+
       {/* Risk Assessment Banner */}
       {riskAssessment && (
         <Card
@@ -119,6 +136,124 @@ export function IntakeDataView({ formData, scores, riskAssessment }: IntakeDataV
               >
                 {scores?.riskScore ?? '-'} / 100
               </Badge>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Provider Decision Summary */}
+      {providerSummary && (
+        <Card className="border-2 border-navy-200 bg-navy-50/50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Activity className="h-5 w-5 text-navy-700" />
+              Provider Decision Summary
+              <Badge
+                variant={
+                  providerSummary.priority === 'CONTRAINDICATED' ? 'destructive' :
+                  providerSummary.priority === 'URGENT' ? 'destructive' :
+                  providerSummary.priority === 'ELEVATED' ? 'secondary' :
+                  'default'
+                }
+                className="ml-auto"
+              >
+                {providerSummary.priority}
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* DSM-5 Score */}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">DSM-5 AUD Score</p>
+                <p className="text-lg font-semibold">
+                  {providerSummary.dsm5.score} / 11
+                  <span className="ml-2 text-sm font-normal text-muted-foreground">
+                    ({providerSummary.dsm5.severity})
+                  </span>
+                </p>
+              </div>
+              <Badge
+                variant={
+                  providerSummary.dsm5.severity === 'SEVERE' ? 'destructive' :
+                  providerSummary.dsm5.severity === 'MODERATE' ? 'secondary' :
+                  providerSummary.dsm5.severity === 'MILD' ? 'outline' :
+                  'default'
+                }
+                className="text-sm px-3 py-1"
+              >
+                {providerSummary.dsm5.meetsCriteria ? 'Meets AUD Criteria' : 'Below Threshold'}
+              </Badge>
+            </div>
+            <p className="text-sm text-muted-foreground">{providerSummary.dsm5.interpretation}</p>
+
+            <Separator />
+
+            {/* Naltrexone Eligibility */}
+            <div className="flex items-center gap-2">
+              {providerSummary.eligibleForNaltrexone ? (
+                <Badge variant="default" className="bg-green-600">Eligible for Naltrexone</Badge>
+              ) : (
+                <Badge variant="destructive">NOT Eligible for Naltrexone</Badge>
+              )}
+            </div>
+
+            {/* Absolute Contraindications */}
+            {providerSummary.contraindications.hasAbsoluteContraindication && (
+              <Alert variant="destructive">
+                <ShieldAlert className="h-4 w-4" />
+                <AlertTitle>Absolute Contraindications</AlertTitle>
+                <AlertDescription>
+                  <ul className="list-disc pl-4 mt-1 space-y-1">
+                    {providerSummary.contraindications.absolute.map((item, i) => (
+                      <li key={i} className="text-sm">{item}</li>
+                    ))}
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Relative Contraindications */}
+            {providerSummary.contraindications.hasRelativeContraindication && (
+              <Alert className="border-amber-300 bg-amber-50">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <AlertTitle className="text-amber-800">Relative Contraindications</AlertTitle>
+                <AlertDescription className="text-amber-700">
+                  <ul className="list-disc pl-4 mt-1 space-y-1">
+                    {providerSummary.contraindications.relative.map((item, i) => (
+                      <li key={i} className="text-sm">{item}</li>
+                    ))}
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Withdrawal Risk */}
+            {providerSummary.withdrawalRisk.isElevated && (
+              <Alert className="border-orange-300 bg-orange-50">
+                <AlertTriangle className="h-4 w-4 text-orange-600" />
+                <AlertTitle className="text-orange-800">Elevated Withdrawal Risk</AlertTitle>
+                <AlertDescription className="text-orange-700">
+                  <ul className="list-disc pl-4 mt-1 space-y-1">
+                    {providerSummary.withdrawalRisk.riskFactors.map((factor, i) => (
+                      <li key={i} className="text-sm">{factor}</li>
+                    ))}
+                  </ul>
+                  <p className="text-sm mt-2 font-medium">{providerSummary.withdrawalRisk.recommendation}</p>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Risk & Complexity Scores */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-white rounded-lg p-3 border">
+                <p className="text-xs text-muted-foreground">Risk Score</p>
+                <p className="text-xl font-bold">{providerSummary.riskScore}<span className="text-sm font-normal text-muted-foreground"> / 100</span></p>
+              </div>
+              <div className="bg-white rounded-lg p-3 border">
+                <p className="text-xs text-muted-foreground">Complexity Score</p>
+                <p className="text-xl font-bold">{providerSummary.complexityScore}<span className="text-sm font-normal text-muted-foreground"> / 100</span></p>
+              </div>
             </div>
           </CardContent>
         </Card>

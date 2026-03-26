@@ -68,7 +68,7 @@ export async function POST(
     });
 
   } catch (error) {
-    console.error('Error marking thread as read:', error);
+    console.error('Error marking thread as read:', error instanceof Error ? error.message : 'Unknown error');
 
     // Log error
     await auditLogger.log({

@@ -90,7 +90,7 @@ async function fetchPaymentMethod(stripeCustomerId: string) {
       expYear: card.exp_year,
     };
   } catch (error) {
-    console.error('[Billing API] Failed to fetch payment method:', error);
+    console.error('[Billing API] Failed to fetch payment method:', error instanceof Error ? error.message : 'Unknown error');
     return null;
   }
 }
@@ -213,7 +213,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json(response);
 
     } catch (dbError) {
-      console.error('[Billing API] Database error:', dbError);
+      console.error('[Billing API] Database error:', dbError instanceof Error ? dbError.message : 'Unknown error');
       return NextResponse.json(
         { error: 'Failed to fetch billing information' },
         { status: 500 }
@@ -221,7 +221,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
   } catch (error) {
-    console.error('[Billing API] Error:', error);
+    console.error('[Billing API] Error:', error instanceof Error ? error.message : 'Unknown error');
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

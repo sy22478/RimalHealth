@@ -12,7 +12,7 @@
 const REQUIRED_VARS = [
   'DATABASE_URL',
   'JWT_SECRET',
-  'ENCRYPTION_KEY',
+  'PHI_ENCRYPTION_KEY',
 ] as const;
 
 /** Variables additionally required in production */

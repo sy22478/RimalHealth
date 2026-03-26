@@ -60,7 +60,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({ token: resetToken?.token || null });
   } catch (error) {
-    console.error('[set-password-token] Error:', error);
+    console.error('[set-password-token] Error:', error instanceof Error ? error.message : 'Unknown error');
     return NextResponse.json({ token: null });
   }
 }
