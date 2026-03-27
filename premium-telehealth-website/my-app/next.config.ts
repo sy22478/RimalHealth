@@ -30,8 +30,8 @@ const nextConfig: NextConfig = {
   experimental: {
     // Partial Prerendering (PPR) — streams the static shell immediately and
     // defers dynamic/client portions. Opt-in per route via
-    // `export const experimental_ppr = true` in the page file.
-    ppr: 'incremental',
+    // PPR (cacheComponents) disabled — conflicts with force-dynamic on server components.
+    // Re-evaluate when force-dynamic pages are migrated to use revalidate instead.
 
     // Optimize package imports for faster builds and smaller bundles
     optimizePackageImports: [
