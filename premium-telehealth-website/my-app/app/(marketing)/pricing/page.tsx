@@ -457,7 +457,7 @@ export default function PricingPage() {
           </h2>
           <Link
             href="/checkout/consent?plan=active-treatment"
-            className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-500 to-ocean-500 text-white text-lg font-semibold py-4.5 px-10 rounded-full shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 hover:scale-[1.03] active:scale-[0.98] transition-all duration-200"
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-navy-500 to-ocean-500 text-white text-lg font-semibold py-4.5 px-10 rounded-full shadow-lg shadow-navy-500/20 hover:shadow-xl hover:shadow-navy-500/30 hover:scale-[1.03] active:scale-[0.98] transition-all duration-200"
           >
             Get Started — $50/month
             <ArrowRight className="w-5 h-5" />

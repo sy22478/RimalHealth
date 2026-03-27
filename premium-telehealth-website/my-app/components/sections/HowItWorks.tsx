@@ -112,6 +112,13 @@ export function HowItWorks() {
                     </svg>
                   </div>
                 )}
+
+                {/* Mobile vertical connector - shown between steps */}
+                {index < steps.length - 1 && (
+                  <div className="lg:hidden flex justify-center py-2">
+                    <div className="w-0.5 h-8 bg-gradient-to-b from-ocean-300 to-ocean-100 rounded-full" />
+                  </div>
+                )}
               </div>
             );
           })}

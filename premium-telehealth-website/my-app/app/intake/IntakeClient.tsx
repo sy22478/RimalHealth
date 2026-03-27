@@ -36,57 +36,96 @@ import { LoadingButton } from '@/components/ui/LoadingButton';
 
 const intakeFormSchema = z.object({
   // SECTION 1: DSM-5 AUD Screening (Q1-Q11)
-  dsm5Q1: z.boolean({ message: 'Please select Yes or No' }),
-  dsm5Q2: z.boolean({ message: 'Please select Yes or No' }),
-  dsm5Q3: z.boolean({ message: 'Please select Yes or No' }),
-  dsm5Q4: z.boolean({ message: 'Please select Yes or No' }),
-  dsm5Q5: z.boolean({ message: 'Please select Yes or No' }),
-  dsm5Q6: z.boolean({ message: 'Please select Yes or No' }),
-  dsm5Q7: z.boolean({ message: 'Please select Yes or No' }),
-  dsm5Q8: z.boolean({ message: 'Please select Yes or No' }),
-  dsm5Q9: z.boolean({ message: 'Please select Yes or No' }),
-  dsm5Q10: z.boolean({ message: 'Please select Yes or No' }),
-  dsm5Q11: z.boolean({ message: 'Please select Yes or No' }),
+  dsm5Q1: z.boolean({ message: 'Please indicate if you drank more or longer than intended' }),
+  dsm5Q2: z.boolean({ message: 'Please indicate if you wanted to cut down but couldn\'t' }),
+  dsm5Q3: z.boolean({ message: 'Please indicate if you spend significant time drinking or recovering' }),
+  dsm5Q4: z.boolean({ message: 'Please indicate if you experience cravings to drink' }),
+  dsm5Q5: z.boolean({ message: 'Please indicate if drinking interfered with responsibilities' }),
+  dsm5Q6: z.boolean({ message: 'Please indicate if drinking causes problems with family or friends' }),
+  dsm5Q7: z.boolean({ message: 'Please indicate if you reduced activities due to drinking' }),
+  dsm5Q8: z.boolean({ message: 'Please indicate if you drank in dangerous situations' }),
+  dsm5Q9: z.boolean({ message: 'Please indicate if drinking worsens health problems' }),
+  dsm5Q10: z.boolean({ message: 'Please indicate if you developed tolerance' }),
+  dsm5Q11: z.boolean({ message: 'Please indicate if you experienced withdrawal symptoms' }),
 
   // SECTION 2: Current Drinking Pattern (Q12-Q15)
-  drinkingDaysPerWeek: z.enum(['1-2', '3-4', '5-6', 'everyday'], { message: 'Please select an option' }),
-  drinksPerDay: z.enum(['1-2', '3-4', '5-6', '7+'], { message: 'Please select an option' }),
-  lastDrink: z.enum(['today', 'yesterday', '2-7days', 'more-than-week'], { message: 'Please select an option' }),
-  bingeDrinking: z.enum(['yes', 'no'], { message: 'Please select Yes or No' }),
+  drinkingDaysPerWeek: z.enum(['1-2', '3-4', '5-6', 'everyday'], { message: 'Please select how many days per week you drink' }),
+  drinksPerDay: z.enum(['1-2', '3-4', '5-6', '7+'], { message: 'Please select how many drinks per day' }),
+  lastDrink: z.enum(['today', 'yesterday', '2-7days', 'more-than-week'], { message: 'Please select when you last had a drink' }),
+  bingeDrinking: z.enum(['yes', 'no'], { message: 'Please indicate if you have had binge drinking episodes' }),
 
   // SECTION 3: Withdrawal Risk Assessment (Q16-Q19)
-  withdrawalSeizure: z.boolean({ message: 'Please select Yes or No' }),
-  withdrawalDTs: z.boolean({ message: 'Please select Yes or No' }),
-  withdrawalHospitalized: z.boolean({ message: 'Please select Yes or No' }),
-  morningDrinking: z.boolean({ message: 'Please select Yes or No' }),
+  withdrawalSeizure: z.boolean({ message: 'Please indicate if you have a history of seizures' }),
+  withdrawalDTs: z.boolean({ message: 'Please indicate if you have experienced delirium tremens' }),
+  withdrawalHospitalized: z.boolean({ message: 'Please indicate if you were hospitalized for detox' }),
+  morningDrinking: z.boolean({ message: 'Please indicate if you drink in the morning to avoid withdrawal' }),
 
   // SECTION 4: Naltrexone Safety Screening (Q20-Q25)
   opioidUse: z.array(z.string()),
-  opioidMaintenance: z.boolean({ message: 'Please select Yes or No' }),
-  liverCondition: z.enum(['cirrhosis', 'acute-hepatitis', 'liver-failure', 'elevated-enzymes', 'none'], { message: 'Please select an option' }),
-  liverTests: z.enum(['normal', 'mild-elevated', 'significant-elevated', 'no-tests'], { message: 'Please select an option' }),
-  pregnancyStatus: z.enum(['pregnant', 'breastfeeding', 'planning-pregnancy', 'none'], { message: 'Please select an option' }),
-  drugAllergies: z.enum(['naltrexone', 'other', 'none'], { message: 'Please select an option' }),
+  opioidMaintenance: z.boolean({ message: 'Please indicate if you are in an opioid maintenance program' }),
+  liverCondition: z.enum(['cirrhosis', 'acute-hepatitis', 'liver-failure', 'elevated-enzymes', 'none'], { message: 'Please select your liver condition status' }),
+  liverTests: z.enum(['normal', 'mild-elevated', 'significant-elevated', 'no-tests'], { message: 'Please select your liver test results' }),
+  pregnancyStatus: z.enum(['pregnant', 'breastfeeding', 'planning-pregnancy', 'none'], { message: 'Please select your pregnancy or breastfeeding status' }),
+  drugAllergies: z.enum(['naltrexone', 'other', 'none'], { message: 'Please select your medication allergy status' }),
 
   // SECTION 5: Medical & Psychiatric History (Q26-Q29)
   medicalHistory: z.array(z.string()),
-  currentMedications: z.boolean({ message: 'Please select Yes or No' }),
+  currentMedications: z.boolean({ message: 'Please indicate if you take prescription medications' }),
   medicationList: z.string().optional(),
   previousTreatments: z.array(z.string()),
-  seeingTherapist: z.boolean({ message: 'Please select Yes or No' }),
+  seeingTherapist: z.boolean({ message: 'Please indicate if you are seeing a therapist or counselor' }),
 
   // SECTION 6: Treatment Goals & Readiness (Q30-Q32)
-  primaryGoal: z.enum(['abstinence', 'harm-reduction', 'unsure'], { message: 'Please select an option' }),
-  motivationLevel: z.enum(['very', 'somewhat', 'unsure'], { message: 'Please select an option' }),
-  supportSystem: z.enum(['strong', 'limited', 'none'], { message: 'Please select an option' }),
+  primaryGoal: z.enum(['abstinence', 'harm-reduction', 'unsure'], { message: 'Please select your primary treatment goal' }),
+  motivationLevel: z.enum(['very', 'somewhat', 'unsure'], { message: 'Please select your motivation level' }),
+  supportSystem: z.enum(['strong', 'limited', 'none'], { message: 'Please select your level of support' }),
 
   // SECTION 7: Demographics (Q33-Q34)
-  biologicalSex: z.enum(['MALE', 'FEMALE', 'OTHER'], { message: 'Please select an option' }),
+  biologicalSex: z.enum(['MALE', 'FEMALE', 'OTHER'], { message: 'Please select your biological sex' }),
   biologicalSexOther: z.string().optional(),
   age: z.string().min(1, { message: 'Age is required' }),
 });
 
 type IntakeFormData = z.infer<typeof intakeFormSchema>;
+
+// ============================================================================
+// Scroll to first error helper
+// ============================================================================
+
+function scrollToFirstError(): void {
+  setTimeout(() => {
+    const firstError = document.querySelector('[role="alert"]');
+    if (firstError) {
+      firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Focus the closest focusable input sibling or parent field
+      const fieldContainer = firstError.closest('[role="group"], .space-y-2, .space-y-3');
+      const focusable = fieldContainer?.querySelector<HTMLElement>('input, select, textarea');
+      if (focusable) focusable.focus();
+    }
+  }, 100);
+}
+
+// ============================================================================
+// Step Error Summary
+// ============================================================================
+
+function StepErrorSummary({ stepFields }: { stepFields: string[] }): React.ReactElement | null {
+  const { formState: { errors } } = useFormContext<IntakeFormData>();
+
+  const stepErrorCount = stepFields.filter(
+    (field) => errors[field as keyof IntakeFormData]
+  ).length;
+
+  if (stepErrorCount === 0) return null;
+
+  return (
+    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg" role="alert">
+      <p className="text-sm font-medium text-red-800">
+        {stepErrorCount} {stepErrorCount === 1 ? 'question needs' : 'questions need'} your attention
+      </p>
+    </div>
+  );
+}
 
 // ============================================================================
 // Boolean Radio Group (Yes/No)
@@ -163,6 +202,8 @@ function DSM5ScreeningStep(): React.ReactElement {
 
   return (
     <section aria-label="Section 1: DSM-5 AUD Screening" className="space-y-6">
+      <StepErrorSummary stepFields={['dsm5Q1', 'dsm5Q2', 'dsm5Q3', 'dsm5Q4', 'dsm5Q5', 'dsm5Q6', 'dsm5Q7', 'dsm5Q8', 'dsm5Q9', 'dsm5Q10', 'dsm5Q11']} />
+
       <Alert className="bg-blue-50 border-blue-200">
         <Info className="h-4 w-4 text-blue-600" />
         <AlertDescription id="dsm5-help" className="text-blue-800">
@@ -207,6 +248,8 @@ function DrinkingPatternStep(): React.ReactElement {
 
   return (
     <section aria-label="Section 2: Current Drinking Pattern" className="space-y-6">
+      <StepErrorSummary stepFields={['drinkingDaysPerWeek', 'drinksPerDay', 'lastDrink', 'bingeDrinking']} />
+
       <div className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="drinkingDaysPerWeek" className="text-base font-medium">
@@ -333,6 +376,8 @@ function WithdrawalRiskStep(): React.ReactElement {
 
   return (
     <section aria-label="Section 3: Withdrawal Risk Assessment" className="space-y-6">
+      <StepErrorSummary stepFields={['withdrawalSeizure', 'withdrawalDTs', 'withdrawalHospitalized', 'morningDrinking']} />
+
       <Alert className="bg-amber-50 border-amber-200">
         <AlertTriangle className="h-4 w-4 text-amber-600" />
         <AlertDescription id="withdrawal-help" className="text-amber-800">
@@ -400,6 +445,8 @@ function SafetyScreeningStep(): React.ReactElement {
 
   return (
     <section aria-label="Section 4: Naltrexone Safety Screening" className="space-y-6">
+      <StepErrorSummary stepFields={['opioidUse', 'opioidMaintenance', 'liverCondition', 'liverTests', 'pregnancyStatus', 'drugAllergies']} />
+
       {/* Q20: Opioid Use */}
       <div className="space-y-3">
         <Label className="text-base font-medium">
@@ -591,6 +638,8 @@ function MedicalHistoryStep(): React.ReactElement {
 
   return (
     <section aria-label="Section 5: Medical and Psychiatric History" className="space-y-6">
+      <StepErrorSummary stepFields={['medicalHistory', 'currentMedications', 'previousTreatments', 'seeingTherapist']} />
+
       {/* Q26: Medical History */}
       <div className="space-y-3">
         <Label className="text-base font-medium">
@@ -690,6 +739,8 @@ function TreatmentGoalsStep(): React.ReactElement {
 
   return (
     <section aria-label="Section 6: Treatment Goals and Readiness" className="space-y-6">
+      <StepErrorSummary stepFields={['primaryGoal', 'motivationLevel', 'supportSystem']} />
+
       {/* Q30: Primary Goal */}
       <div className="space-y-3">
         <Label className="text-base font-medium">
@@ -790,6 +841,8 @@ function DemographicsStep(): React.ReactElement {
 
   return (
     <section aria-label="Section 7: Demographics" className="space-y-6">
+      <StepErrorSummary stepFields={['biologicalSex', 'age']} />
+
       {/* Q33: Biological Sex */}
       <div className="space-y-3">
         <Label className="text-base font-medium">
@@ -1275,6 +1328,8 @@ export default function IntakePage(): React.ReactElement {
 
       // Save draft on section completion
       saveDraft();
+    } else if (!isValid) {
+      scrollToFirstError();
     }
   };
 
@@ -1360,6 +1415,8 @@ export default function IntakePage(): React.ReactElement {
     const allValid = await trigger();
     if (allValid) {
       setShowConfirmModal(true);
+    } else {
+      scrollToFirstError();
     }
   };
 

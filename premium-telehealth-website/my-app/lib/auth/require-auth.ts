@@ -326,7 +326,7 @@ export async function requireAllPermissions(
     );
   }
   
-  const authenticatedRequest = request as NextRequest as AuthenticatedRequest;
+  const authenticatedRequest = request as AuthenticatedRequest;
   authenticatedRequest.user = user;
   
   return authenticatedRequest;

@@ -310,7 +310,7 @@ export default function AboutPage() {
             </h2>
             <Link
               href="/how-it-works"
-              className="inline-block mt-8 px-8 py-4 bg-gradient-to-r from-blue-500 to-ocean-600 text-white font-semibold rounded-lg hover:shadow-lg transition-shadow"
+              className="inline-block mt-8 px-8 py-4 bg-gradient-to-r from-navy-500 to-ocean-500 text-white font-semibold rounded-lg hover:shadow-lg transition-shadow"
             >
               Get Started — $50/month
             </Link>

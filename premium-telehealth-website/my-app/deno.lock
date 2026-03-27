@@ -29,6 +29,7 @@
         "npm:@types/react@19",
         "npm:@types/supertest@^6.0.2",
         "npm:@vitest/coverage-v8@^4.0.18",
+        "npm:babel-plugin-react-compiler@1",
         "npm:bcrypt@6",
         "npm:class-variance-authority@~0.7.1",
         "npm:clsx@^2.1.1",

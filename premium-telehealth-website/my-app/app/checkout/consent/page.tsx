@@ -34,18 +34,20 @@ import { Separator } from '@/components/ui/separator';
 // Consent Items (8 required agreements)
 // ============================================
 
-const CONSENT_ITEMS: { id: string; label: React.ReactNode; icon: React.ReactNode; description?: string }[] = [
+const CONSENT_ITEMS: { id: string; label: React.ReactNode; icon: React.ReactNode; description?: string; ariaLabel: string }[] = [
   {
     id: 'age',
     label: 'I confirm that I am at least 18 years of age.',
     icon: <CheckCircle2 className="h-4 w-4 text-ocean" />,
     description: 'Age confirmation required for treatment eligibility',
+    ariaLabel: 'I confirm that I am at least 18 years of age',
   },
   {
     id: 'california',
     label: 'I confirm that I am a current resident of California.',
     icon: <CheckCircle2 className="h-4 w-4 text-ocean" />,
     description: 'Residency confirmation required for treatment eligibility',
+    ariaLabel: 'I confirm that I am a current resident of California',
   },
   {
     id: 'terms',
@@ -65,6 +67,7 @@ const CONSENT_ITEMS: { id: string; label: React.ReactNode; icon: React.ReactNode
     ),
     icon: <FileCheck className="h-4 w-4 text-ocean" />,
     description: 'Agreement to Rimal Health Terms of Service',
+    ariaLabel: 'I consent to the Terms of Service',
   },
   {
     id: 'privacy',
@@ -84,6 +87,7 @@ const CONSENT_ITEMS: { id: string; label: React.ReactNode; icon: React.ReactNode
     ),
     icon: <Lock className="h-4 w-4 text-ocean" />,
     description: 'Agreement to Rimal Health Privacy Policy',
+    ariaLabel: 'I consent to the Privacy Policy',
   },
   {
     id: 'hipaa',
@@ -103,6 +107,7 @@ const CONSENT_ITEMS: { id: string; label: React.ReactNode; icon: React.ReactNode
     ),
     icon: <Shield className="h-4 w-4 text-ocean" />,
     description: 'Agreement to HIPAA Notice of Privacy Practices',
+    ariaLabel: 'I consent to HIPAA privacy practices',
   },
   {
     id: 'part2_sud_consent',
@@ -163,6 +168,7 @@ const CONSENT_ITEMS: { id: string; label: React.ReactNode; icon: React.ReactNode
     ),
     icon: <Shield className="h-4 w-4 text-ocean" />,
     description: '42 CFR Part 2 consent for use and disclosure of substance use disorder treatment records',
+    ariaLabel: 'I consent to 42 CFR Part 2 protections for substance use disorder records',
   },
   {
     id: 'telehealth',
@@ -170,6 +176,7 @@ const CONSENT_ITEMS: { id: string; label: React.ReactNode; icon: React.ReactNode
       'I consent to receive telehealth services, including asynchronous physician communication and medication-assisted treatment for alcohol use disorder.',
     icon: <Stethoscope className="h-4 w-4 text-ocean" />,
     description: 'Consent to receive telehealth services',
+    ariaLabel: 'I consent to receive telehealth services',
   },
   {
     id: 'informed',
@@ -177,6 +184,7 @@ const CONSENT_ITEMS: { id: string; label: React.ReactNode; icon: React.ReactNode
       'I understand that Rimal Health provides telemedicine services and that my provider may prescribe Naltrexone 50mg as part of my treatment plan. I understand this is not an emergency service.',
     icon: <FileCheck className="h-4 w-4 text-ocean" />,
     description: 'Informed consent for Naltrexone treatment',
+    ariaLabel: 'I consent to informed treatment with Naltrexone',
   },
 ];
 
@@ -189,11 +197,13 @@ function ConsentCheckbox({
   checked,
   onCheckedChange,
   describedBy,
+  'aria-label': ariaLabel,
 }: {
   id: string;
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
   describedBy?: string;
+  'aria-label'?: string;
 }): React.ReactElement {
   return (
     <button
@@ -201,6 +211,7 @@ function ConsentCheckbox({
       role="checkbox"
       aria-checked={checked}
       aria-describedby={describedBy}
+      aria-label={ariaLabel}
       aria-required="true"
       id={id}
       onClick={() => onCheckedChange(!checked)}
@@ -446,6 +457,7 @@ function ConsentContent(): React.ReactElement {
                     checked={isChecked}
                     onCheckedChange={(checked) => handleConsentToggle(item.id, checked)}
                     describedBy={[labelId, descId].filter(Boolean).join(' ')}
+                    aria-label={item.ariaLabel}
                   />
                   <div className="flex-1">
                     <Label
@@ -483,7 +495,7 @@ function ConsentContent(): React.ReactElement {
               <p className="text-sm text-destructive text-center">{error}</p>
             )}
             <Button
-              className="w-full rounded-full h-12 text-base font-semibold bg-gradient-to-r from-blue-500 to-ocean-500 hover:from-blue-600 hover:to-ocean-600 shadow-lg shadow-ocean/20 transition-all duration-200 hover:shadow-xl hover:shadow-ocean/30"
+              className="w-full rounded-full h-12 text-base font-semibold bg-gradient-to-r from-navy-500 to-ocean-500 hover:from-navy-600 hover:to-ocean-500 shadow-lg shadow-ocean/20 transition-all duration-200 hover:shadow-xl hover:shadow-ocean/30"
               size="lg"
               onClick={handleContinue}
               disabled={!allConsentsChecked || isSubmitting}

@@ -566,7 +566,7 @@ function StepProgress({ currentStep, totalSteps }: { currentStep: number; totalS
       </div>
       <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
         <motion.div
-          className="h-full bg-gradient-to-r from-blue-500 to-ocean-500"
+          className="h-full bg-gradient-to-r from-navy-500 to-ocean-500"
           initial={{ width: 0 }}
           animate={{ width: `${((currentStep + 1) / totalSteps) * 100}%` }}
           transition={{ duration: 0.3 }}
@@ -757,7 +757,7 @@ export default function ProfileSetupPage() {
                     <Button
                       type="button"
                       onClick={handleNext}
-                      className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-ocean-500 hover:from-blue-600 hover:to-ocean-600 text-white"
+                      className="flex items-center gap-2 bg-gradient-to-r from-navy-500 to-ocean-500 hover:from-navy-600 hover:to-ocean-500 text-white"
                     >
                       Next
                       <ChevronRight className="h-4 w-4" />

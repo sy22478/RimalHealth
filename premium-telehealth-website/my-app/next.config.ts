@@ -26,6 +26,9 @@ const nextConfig: NextConfig = {
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
 
+  // React Compiler — auto-memoizes components and hooks (requires React 19+)
+  reactCompiler: true,
+
   // Experimental features for performance
   experimental: {
     // Partial Prerendering (PPR) — streams the static shell immediately and

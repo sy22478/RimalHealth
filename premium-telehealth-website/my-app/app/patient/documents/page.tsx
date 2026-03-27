@@ -229,24 +229,22 @@ function UploadDropzone({ onUpload }: { onUpload: (files: File[]) => void }) {
 
 function EmptyState({ onUploadClick }: { onUploadClick: () => void }) {
   return (
-    <Card className="text-center py-12">
-      <CardContent>
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 mb-4">
-          <FileText className="h-8 w-8 text-gray-400" />
-        </div>
-        <h3 className="text-lg font-medium text-gray-900 mb-2">
-          No Documents Yet
-        </h3>
-        <p className="text-gray-600 max-w-sm mx-auto mb-6">
-          Upload your medical records, lab results, insurance cards, or other 
-          relevant documents for your physician to review.
-        </p>
-        <Button onClick={onUploadClick}>
-          <Upload className="h-4 w-4 mr-2" />
-          Upload Document
-        </Button>
-      </CardContent>
-    </Card>
+    <div className="border-dashed border-2 border-gray-200 rounded-xl text-center py-16 px-6">
+      <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-ocean-50 mb-6">
+        <FileText className="h-10 w-10 text-ocean-400" />
+      </div>
+      <h3 className="text-xl font-semibold text-gray-900 mb-2">
+        No documents yet
+      </h3>
+      <p className="text-gray-500 max-w-md mx-auto mb-8">
+        Upload your medical records, lab results, insurance cards, or other
+        relevant documents for your physician to review.
+      </p>
+      <Button onClick={onUploadClick} className="bg-ocean-500 hover:bg-ocean-600 text-white">
+        <Upload className="h-4 w-4 mr-2" />
+        Upload Your First Document
+      </Button>
+    </div>
   );
 }
 

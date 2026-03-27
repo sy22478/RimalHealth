@@ -95,7 +95,7 @@ export async function GET(request: Request): Promise<NextResponse> {
     const newDeadLetters = deadLetterAfter - deadLetterCount;
     const durationMs = Date.now() - startTime;
 
-    console.log(
+    console.error(
       `[Cron:EmailRetry] Done — processed: ${processed}, remaining: ${pendingAfter}, dead-lettered: ${newDeadLetters}, duration: ${durationMs}ms`
     );
 

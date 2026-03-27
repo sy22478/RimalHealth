@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
         break;
         
       default:
-        console.log(`Unhandled DoseSpot event: ${eventType}`);
+        console.error(`[Webhook:DoseSpot] Unhandled event: ${eventType}`);
     }
     
     await auditLogger.log({

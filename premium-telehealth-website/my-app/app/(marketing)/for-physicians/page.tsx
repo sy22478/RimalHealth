@@ -16,6 +16,12 @@ export const metadata: Metadata = {
   title: "For Physicians | Rimal Health",
   description:
     "Rimal Health's secure, HIPAA-compliant physician portal for reviewing patient intakes, prescribing Naltrexone, and managing alcohol use disorder treatment.",
+  openGraph: {
+    title: "For Physicians — Rimal Health",
+    description:
+      "Rimal Health's secure, HIPAA-compliant physician portal for reviewing patient intakes, prescribing Naltrexone, and managing alcohol use disorder treatment.",
+    url: "/for-physicians",
+  },
 };
 
 const capabilities = [
@@ -186,7 +192,7 @@ export default function ForPhysiciansPage(): React.JSX.Element {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8">
             <Link
               href="/physician/login"
-              className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-500 to-ocean-600 text-white font-semibold rounded-lg hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
+              className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-navy-500 to-ocean-500 text-white font-semibold rounded-lg hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
             >
               Access Physician Portal
               <ArrowRight className="w-5 h-5" />

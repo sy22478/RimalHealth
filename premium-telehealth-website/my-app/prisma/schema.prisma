@@ -25,19 +25,21 @@ model User {
   lastLoginAt   DateTime?
 
   // MFA
-  mfaEnabled    Boolean  @default(false)
-  mfaSecret     String?  // Encrypted with PHI encryption
+  mfaEnabled     Boolean @default(false)
+  mfaSecret      String? // Encrypted with PHI encryption
   mfaBackupCodes String? // Encrypted JSON array of backup codes
 
   // Relations
-  patientProfile PatientProfile?
-  physician      Physician?
-  intakes        Intake[]
-  messages       Message[]
-  subscriptions  Subscription[]
-  invoices       Invoice[]
-  sessions       Session[]
-  passwordResets PasswordReset[]
+  patientProfile         PatientProfile?
+  physician              Physician?
+  intakes                Intake[]
+  messages               Message[]
+  subscriptions          Subscription[]
+  invoices               Invoice[]
+  sessions               Session[]
+  passwordResets         PasswordReset[]
+  consentRecords         ConsentRecord[]
+  disclosureRestrictions DisclosureRestriction[]
 
   @@index([email])
   @@index([role])
@@ -136,6 +138,9 @@ model PatientProfile {
   preferredPharmacyId String?
   preferredPharmacy   Pharmacy? @relation("PreferredPharmacy", fields: [preferredPharmacyId], references: [id])
 
+  // Data Retention (soft delete)
+  deletedAt DateTime?
+
   // Relations
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   documents Document[]
@@ -160,10 +165,10 @@ enum TreatmentGoal {
 // ============================================
 
 enum PhysicianStatus {
-  PENDING      // Awaiting admin authorization
-  INVITED      // Secret key generated, awaiting first login
-  ACTIVE       // Fully authorized
-  INACTIVE     // Suspended or deactivated
+  PENDING // Awaiting admin authorization
+  INVITED // Secret key generated, awaiting first login
+  ACTIVE // Fully authorized
+  INACTIVE // Suspended or deactivated
 }
 
 model Physician {
@@ -184,12 +189,12 @@ model Physician {
   specialty String?
 
   // Authorization Status
-  status            PhysicianStatus @default(PENDING)
-  authorizedBy      String?         // Admin user ID
-  authorizedAt      DateTime?
-  secretKeyHash     String?         // bcrypt hash of secret key
-  secretKeyExpiry   DateTime?
-  secretKeyUsedAt   DateTime?
+  status          PhysicianStatus @default(PENDING)
+  authorizedBy    String? // Admin user ID
+  authorizedAt    DateTime?
+  secretKeyHash   String? // bcrypt hash of secret key
+  secretKeyExpiry DateTime?
+  secretKeyUsedAt DateTime?
 
   // Availability
   isActive        Boolean @default(true)
@@ -200,12 +205,12 @@ model Physician {
   avgReviewTimeMin Int? // Average review time in minutes
 
   // Relations
-  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   reviews          Review[]
   messages         Message[]
   notes            PhysicianNote[]
-  sentMessages     PhysicianMessage[]  @relation("SentMessages")
-  receivedMessages PhysicianMessage[]  @relation("ReceivedMessages")
+  sentMessages     PhysicianMessage[] @relation("SentMessages")
+  receivedMessages PhysicianMessage[] @relation("ReceivedMessages")
 
   @@index([userId])
   @@index([npiNumber])
@@ -243,6 +248,9 @@ model Intake {
   paymentStatus   PaymentStatus @default(PENDING)
   paymentIntentId String?
   subscriptionId  String?
+
+  // Data Retention (soft delete)
+  deletedAt DateTime?
 
   // Relations
   patient      User          @relation(fields: [patientId], references: [id], onDelete: Cascade)
@@ -332,9 +340,9 @@ enum ReviewDecision {
 // ============================================
 
 model Prescription {
-  id        String @id @default(uuid())
-  intakeId  String @unique
-  patientId String
+  id         String  @id @default(uuid())
+  intakeId   String  @unique
+  patientId  String
   pharmacyId String?
 
   // Medication
@@ -368,6 +376,9 @@ model Prescription {
   // Timeline
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Data Retention (soft delete)
+  deletedAt DateTime?
 
   // Relations
   intake         Intake          @relation(fields: [intakeId], references: [id], onDelete: Cascade)
@@ -443,6 +454,9 @@ model Message {
   // Status
   status MessageStatus @default(SENT)
 
+  // Data Retention (soft delete)
+  deletedAt DateTime?
+
   // Relations
   physician Physician? @relation(fields: [senderId], references: [userId], map: "message_physician_fk")
   user      User?      @relation(fields: [userId], references: [id])
@@ -493,6 +507,9 @@ model Document {
   // Timestamps
   uploadedAt DateTime  @default(now())
   expiresAt  DateTime?
+
+  // Data Retention (soft delete)
+  deletedAt DateTime?
 
   // Relations
   patient PatientProfile @relation(fields: [patientId], references: [userId], onDelete: Cascade)
@@ -696,19 +713,19 @@ model Pharmacy {
   updatedAt DateTime @updatedAt
 
   // Identification
-  ncpdpId String @unique // National Council for Prescription Drug Programs ID
+  ncpdpId   String  @unique // National Council for Prescription Drug Programs ID
   npiNumber String? // National Provider Identifier (if applicable)
 
   // Contact Info
-  name    String
-  phone   String?
-  fax     String?
-  email   String?
+  name  String
+  phone String?
+  fax   String?
+  email String?
 
   // Address
   address String
   city    String
-  state   String  @default("CA")
+  state   String @default("CA")
   zipCode String
 
   // Location (for proximity search)
@@ -719,15 +736,15 @@ model Pharmacy {
   hours Json?
 
   // Services
-  is24Hour    Boolean @default(false)
-  hasDelivery Boolean @default(false)
+  is24Hour     Boolean @default(false)
+  hasDelivery  Boolean @default(false)
   hasDriveThru Boolean @default(false)
 
   // Status
   isActive Boolean @default(true)
 
   // Relations
-  prescriptions      Prescription[]    @relation("PharmacyPrescriptions")
+  prescriptions       Prescription[]   @relation("PharmacyPrescriptions")
   preferredByPatients PatientProfile[] @relation("PreferredPharmacy")
 
   @@index([ncpdpId])
@@ -741,20 +758,20 @@ model Pharmacy {
 // ============================================
 
 model PhysicianNote {
-  id        String   @id @default(uuid())
-  patientId String
+  id          String @id @default(uuid())
+  patientId   String
   physicianId String
-  
+
   // Content (PHI - Encrypted)
-  content   String // Encrypted
-  
+  content String // Encrypted
+
   // Timestamps
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   // Relations
   physician Physician @relation(fields: [physicianId], references: [id], onDelete: Cascade)
-  
+
   @@index([patientId])
   @@index([physicianId])
   @@index([createdAt])
@@ -772,10 +789,10 @@ model PhysicianAuthorizationLog {
   adminId     String
   action      AuthorizationAction
   reason      String?
-  
+
   // Audit fields
-  ipAddress   String?
-  userAgent   String?
+  ipAddress String?
+  userAgent String?
 
   @@index([physicianId])
   @@index([adminId])
@@ -805,29 +822,29 @@ model PhysicianMessage {
   recipientId String
 
   // Message Content (PHI - Encrypted)
-  subject   String // Encrypted
-  body      String // Encrypted
-  
+  subject String // Encrypted
+  body    String // Encrypted
+
   // Threading
-  parentId  String?          // For replies
-  threadId  String           // Conversation thread
-  
+  parentId String? // For replies
+  threadId String // Conversation thread
+
   // Status
-  isRead      Boolean @default(false)
-  readAt      DateTime?
-  isDeleted   Boolean @default(false)
-  deletedAt   DateTime?
-  
+  isRead    Boolean   @default(false)
+  readAt    DateTime?
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+
   // Related to patient (optional)
-  patientId   String?
-  
+  patientId String?
+
   // Audit
-  sentFromIP  String?
+  sentFromIP String?
 
   // Relations
-  sender    Physician @relation("SentMessages", fields: [senderId], references: [id])
-  recipient Physician @relation("ReceivedMessages", fields: [recipientId], references: [id])
-  parent    PhysicianMessage? @relation("MessageThread", fields: [parentId], references: [id])
+  sender    Physician          @relation("SentMessages", fields: [senderId], references: [id])
+  recipient Physician          @relation("ReceivedMessages", fields: [recipientId], references: [id])
+  parent    PhysicianMessage?  @relation("MessageThread", fields: [parentId], references: [id])
   replies   PhysicianMessage[] @relation("MessageThread")
 
   @@index([senderId])
@@ -847,15 +864,15 @@ model PhysicianMessageThread {
   // Participants
   participant1Id String
   participant2Id String
-  
+
   // Last message reference
-  lastMessageId   String?
-  lastMessageAt   DateTime?
-  
+  lastMessageId String?
+  lastMessageAt DateTime?
+
   // Unread counts
   participant1Unread Int @default(0)
   participant2Unread Int @default(0)
-  
+
   // Optional: Related patient
   patientId String?
 
@@ -875,18 +892,18 @@ model AdminActivityLog {
 
   adminId     String
   action      AdminAction
-  entityType  String    // 'PHYSICIAN', 'PATIENT', etc.
+  entityType  String // 'PHYSICIAN', 'PATIENT', etc.
   entityId    String?
   description String
-  
+
   // Before/After for audit
   previousValue Json?
   newValue      Json?
-  
+
   // Security
-  ipAddress   String?
-  userAgent   String?
-  sessionId   String?
+  ipAddress String?
+  userAgent String?
+  sessionId String?
 
   @@index([adminId])
   @@index([action])
@@ -904,6 +921,58 @@ enum AdminAction {
   PATIENT_ACCESS
   SETTINGS_UPDATE
   EXPORT_DATA
+}
+
+// ============================================
+// 42 CFR PART 2 — CONSENT MANAGEMENT
+// ============================================
+
+model ConsentRecord {
+  id             String    @id @default(cuid())
+  userId         String
+  consentType    String // TREATMENT, PART2_DISCLOSURE, RESEARCH
+  consentText    String // Exact text consented to
+  consentVersion String // Version of the consent form
+  grantedAt      DateTime  @default(now())
+  revokedAt      DateTime?
+  revokedReason  String?
+  ipAddress      String?
+  userAgent      String?
+  metadata       Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([consentType])
+  @@index([userId, consentType])
+}
+
+// ============================================
+// 42 CFR PART 2 — DISCLOSURE RESTRICTIONS
+// ============================================
+
+model DisclosureRestriction {
+  id              String    @id @default(cuid())
+  userId          String
+  restrictionType String // e.g. "TREATMENT", "PAYMENT", "RESEARCH"
+  description     String
+  status          String    @default("PENDING") // PENDING, APPROVED, DENIED
+  requestedAt     DateTime  @default(now())
+  reviewedAt      DateTime?
+  reviewedBy      String?
+  reviewNotes     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([userId, status])
 }
 
 // ============================================

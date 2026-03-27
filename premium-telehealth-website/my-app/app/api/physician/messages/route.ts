@@ -147,6 +147,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         OR: [{ senderId: userId }, { recipientId: userId }],
       },
       orderBy: { sentAt: 'desc' },
+      take: 200,
     });
 
     // Group by thread

@@ -34,6 +34,8 @@ import type {
 // Metadata
 // ============================================================================
 
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: 'Dashboard | Physician Portal',
   description: 'Overview of your patients, reviews, and prescriptions.',
@@ -104,6 +106,10 @@ export default async function PhysicianDashboardPage() {
   let stats: PhysicianDashboardStats = defaultStats;
   let queueItems: ReviewQueueItem[] = [];
   let prescriptions: PhysicianPrescriptionListItem[] = [];
+  let allFetchesFailed = false;
+  let queueFetchFailed = false;
+  let statsFetchFailed = false;
+  let prescriptionsFetchFailed = false;
 
   try {
     const cookieStore = await cookies();
@@ -131,20 +137,34 @@ export default async function PhysicianDashboardPage() {
         const queueData = await queueRes.value.json();
         if (Array.isArray(queueData.items)) queueItems = queueData.items;
         else if (Array.isArray(queueData.queue)) queueItems = queueData.queue;
+      } else {
+        queueFetchFailed = true;
       }
+
       if (statsRes.status === 'fulfilled' && statsRes.value.ok) {
         const statsData = await statsRes.value.json();
         if (statsData.stats) stats = statsData.stats;
+      } else {
+        statsFetchFailed = true;
       }
+
       if (prescriptionsRes.status === 'fulfilled' && prescriptionsRes.value.ok) {
         const prescriptionsData = await prescriptionsRes.value.json();
         if (Array.isArray(prescriptionsData.prescriptions)) {
           prescriptions = prescriptionsData.prescriptions;
         }
+      } else {
+        prescriptionsFetchFailed = true;
       }
+
+      allFetchesFailed = queueFetchFailed && statsFetchFailed && prescriptionsFetchFailed;
     }
   } catch {
     // API unavailable — keep empty/zero defaults
+    allFetchesFailed = true;
+    queueFetchFailed = true;
+    statsFetchFailed = true;
+    prescriptionsFetchFailed = true;
   }
 
   const queueStats = {
@@ -155,8 +175,35 @@ export default async function PhysicianDashboardPage() {
     highRiskCount: queueItems.filter((i) => i.riskLevel === 'HIGH' || i.riskLevel === 'SEVERE').length,
   };
 
+  const hasPartialFailure = !allFetchesFailed && (queueFetchFailed || statsFetchFailed || prescriptionsFetchFailed);
+
   return (
     <div className="space-y-8">
+      {/* Error Banner — all fetches failed */}
+      {allFetchesFailed && (
+        <div className="mx-6 mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-sm font-medium text-red-800">Unable to load dashboard data</p>
+          <p className="text-sm text-red-600 mt-1">Some services may be unavailable. Please refresh the page.</p>
+        </div>
+      )}
+
+      {/* Warning Banner — some fetches failed */}
+      {hasPartialFailure && (
+        <div className="mx-6 mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+          <p className="text-sm font-medium text-amber-800">Some dashboard data could not be loaded</p>
+          <p className="text-sm text-amber-600 mt-1">
+            {[
+              statsFetchFailed && 'statistics',
+              queueFetchFailed && 'review queue',
+              prescriptionsFetchFailed && 'prescriptions',
+            ]
+              .filter(Boolean)
+              .join(', ')}{' '}
+            could not be retrieved. Please refresh to try again.
+          </p>
+        </div>
+      )}
+
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

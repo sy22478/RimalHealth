@@ -37,7 +37,7 @@ export default function HowItWorksPage() {
             <div className="flex flex-col sm:flex-row gap-4 mt-8">
               <Link
                 href="/pricing"
-                className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-500 to-ocean-500 text-white font-semibold rounded-lg shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5 transition-all duration-200"
+                className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-navy-500 to-ocean-500 text-white font-semibold rounded-lg shadow-lg shadow-navy-500/20 hover:shadow-xl hover:shadow-navy-500/30 hover:-translate-y-0.5 transition-all duration-200"
               >
                 View Plans & Pricing
                 <ArrowRight className="w-5 h-5" />
@@ -322,7 +322,7 @@ export default function HowItWorksPage() {
             <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
               Choose your plan, complete checkout, and begin your treatment today.
             </p>
-            <Link href="/pricing" className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-500 to-ocean-600 text-white font-semibold px-8 py-4 rounded-lg hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 text-lg">
+            <Link href="/pricing" className="inline-flex items-center gap-2 bg-gradient-to-r from-navy-500 to-ocean-500 text-white font-semibold px-8 py-4 rounded-lg hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 text-lg">
               View Plans & Pricing
               <ArrowRight className="w-5 h-5" />
             </Link>

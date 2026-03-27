@@ -65,6 +65,12 @@ export enum AuditEventType {
   MFA_VERIFIED = 'mfa_verified',
   MFA_DISABLED = 'mfa_disabled',
   MFA_FAILED = 'mfa_failed',
+
+  // 42 CFR Part 2 — Disclosure events
+  PHI_DISCLOSURE = 'phi_disclosure',
+  CONSENT_REVOKED = 'consent_revoked',
+  DISCLOSURE_RESTRICTION_REQUESTED = 'disclosure_restriction_requested',
+  DISCLOSURE_RESTRICTION_REVIEWED = 'disclosure_restriction_reviewed',
 }
 
 /**

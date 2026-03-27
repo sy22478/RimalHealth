@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertCircle, ChevronLeft, Stethoscope, Clock, Calendar, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, ChevronLeft, Stethoscope, Clock, Calendar, CheckCircle2, MapPin } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -190,7 +190,7 @@ export function IntakeReview({ intake, physicianId, physicianName }: IntakeRevie
   };
 
   // Get concern type from form data
-  const concernType = (intake.formData?.primaryConcern as 'ALCOHOL') || 'ALCOHOL';
+  const concernType = (intake.formData?.primaryConcern as string) || 'ALCOHOL';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -333,6 +333,27 @@ export function IntakeReview({ intake, physicianId, physicianName }: IntakeRevie
                         {intake.patient.address.city}, {intake.patient.address.state}{' '}
                         {intake.patient.address.zipCode}
                       </p>
+                    </div>
+                  </>
+                )}
+
+                {intake.patient.preferredPharmacy && (
+                  <>
+                    <Separator />
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground flex items-center gap-1">
+                        <MapPin className="h-3.5 w-3.5" />
+                        Preferred Pharmacy
+                      </p>
+                      <p className="text-sm font-medium">{intake.patient.preferredPharmacy.name}</p>
+                      <p className="text-sm">{intake.patient.preferredPharmacy.address}</p>
+                      <p className="text-sm">
+                        {intake.patient.preferredPharmacy.city}, {intake.patient.preferredPharmacy.state}{' '}
+                        {intake.patient.preferredPharmacy.zipCode}
+                      </p>
+                      {intake.patient.preferredPharmacy.phone && (
+                        <p className="text-sm text-ocean-600">{intake.patient.preferredPharmacy.phone}</p>
+                      )}
                     </div>
                   </>
                 )}

@@ -27,7 +27,7 @@ interface DecisionFormData {
 interface DecisionFormProps {
   value: DecisionFormData;
   onChange: (value: DecisionFormData) => void;
-  concernType: 'ALCOHOL';
+  concernType: string;
   formData: IntakeFormData;
   disabled?: boolean;
   errors?: Record<string, string>;

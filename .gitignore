@@ -47,8 +47,9 @@ lib/generated/prisma
 # Playwright MCP logs
 .playwright-mcp/
 
-# Claude project settings (session-specific)
+# Claude Code
 .claude/
+.claude/settings.local.json
 
 # Screenshots and previews
 screenshots/

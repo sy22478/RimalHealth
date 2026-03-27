@@ -431,7 +431,7 @@ function CreateAccountContent(): React.JSX.Element {
 
             <Button
               type="submit"
-              className="w-full rounded-full h-12 text-base font-semibold bg-gradient-to-r from-blue-500 to-ocean-500 hover:from-blue-600 hover:to-ocean-600 shadow-lg shadow-ocean/20 transition-all duration-200 hover:shadow-xl hover:shadow-ocean/30"
+              className="w-full rounded-full h-12 text-base font-semibold bg-gradient-to-r from-navy-500 to-ocean-500 hover:from-navy-600 hover:to-ocean-500 shadow-lg shadow-ocean/20 transition-all duration-200 hover:shadow-xl hover:shadow-ocean/30"
               disabled={status === 'loading'}
             >
               {status === 'loading' ? (

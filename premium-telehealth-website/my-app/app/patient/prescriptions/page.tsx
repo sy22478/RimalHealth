@@ -43,7 +43,19 @@ interface Prescription {
 // Utility Functions
 // ============================================================================
 
-function getDaysRemaining(prescription: { quantity: number; lastRefillDate: Date | null }): number {
+function getDaysRemaining(prescription: {
+  quantity: number;
+  lastRefillDate: Date | null;
+  nextRefillAvailable?: Date | null;
+}): number {
+  // Prefer nextRefillAvailable as the authoritative source
+  if (prescription.nextRefillAvailable) {
+    const days = Math.ceil(
+      (new Date(prescription.nextRefillAvailable).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+    );
+    return Math.max(0, days);
+  }
+  // Fallback: use quantity as approximate days supply
   const daysSupply = prescription.quantity;
   const daysSinceLastFill = prescription.lastRefillDate
     ? Math.floor((Date.now() - new Date(prescription.lastRefillDate).getTime()) / (1000 * 60 * 60 * 24))
@@ -91,7 +103,11 @@ function PrescriptionCard({
   onRequestRefill: (id: string) => void;
 }) {
   const daysRemaining = getDaysRemaining(prescription);
-  const percentage = (daysRemaining / prescription.quantity) * 100;
+  // Calculate total supply days for progress bar
+  const totalSupplyDays = prescription.nextRefillAvailable && prescription.lastRefillDate
+    ? Math.ceil((new Date(prescription.nextRefillAvailable).getTime() - new Date(prescription.lastRefillDate).getTime()) / (1000 * 60 * 60 * 24))
+    : prescription.quantity;
+  const percentage = (daysRemaining / totalSupplyDays) * 100;
 
   const canRefill = prescription.refillsRemaining > 0 && 
     prescription.status !== 'CANCELLED' && 
@@ -130,7 +146,11 @@ function PrescriptionCard({
             <div>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm text-gray-600">{daysRemaining} days remaining</span>
-                <span className="text-sm text-gray-500">{prescription.quantity} day supply</span>
+                <span className="text-sm text-gray-500">
+                  {prescription.nextRefillAvailable
+                    ? `${Math.ceil((new Date(prescription.nextRefillAvailable).getTime() - new Date(prescription.lastRefillDate!).getTime()) / (1000 * 60 * 60 * 24))} day supply`
+                    : `${prescription.quantity} day supply`}
+                </span>
               </div>
               <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                 <div
@@ -201,26 +221,24 @@ function PrescriptionCard({
 
 function EmptyState() {
   return (
-    <Card className="text-center py-12">
-      <CardContent>
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 mb-4">
-          <Pill className="h-8 w-8 text-gray-400" />
-        </div>
-        <h3 className="text-lg font-medium text-gray-900 mb-2">
-          No Prescriptions Yet
-        </h3>
-        <p className="text-gray-600 max-w-sm mx-auto mb-6">
-          Once your physician reviews your intake and prescribes medication, 
-          you&apos;ll see it here.
-        </p>
-        <Link href="/patient/dashboard">
-          <Button variant="outline">
-            Go to Dashboard
-            <ChevronRight className="h-4 w-4 ml-2" />
-          </Button>
-        </Link>
-      </CardContent>
-    </Card>
+    <div className="border-dashed border-2 border-gray-200 rounded-xl text-center py-16 px-6">
+      <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-ocean-50 mb-6">
+        <Pill className="h-10 w-10 text-ocean-400" />
+      </div>
+      <h3 className="text-xl font-semibold text-gray-900 mb-2">
+        Your prescription is on the way
+      </h3>
+      <p className="text-gray-500 max-w-md mx-auto mb-8">
+        Once your physician reviews your intake and prescribes medication,
+        it will appear here. In the meantime, feel free to reach out with any questions.
+      </p>
+      <Link href="/patient/messages">
+        <Button className="bg-ocean-500 hover:bg-ocean-600 text-white">
+          <Plus className="h-4 w-4 mr-2" />
+          Message Your Doctor
+        </Button>
+      </Link>
+    </div>
   );
 }
 

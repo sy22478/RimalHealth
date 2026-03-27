@@ -10,6 +10,7 @@
 
 import * as React from 'react';
 import { Metadata } from 'next';
+import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -134,9 +135,11 @@ export default async function PrescriptionsPage() {
               {pendingCount} pending
             </Badge>
           )}
-          <Button>
-            <Plus className="w-4 h-4 mr-2" />
-            New Prescription
+          <Button asChild>
+            <Link href="/physician/queue">
+              <Plus className="w-4 h-4 mr-2" />
+              Review & Prescribe
+            </Link>
           </Button>
         </div>
       </div>

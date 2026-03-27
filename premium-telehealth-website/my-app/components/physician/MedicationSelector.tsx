@@ -29,7 +29,7 @@ export interface MedicationSelection {
 interface MedicationSelectorProps {
   value: MedicationSelection | null;
   onChange: (value: MedicationSelection) => void;
-  concernType: 'ALCOHOL';
+  concernType: string;
   formData: IntakeFormData;
   disabled?: boolean;
 }

@@ -52,7 +52,7 @@ export function CTA() {
 
         <Link
           href="/checkout/consent"
-          className="inline-flex items-center justify-center px-12 py-4.5 bg-gradient-to-r from-blue-500 to-ocean-500 text-white font-semibold rounded-full shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:scale-[1.03] active:scale-[0.98] transition-all duration-200 text-lg"
+          className="inline-flex items-center justify-center px-12 py-4.5 bg-gradient-to-r from-navy-500 to-ocean-500 text-white font-semibold rounded-full shadow-lg shadow-navy-500/30 hover:shadow-xl hover:shadow-navy-500/40 hover:scale-[1.03] active:scale-[0.98] transition-all duration-200 text-lg"
         >
           Get Started — $50/month
         </Link>

@@ -52,7 +52,7 @@ export function ValueProps() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.55, delay: index * 0.12, ease: "easeOut" }}
-                className="group relative bg-white/5 border border-white/10 rounded-2xl p-8 hover:bg-white/8 hover:border-white/20 transition-all duration-300 backdrop-blur-sm"
+                className="group relative bg-white/5 border border-white/10 rounded-2xl p-8 backdrop-blur-sm hover:bg-white/10 hover:border-white/20 hover:shadow-[0_20px_40px_rgba(2,132,199,0.1)] transition-all duration-300"
               >
                 {/* Icon */}
                 <div className="w-11 h-11 rounded-lg bg-ocean-500/20 flex items-center justify-center mb-5">

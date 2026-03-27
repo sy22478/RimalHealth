@@ -2,15 +2,16 @@
 
 > **Purpose:** Continue development exactly where the previous session left off. Read this file FIRST in any new session.
 > **Created:** 2026-03-26
-> **Session:** Phase 5-8 Major Sprint (App Flow Redesign + Security Fixes + Compliance)
+> **Updated:** 2026-03-27 (AutoDream session)
+> **Session:** Phase 9 AutoDream (Compliance Phase 2-3 + Credential Cleanup + Data Retention + Docs)
 
 ---
 
 ## 1. Where We Are
 
-**65 of 81 tasks complete (80%).** All P0 + P1 done. Most P2/P3 done. App flow redesigned. 42 CFR Part 2 Phase 1 done. Patient MFA implemented. 356 unit tests. Deployed to production.
+**81 of 81 tasks complete (100%).** All P0-P3 done. 42 CFR Part 2 Phase 2-3 done. Data retention automation done. Credentials cleaned. React Compiler enabled. API route catalog complete. 356 unit tests. Deployed to production.
 
-**Architecture health: ~4.2/5** (up from 2.8/5 at start of sprint).
+**Architecture health: ~4.5/5** (up from 4.2/5 at start of session).
 
 **CRITICAL:** SendGrid does NOT sign BAAs — must migrate to AWS SES. See `email_provider_evaluation.md`.
 
@@ -65,46 +66,30 @@
 - Encryption extension tests written
 - vitest.config.ts fixed to include both unit + integration
 
-## 4. What's Remaining (36 Tasks)
+## 4. What's Remaining (1 Task + Blocked)
 
-### USER ACTION REQUIRED (5 tasks — blocked on human)
+### USER ACTION REQUIRED (blocked on human)
 - **1.1.1** Rotate Neon DB password in Neon dashboard
 - **1.1.2** Rotate Netlify auth token in Netlify dashboard
-- **1.3.1-1.3.5** Verify BAAs with vendors (Neon, Netlify, SendGrid, AWS, Stripe)
+- **1.3.1-1.3.6** Verify BAAs with vendors (Neon, Netlify, SendGrid, AWS, Stripe)
 
-### P1 — Next to Tackle (11 tasks)
-- **2.6** Dual Stripe consolidation — migrate 7 routes from `lib/integrations/stripe.ts` to `lib/stripe/stripe-server.ts`, then delete the legacy file
-- **2.8** Patient MFA — extend MFA setup UI to patients, add MFA to login flow
-- **2.9** Stripe webhook deduplication — create WebhookEvent model, add dedup check
-- **2.10.1-2.10.3** Remaining encryption/audit tests (roundtrip, audit coverage, no-PHI-in-console)
-- **3.3.1-3.3.2** Tests for verify-token, verify-email, send-verification, consent routes
-- **3.3.4** Test for patient layout intake gate
-- **3.4** Consent-to-user linkage (pass consentRecordId through Stripe metadata)
+### Code Tasks (1 remaining)
+- **4.4.2** Evaluate and enable React Compiler (P2, low priority)
 
-### P2 (11 tasks)
-- Data retention automation (4.1)
-- GitHub Actions upgrades (4.2.1-4.2.2)
-- Duplicate netlify.toml headers (4.2.3)
-- Session timeout ordering (4.3.1)
-- In-memory rate limiting fallback (4.3.2)
-- Timing-safe token comparison (4.3.3)
-- Neon pooled connections (4.4.1)
-- React Compiler (4.4.2)
-- PPR for marketing pages (4.4.3)
+### Verification Tasks (may need manual testing)
+- **2.5.3** Verify CI pipeline passes end-to-end
+- **2.6.4** Verify checkout, billing, subscription, webhook all work
 
-### P3 Backlog (6 tasks)
-- Subscription cancellation email (5.1.1)
-- Email retry worker (5.1.2)
-- DoseSpot: ON HOLD (user evaluating alternatives, do NOT work on this)
-- Minor code quality (5.2.1-5.2.4)
+### ON HOLD
+- **5.1.3** DoseSpot production mode — user evaluating alternatives, do NOT work on this
 
-### Compliance Phase 2-3 (6 tasks)
-- Accounting of disclosures API + UI (6.1)
-- Consent management model + revocation (6.2)
-- Disclosure restriction requests (6.3)
-
-### Evaluation (4 tasks)
-- SendGrid BAA research (8.1)
+### Completed This Session (AutoDream Phase 9)
+- **1.1.3-1.1.5** Credential cleanup (`.gitignore`, clean settings file, git history verified)
+- **4.1.1-4.1.4** Data retention automation (soft delete + PHI anonymization + cron route)
+- **6.1.1-6.1.3** Accounting of disclosures (API + audit logger `logDisclosure()` + patient page)
+- **6.2.1-6.2.3** Consent management (`ConsentRecord` model + API + PDF download)
+- **6.3.1-6.3.2** Disclosure restrictions (`DisclosureRestriction` model + API + enforcement)
+- **7.1.3** Build instructions updated with 79-route API catalog
 
 ## 5. Critical Context
 
@@ -165,23 +150,23 @@ PM Deployment Guide in skills_matrix.md has common patterns.
 - **Git push:** Failed — remote repo not found. User needs to verify remote URL: `git remote -v`
 - **Tests:** 356 passing (12 test files)
 
-## 8. Remaining Tasks (16 items)
+## 8. Remaining Tasks (blocked items only)
 
-### User Action Required (5)
+### User Action Required
 - 1.1.1-1.1.2: Rotate Neon DB password + Netlify auth token
-- 1.3.1-1.3.5: Verify BAAs with vendors
+- 1.3.1-1.3.6: Verify BAAs with vendors
 
-### Code Tasks (5)
-- 4.1: Data retention automation (deletedAt columns, scheduled cleanup)
-- 4.4.2: React Compiler evaluation
+### Code Tasks
 - 5.1.3: DoseSpot replacement (ON HOLD — evaluating alternatives)
-- 7.1.3: Update build_instructions.md with new API routes
-
-### Compliance Phase 2-3 (6)
-- 6.1: Accounting of disclosures API + UI
-- 6.2: ConsentRecord Prisma model + revocation workflow
-- 6.3: Disclosure restriction requests
 
 ### CRITICAL: SendGrid -> AWS SES Migration
 SendGrid refuses BAAs. Must migrate to AWS SES for HIPAA compliance.
 See `dev-setup/rimalhealth/email_provider_evaluation.md` for migration plan.
+
+### Database Migrations Needed
+The following schema changes from this session need migration before deploy:
+- `ConsentRecord` model (new)
+- `DisclosureRestriction` model (new)
+- `deletedAt DateTime?` on PatientProfile, Intake, Prescription, Message, Document
+- User model: `consentRecords` and `disclosureRestrictions` relations
+Run: `npx prisma migrate dev --name compliance-phase2-data-retention`

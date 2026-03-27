@@ -419,33 +419,37 @@ export default function MessagesPage() {
   const [conversations, setConversations] = React.useState<Conversation[]>([]);
   const [messages, setMessages] = React.useState<Record<string, Message[]>>({});
   const [isLoadingConvs, setIsLoadingConvs] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+
+  const loadThreads = React.useCallback(async () => {
+    try {
+      setError(null);
+      const res = await fetch('/api/patient/messages', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        const threads = data.threads || [];
+        // Map API threads to local Conversation type
+        const convs: Conversation[] = threads.map((t: { threadId?: string; id?: string; senderName?: string; participantName?: string; senderType?: string; lastMessagePreview?: string; preview?: string; lastMessageAt?: string; sentAt?: string; unreadCount?: number }) => ({
+          id: t.threadId || t.id,
+          participantName: t.senderName || t.participantName || 'Your Doctor',
+          participantType: (t.senderType === 'PHYSICIAN' ? 'PHYSICIAN' : 'SYSTEM') as 'PHYSICIAN' | 'SYSTEM',
+          lastMessage: t.lastMessagePreview || t.preview || '',
+          lastMessageAt: new Date(t.lastMessageAt || t.sentAt || Date.now()),
+          unreadCount: t.unreadCount || 0,
+        }));
+        setConversations(convs);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      setError(`Unable to load messages. Please try again. (${msg})`);
+    } finally {
+      setIsLoadingConvs(false);
+    }
+  }, []);
 
   React.useEffect(() => {
-    async function loadThreads() {
-      try {
-        const res = await fetch('/api/patient/messages', { credentials: 'include' });
-        if (res.ok) {
-          const data = await res.json();
-          const threads = data.threads || [];
-          // Map API threads to local Conversation type
-          const convs: Conversation[] = threads.map((t: { threadId?: string; id?: string; senderName?: string; participantName?: string; senderType?: string; lastMessagePreview?: string; preview?: string; lastMessageAt?: string; sentAt?: string; unreadCount?: number }) => ({
-            id: t.threadId || t.id,
-            participantName: t.senderName || t.participantName || 'Your Doctor',
-            participantType: (t.senderType === 'PHYSICIAN' ? 'PHYSICIAN' : 'SYSTEM') as 'PHYSICIAN' | 'SYSTEM',
-            lastMessage: t.lastMessagePreview || t.preview || '',
-            lastMessageAt: new Date(t.lastMessageAt || t.sentAt || Date.now()),
-            unreadCount: t.unreadCount || 0,
-          }));
-          setConversations(convs);
-        }
-      } catch {
-        // silently fail - show empty state
-      } finally {
-        setIsLoadingConvs(false);
-      }
-    }
     loadThreads();
-  }, []);
+  }, [loadThreads]);
 
   const selectedConversation = conversations.find(
     (c) => c.id === selectedConversationId
@@ -457,6 +461,10 @@ export default function MessagesPage() {
 
   const handleSendMessage = async (content: string) => {
     if (!selectedConversationId) return;
+
+    // Save current state for rollback on failure
+    const previousMessages = messages[selectedConversationId] || [];
+    const previousConversation = conversations.find(c => c.id === selectedConversationId);
 
     const optimistic: Message = {
       id: `msg-${Date.now()}`,
@@ -487,8 +495,22 @@ export default function MessagesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ threadId: selectedConversationId, body: content }),
       });
-    } catch {
-      // optimistic update already shown
+    } catch (err) {
+      // Rollback optimistic update
+      setMessages(prev => ({
+        ...prev,
+        [selectedConversationId]: previousMessages,
+      }));
+      if (previousConversation) {
+        setConversations(prev =>
+          prev.map(c => c.id === selectedConversationId
+            ? { ...c, lastMessage: previousConversation.lastMessage, lastMessageAt: previousConversation.lastMessageAt }
+            : c
+          )
+        );
+      }
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      setError(`Failed to send message. Please try again. (${msg})`);
     }
   };
 
@@ -515,14 +537,26 @@ export default function MessagesPage() {
           }));
           setMessages(prev => ({ ...prev, [id]: msgs }));
         }
-      } catch {
-        // silently fail
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unknown error';
+        setError(`Failed to load conversation. Please try again. (${msg})`);
       }
     }
   };
 
   return (
     <div className="h-[calc(100vh-64px)] lg:h-[calc(100vh-0px)] bg-white">
+      {error && (
+        <div className="mx-4 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center justify-between">
+          <p className="text-sm text-red-700">{error}</p>
+          <button
+            onClick={() => { setError(null); loadThreads(); }}
+            className="text-sm font-medium text-red-700 hover:text-red-900 underline"
+          >
+            Retry
+          </button>
+        </div>
+      )}
       <div className="h-full flex">
         <div
           className={cn(

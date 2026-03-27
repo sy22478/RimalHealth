@@ -15,7 +15,8 @@ import {
   Menu,
   X,
   CreditCard,
-  ShieldCheck
+  ShieldCheck,
+  Eye,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -39,6 +40,7 @@ const navItems: NavItem[] = [
   { href: '/patient/prescriptions', label: 'Prescriptions', icon: Pill },
   { href: '/patient/documents', label: 'Documents', icon: FileText },
   { href: '/patient/billing', label: 'Billing', icon: CreditCard },
+  { href: '/patient/disclosures', label: 'Disclosures', icon: Eye },
   { href: '/patient/profile/settings', label: 'Profile', icon: User },
   { href: '/patient/settings', label: 'Settings', icon: Settings },
 ];

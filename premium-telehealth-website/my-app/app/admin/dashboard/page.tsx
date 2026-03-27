@@ -83,7 +83,7 @@ interface AdminActivity {
 // Data Fetching
 // ============================================================================
 
-async function getAdminMetrics(): Promise<AdminMetrics> {
+async function getAdminMetrics(): Promise<AdminMetrics & { hasError: boolean }> {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -135,6 +135,7 @@ async function getAdminMetrics(): Promise<AdminMetrics> {
       totalPatients,
       todaysReviews,
       unreadMessages,
+      hasError: false,
     };
   } catch {
     // Return default values during build or if database is unavailable
@@ -145,11 +146,12 @@ async function getAdminMetrics(): Promise<AdminMetrics> {
       totalPatients: 0,
       todaysReviews: 0,
       unreadMessages: 0,
+      hasError: true,
     };
   }
 }
 
-async function getRecentActivity(): Promise<AdminActivity[]> {
+async function getRecentActivity(): Promise<{ activities: AdminActivity[]; hasError: boolean }> {
   try {
     const activities = await prisma.adminActivityLog.findMany({
       take: 10,
@@ -157,7 +159,7 @@ async function getRecentActivity(): Promise<AdminActivity[]> {
     });
 
     if (!Array.isArray(activities)) {
-      return [];
+      return { activities: [], hasError: false };
     }
 
     // Fetch admin emails separately
@@ -168,18 +170,21 @@ async function getRecentActivity(): Promise<AdminActivity[]> {
     });
     const adminEmailMap = new Map(admins.map(a => [a.id, a.email]));
 
-    return activities.map((activity) => ({
-      id: activity.id,
-      action: activity.action,
-      entityType: activity.entityType,
-      entityId: activity.entityId,
-      description: activity.description,
-      createdAt: activity.createdAt,
-      admin: { email: adminEmailMap.get(activity.adminId) || 'Unknown' },
-    }));
+    return {
+      activities: activities.map((activity) => ({
+        id: activity.id,
+        action: activity.action,
+        entityType: activity.entityType,
+        entityId: activity.entityId,
+        description: activity.description,
+        createdAt: activity.createdAt,
+        admin: { email: adminEmailMap.get(activity.adminId) || 'Unknown' },
+      })),
+      hasError: false,
+    };
   } catch {
     // Return empty array during build or if database is unavailable
-    return [];
+    return { activities: [], hasError: true };
   }
 }
 
@@ -370,7 +375,7 @@ function QuickActionButton({
 /**
  * Recent Activity Card Component
  */
-function RecentActivityCard({ activities }: { activities: AdminActivity[] }) {
+function RecentActivityCard({ activities, hasError }: { activities: AdminActivity[]; hasError: boolean }) {
   return (
     <Card className="h-full">
       <CardHeader>
@@ -383,7 +388,13 @@ function RecentActivityCard({ activities }: { activities: AdminActivity[] }) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {activities.length === 0 ? (
+        {hasError ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50 text-amber-500" />
+            <p className="font-medium text-amber-800">Recent activity unavailable</p>
+            <p className="text-sm text-amber-600 mt-1">Unable to load activity data. Please try again later.</p>
+          </div>
+        ) : activities.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <Activity className="w-8 h-8 mx-auto mb-2 opacity-50" />
             <p>No recent activity</p>
@@ -548,10 +559,13 @@ function StatusOverviewCard({ metrics }: { metrics: AdminMetrics }) {
 // ============================================================================
 
 export default async function AdminDashboardPage() {
-  const [metrics, recentActivity] = await Promise.all([
+  const [metricsResult, activityResult] = await Promise.all([
     getAdminMetrics(),
     getRecentActivity(),
   ]);
+
+  const { hasError: metricsError, ...metrics } = metricsResult;
+  const { activities: recentActivity, hasError: activityError } = activityResult;
 
   const hasPendingPhysicians = metrics.pendingPhysicians > 0;
 
@@ -575,6 +589,14 @@ export default async function AdminDashboardPage() {
           )}
         </div>
       </div>
+
+      {/* Error Banner */}
+      {metricsError && (
+        <div className="mx-6 mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+          <p className="text-sm font-medium text-amber-800">Some dashboard data may be unavailable</p>
+          <p className="text-sm text-amber-600 mt-1">Database connection issues detected. Displayed values may not be current.</p>
+        </div>
+      )}
 
       {/* Key Metrics Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
@@ -646,7 +668,7 @@ export default async function AdminDashboardPage() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Recent Activity - Takes up 2 columns */}
         <div className="lg:col-span-2">
-          <RecentActivityCard activities={recentActivity} />
+          <RecentActivityCard activities={recentActivity} hasError={activityError} />
         </div>
 
         {/* Right Column */}

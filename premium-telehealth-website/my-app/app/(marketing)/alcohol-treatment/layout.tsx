@@ -4,6 +4,12 @@ export const metadata: Metadata = {
   title: "Alcohol Addiction Treatment",
   description:
     "Physician-prescribed Naltrexone, Acamprosate, or Disulfiram for alcohol use disorder. No appointments. California-licensed physician review in 24 hours. $50/month.",
+  openGraph: {
+    title: "Alcohol Treatment — Rimal Health",
+    description:
+      "Physician-prescribed Naltrexone, Acamprosate, or Disulfiram for alcohol use disorder. No appointments. California-licensed physician review in 24 hours. $50/month.",
+    url: "/alcohol-treatment",
+  },
 };
 
 export default function AlcoholTreatmentLayout({

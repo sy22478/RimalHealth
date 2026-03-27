@@ -8,6 +8,12 @@ export const metadata: Metadata = {
   title: "Contact Us",
   description:
     "Get in touch with the Rimal Health team. We respond within 24 hours. For urgent medical questions, please contact a healthcare provider directly.",
+  openGraph: {
+    title: "Contact — Rimal Health",
+    description:
+      "Get in touch with the Rimal Health team. We respond within 24 hours. For urgent medical questions, please contact a healthcare provider directly.",
+    url: "/contact",
+  },
 };
 
 const contactDetails = [

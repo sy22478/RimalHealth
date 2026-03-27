@@ -27,10 +27,16 @@ interface CountdownTimerProps {
 
 function CountdownTimer({ initialSeconds, onComplete }: CountdownTimerProps) {
   const [seconds, setSeconds] = React.useState(initialSeconds);
+  const onCompleteRef = React.useRef(onComplete);
+
+  // Keep ref up to date with latest callback
+  React.useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   React.useEffect(() => {
     if (seconds <= 0) {
-      onComplete();
+      onCompleteRef.current();
       return;
     }
 
@@ -38,7 +44,7 @@ function CountdownTimer({ initialSeconds, onComplete }: CountdownTimerProps) {
       setSeconds((prev) => {
         if (prev <= 1) {
           clearInterval(interval);
-          onComplete();
+          onCompleteRef.current();
           return 0;
         }
         return prev - 1;
@@ -46,7 +52,8 @@ function CountdownTimer({ initialSeconds, onComplete }: CountdownTimerProps) {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [seconds, onComplete]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = seconds % 60;

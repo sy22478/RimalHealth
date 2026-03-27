@@ -4,6 +4,12 @@ export const metadata: Metadata = {
   title: "Frequently Asked Questions",
   description:
     "Answers to common questions about our process, medications, pricing, privacy, and eligibility for medication-assisted addiction treatment.",
+  openGraph: {
+    title: "FAQ — Rimal Health",
+    description:
+      "Answers to common questions about our process, medications, pricing, privacy, and eligibility for medication-assisted addiction treatment.",
+    url: "/faq",
+  },
 };
 
 export default function FAQLayout({

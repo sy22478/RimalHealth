@@ -55,6 +55,14 @@ export interface IntakeWithPatient {
       state: string;
       zipCode: string;
     } | null;
+    preferredPharmacy?: {
+      name: string;
+      phone: string | null;
+      address: string;
+      city: string;
+      state: string;
+      zipCode: string;
+    } | null;
   };
   previousIntakes?: Array<{
     id: string;

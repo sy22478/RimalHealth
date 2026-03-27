@@ -124,6 +124,13 @@ export async function submitReview(
     // Create prescription if approved
     let prescriptionId: string | undefined;
     if (decision === ReviewDecision.APPROVE && submission.medication) {
+      // Look up patient's preferred pharmacy for the prescription
+      const patientProfile = await prisma.patientProfile.findUnique({
+        where: { userId: intake.patientId },
+        include: { preferredPharmacy: true },
+      });
+      const pharmacy = patientProfile?.preferredPharmacy;
+
       const prescription = await prisma.prescription.create({
         data: {
           intakeId,
@@ -135,8 +142,11 @@ export async function submitReview(
           refills: submission.medication.refills,
           refillsRemaining: submission.medication.refills,
           instructions: submission.medication.instructions,
-          pharmacyName: 'Pending', // Will be set when e-prescribed
-          pharmacyNcpdpId: 'PENDING',
+          pharmacyName: pharmacy?.name || 'Pending',
+          pharmacyNcpdpId: pharmacy?.ncpdpId || 'PENDING',
+          pharmacyPhone: pharmacy?.phone,
+          pharmacyAddress: pharmacy ? `${pharmacy.address}, ${pharmacy.city}, ${pharmacy.state} ${pharmacy.zipCode}` : undefined,
+          pharmacyId: pharmacy?.id,
           status: 'PENDING',
         },
       });
@@ -181,7 +191,11 @@ export async function getIntakeForReview(
       include: {
         patient: {
           include: {
-            patientProfile: true,
+            patientProfile: {
+              include: {
+                preferredPharmacy: true,
+              },
+            },
           },
         },
       },
@@ -232,6 +246,14 @@ export async function getIntakeForReview(
           city: profile.addressCity || '',
           state: profile.addressState || '',
           zipCode: profile.addressZip || '',
+        } : null,
+        preferredPharmacy: profile?.preferredPharmacy ? {
+          name: profile.preferredPharmacy.name,
+          phone: profile.preferredPharmacy.phone,
+          address: profile.preferredPharmacy.address,
+          city: profile.preferredPharmacy.city,
+          state: profile.preferredPharmacy.state,
+          zipCode: profile.preferredPharmacy.zipCode,
         } : null,
       },
     };

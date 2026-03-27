@@ -31,7 +31,7 @@ export default function AlcoholTreatmentPage() {
               <div className="flex flex-col sm:flex-row gap-3 mt-8">
                 <Link
                   href="/pricing"
-                  className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-ocean-500 text-white font-semibold rounded-lg hover:shadow-lg transition-shadow"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-navy-500 to-ocean-500 text-white font-semibold rounded-lg hover:shadow-lg transition-shadow"
                 >
                   Start treatment — $50/month
                   <ArrowRight className="w-5 h-5" />
@@ -597,7 +597,7 @@ export default function AlcoholTreatmentPage() {
             </p>
             <Link
               href="/pricing"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-ocean-500 text-white font-semibold rounded-lg hover:shadow-lg transition-shadow"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-navy-500 to-ocean-500 text-white font-semibold rounded-lg hover:shadow-lg transition-shadow"
             >
               Get started
               <ArrowRight className="w-5 h-5" />
@@ -621,7 +621,7 @@ export default function AlcoholTreatmentPage() {
             </p>
             <Link
               href="/pricing"
-              className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-500 to-ocean-500 text-white font-semibold rounded-lg hover:shadow-lg transition-shadow text-lg"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-navy-500 to-ocean-500 text-white font-semibold rounded-lg hover:shadow-lg transition-shadow text-lg"
             >
               Start treatment — $50/month
               <ArrowRight className="w-6 h-6" />

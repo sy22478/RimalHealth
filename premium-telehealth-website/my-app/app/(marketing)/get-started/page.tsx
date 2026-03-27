@@ -72,7 +72,7 @@ export default function GetStartedPage({
 
             <Link
               href="/pricing"
-              className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-500 to-ocean-500 text-white font-semibold rounded-lg shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5 transition-all duration-200"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-navy-500 to-ocean-500 text-white font-semibold rounded-lg shadow-lg shadow-navy-500/20 hover:shadow-xl hover:shadow-navy-500/30 hover:-translate-y-0.5 transition-all duration-200"
             >
               View Pricing & Plans
               <ArrowRight className="w-5 h-5" />

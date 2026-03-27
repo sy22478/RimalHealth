@@ -272,7 +272,7 @@ export default function IntakeSuccessPage() {
           <Link href="/patient/dashboard">
             <Button
               size="lg"
-              className="bg-gradient-to-r from-blue-500 to-ocean-500 hover:from-blue-600 hover:to-ocean-600 text-white"
+              className="bg-gradient-to-r from-navy-500 to-ocean-500 hover:from-navy-600 hover:to-ocean-500 text-white"
             >
               Go to My Dashboard
               <ArrowRight className="h-4 w-4 ml-2" />

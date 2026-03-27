@@ -180,6 +180,114 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
 Admin has access to all routes (`if (role === Role.ADMIN) return true` in middleware).
 
+### 3.5 API Route Catalog
+
+**Auth** (`app/api/auth/`):
+| Route | Methods | Auth | Purpose |
+|-------|---------|------|---------|
+| `/api/auth/login` | POST | None | Login with email/password, returns JWT |
+| `/api/auth/signup` | POST | None | Patient registration |
+| `/api/auth/logout` | POST | Any | Clears auth cookies |
+| `/api/auth/refresh` | POST | Refresh token | Issues new access token |
+| `/api/auth/forgot-password` | POST | None | Sends password reset email |
+| `/api/auth/reset-password` | POST | None | Resets password with token |
+| `/api/auth/verify-email` | POST | None | Verifies email with token |
+| `/api/auth/send-verification` | POST | PATIENT | Sends verification email |
+| `/api/auth/verify-token` | GET | None | Validates token (password reset, email verify) |
+| `/api/auth/set-password-token` | GET | None | Validates set-password token |
+| `/api/auth/mfa/setup` | POST | Any | Generates MFA TOTP secret |
+| `/api/auth/mfa/verify-setup` | POST | Any | Confirms MFA setup with TOTP code |
+| `/api/auth/mfa/verify` | POST | Any | Verifies MFA code during login |
+| `/api/auth/mfa/disable` | POST | Any | Disables MFA |
+
+**CSRF** (`app/api/csrf/`):
+| Route | Methods | Auth | Purpose |
+|-------|---------|------|---------|
+| `/api/csrf` | GET | Any | Returns CSRF token, sets double-submit cookie |
+
+**Checkout** (`app/api/checkout/`):
+| Route | Methods | Auth | Purpose |
+|-------|---------|------|---------|
+| `/api/checkout/consent` | POST | None | Records consent (42 CFR Part 2 compliant) |
+
+**Stripe** (`app/api/stripe/`):
+| Route | Methods | Auth | Purpose |
+|-------|---------|------|---------|
+| `/api/stripe/public-checkout-session` | POST | None | Creates Stripe checkout session (public) |
+| `/api/stripe/checkout-session` | POST | PATIENT | Creates authenticated checkout session |
+| `/api/stripe/customer-portal` | POST | PATIENT | Creates Stripe customer portal session |
+| `/api/stripe/subscription` | GET | PATIENT | Gets subscription status |
+
+**Webhooks** (`app/api/webhooks/`):
+| Route | Methods | Auth | Purpose |
+|-------|---------|------|---------|
+| `/api/webhooks/stripe` | POST | Stripe sig | Handles checkout.session.completed, invoice events |
+| `/api/webhooks/dosespot` | POST | DoseSpot sig | E-prescribing notifications (ON HOLD) |
+
+**Patient** (`app/api/patient/`):
+| Route | Methods | Auth | Purpose |
+|-------|---------|------|---------|
+| `/api/patient/profile` | GET, PUT | PATIENT | View/update patient profile |
+| `/api/patient/profile/password` | PUT | PATIENT | Change password |
+| `/api/patient/profile/preferences` | GET, PUT | PATIENT | Notification preferences |
+| `/api/patient/intake` | GET, POST | PATIENT | Get/submit intake form |
+| `/api/patient/intake/save` | POST | PATIENT | Auto-save intake draft |
+| `/api/patient/messages` | GET, POST | PATIENT | List/send messages |
+| `/api/patient/messages/count` | GET | PATIENT | Unread message count |
+| `/api/patient/prescriptions` | GET | PATIENT | List prescriptions |
+| `/api/patient/prescriptions/[id]/refill` | POST | PATIENT | Request refill |
+| `/api/patient/documents` | GET, POST | PATIENT | List/upload documents |
+| `/api/patient/documents/[id]` | GET, DELETE | PATIENT | View/delete document |
+| `/api/patient/documents/[id]/download` | GET | PATIENT | Download document |
+| `/api/patient/documents/upload-url` | POST | PATIENT | Get presigned upload URL |
+| `/api/patient/billing` | GET | PATIENT | Billing history |
+| `/api/patient/billing/cancel` | POST | PATIENT | Cancel subscription |
+| `/api/patient/pharmacies/search` | GET | PATIENT | Search pharmacies by name/zip |
+| `/api/patient/onboarding/start` | POST | PATIENT | Start onboarding flow |
+| `/api/patient/onboarding/complete` | POST | PATIENT | Complete onboarding |
+| `/api/patient/consent` | GET, POST, PUT | PATIENT | List/create/revoke consent records (42 CFR) |
+| `/api/patient/consent/[id]/pdf` | GET | PATIENT | Download consent as text |
+| `/api/patient/disclosures` | GET | PATIENT | Accounting of disclosures (42 CFR) |
+| `/api/patient/disclosure-restrictions` | GET, POST | PATIENT | Disclosure restriction requests (42 CFR) |
+
+**Physician** (`app/api/physician/`):
+| Route | Methods | Auth | Purpose |
+|-------|---------|------|---------|
+| `/api/physician/verify-key` | POST | None | Verify physician secret key |
+| `/api/physician/queue` | GET | PHYSICIAN | Intake review queue |
+| `/api/physician/patients` | GET | PHYSICIAN | Patient list |
+| `/api/physician/patients/[id]` | GET | PHYSICIAN | Patient detail |
+| `/api/physician/intake/[id]` | GET | PHYSICIAN | View intake for review |
+| `/api/physician/intake/[id]/review` | POST | PHYSICIAN | Submit review decision |
+| `/api/physician/prescriptions` | GET, POST | PHYSICIAN | List/create prescriptions |
+| `/api/physician/prescriptions/[id]` | GET, PUT | PHYSICIAN | View/update prescription |
+| `/api/physician/messages` | GET | PHYSICIAN | List messages |
+| `/api/physician/messages/send` | POST | PHYSICIAN | Send message to patient |
+| `/api/physician/messages/count` | GET | PHYSICIAN | Unread count |
+| `/api/physician/messages/[id]/read` | PUT | PHYSICIAN | Mark message read |
+| `/api/physician/stats` | GET | PHYSICIAN | Dashboard statistics |
+| `/api/physician/colleagues` | GET | PHYSICIAN | List other physicians |
+| `/api/physician/pharmacies/search` | GET | PHYSICIAN | Search pharmacies |
+| `/api/physician/settings` | GET, PUT | PHYSICIAN | Physician settings |
+| `/api/physician/notes` | GET, POST | PHYSICIAN | Patient notes |
+
+**Admin** (`app/api/admin/`):
+| Route | Methods | Auth | Purpose |
+|-------|---------|------|---------|
+| `/api/admin/physicians` | GET, POST | ADMIN | List/invite physicians |
+| `/api/admin/physicians/[id]` | GET, PUT, DELETE | ADMIN | Manage physician |
+| `/api/admin/physicians/[id]/authorize` | POST | ADMIN | Authorize physician |
+| `/api/admin/physicians/[id]/suspend` | POST | ADMIN | Suspend physician |
+| `/api/admin/physicians/[id]/reactivate` | POST | ADMIN | Reactivate physician |
+| `/api/admin/physicians/[id]/reset-key` | POST | ADMIN | Reset physician secret key |
+
+**Other:**
+| Route | Methods | Auth | Purpose |
+|-------|---------|------|---------|
+| `/api/health` | GET | None | Health check |
+| `/api/contact` | POST | None | Contact form submission |
+| `/api/cron/process-email-retry` | GET | CRON_SECRET | Process email retry queue |
+
 ---
 
 ## 4. DATA FLOW PATTERNS
@@ -213,13 +321,15 @@ Admin has access to all routes (`if (role === Role.ADMIN) return true` in middle
 
 No signup form -- patients enter through payment:
 
-1. Landing CTA -> `/checkout/payment` (public) -> `POST /api/stripe/public-checkout-session` -> Stripe-hosted checkout
-2. Stripe webhook (`checkout.session.completed`) auto-creates User (PATIENT, random password) + PatientProfile + Subscription, sends SET_PASSWORD email
-3. Patient sets password at `/set-password` -> logs in -> `/patient/dashboard`
-4. Intake form at `/intake` (requires active subscription) -> auto-saves drafts -> submits -> AUDIT-C scoring -> notifies physicians
-5. Physician reviews at `/physician/intake/[id]` -> approves/rejects/requests-info
+1. Landing CTA -> `/checkout/consent` (8 checkboxes including 42 CFR Part 2) -> `/checkout/payment` (public) -> `POST /api/stripe/public-checkout-session` -> Stripe-hosted checkout
+2. Stripe webhook (`checkout.session.completed`) auto-creates User (PATIENT, emailVerified=false, random password) + PatientProfile + Subscription in `prisma.$transaction()`, sends receipt + CREATE_ACCOUNT email
+3. Patient creates account at `/create-account` (token-based, read-only email, sets password)
+4. Email verification at `/verify-email` (login enforces `emailVerified=true` for PATIENT)
+5. Login -> intake gate in `patient/layout.tsx` (server component) redirects to `/intake` if no submitted intake
+6. Intake form at `/intake` (34 questions, 7 sections, DSM-5 format) -> auto-saves to server every 30s (NO browser storage for PHI) -> submits -> 4 scoring functions (DSM-5, contraindications, withdrawal risk, provider decision summary) -> notifies physicians
+7. Physician reviews at `/physician/intake/[id]` -> sees provider decision summary -> approves/rejects/requests-info
 
-**Key files:** `app/api/webhooks/stripe/route.ts` (user creation), `app/intake/IntakeClient.tsx` (1,444-line wizard), `lib/intake/scoring.ts` (AUDIT-C algorithm).
+**Key files:** `app/api/webhooks/stripe/route.ts` (user creation), `app/intake/IntakeClient.tsx` (34-question wizard), `lib/intake/scoring.ts` (DSM-5 + contraindications + withdrawal + decision summary), `app/patient/layout.tsx` (intake gate).
 
 ---
 

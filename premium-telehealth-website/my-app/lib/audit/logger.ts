@@ -245,9 +245,47 @@ export class AuditLogger {
   }
 
   /**
+   * Log PHI disclosure events (42 CFR Part 2)
+   * Tracks who disclosed PHI, to whom, what was disclosed, and why
+   */
+  async logDisclosure(
+    userId: string,
+    userRole: string,
+    targetPatientId: string,
+    context: AuditContext,
+    disclosure: {
+      recipientDescription: string;
+      dataCategories: string[];
+      purpose: string;
+      legalBasis: string;
+    }
+  ): Promise<void> {
+    await this.log({
+      eventType: AuditEventType.PHI_DISCLOSURE,
+      userId,
+      userRole,
+      targetUserId: targetPatientId,
+      resourceType: 'PHI_DISCLOSURE',
+      action: `PHI disclosed to ${disclosure.recipientDescription}`,
+      ipAddress: context.ipAddress,
+      userAgent: context.userAgent,
+      success: true,
+      severity: AuditSeverity.WARNING,
+      metadata: {
+        recipientDescription: disclosure.recipientDescription,
+        dataCategories: disclosure.dataCategories,
+        purpose: disclosure.purpose,
+        legalBasis: disclosure.legalBasis,
+      },
+      requestId: context.requestId,
+      timestamp: new Date(),
+    });
+  }
+
+  /**
    * Log data modification events
    * Tracks create, update, and delete operations with field-level changes
-   * 
+   *
    * @param action - Type of modification
    * @param userId - User making the modification
    * @param resourceType - Type of resource being modified

@@ -167,7 +167,7 @@ function VerifyEmailContent(): React.JSX.Element {
           <div className="mt-6">
             <Button
               onClick={() => router.push('/login')}
-              className="w-full rounded-full h-11 font-semibold bg-gradient-to-r from-blue-500 to-ocean-500 hover:from-blue-600 hover:to-ocean-600 shadow-lg shadow-ocean/20 transition-all duration-200"
+              className="w-full rounded-full h-11 font-semibold bg-gradient-to-r from-navy-500 to-ocean-500 hover:from-navy-600 hover:to-ocean-500 shadow-lg shadow-ocean/20 transition-all duration-200"
             >
               Go to Login Now
               <ArrowRight className="ml-2 h-4 w-4" />

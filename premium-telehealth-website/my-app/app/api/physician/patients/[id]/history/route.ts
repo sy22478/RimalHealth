@@ -68,6 +68,7 @@ async function buildPatientHistory(patientId: string): Promise<HistoryEvent[]> {
     // Get intakes with review (singular relation)
     prisma.intake.findMany({
       where: { patientId: patientId },
+      take: 50,
       orderBy: { createdAt: 'desc' },
       include: {
         review: true,
@@ -76,6 +77,7 @@ async function buildPatientHistory(patientId: string): Promise<HistoryEvent[]> {
     // Get prescriptions
     prisma.prescription.findMany({
       where: { patientId: patientId },
+      take: 50,
       orderBy: { createdAt: 'desc' },
     }),
     // Get messages (using recipientId or senderId)
@@ -86,6 +88,7 @@ async function buildPatientHistory(patientId: string): Promise<HistoryEvent[]> {
           { senderId: patientId },
         ],
       },
+      take: 50,
       orderBy: { sentAt: 'desc' },
     }),
     // Get clinical notes (using raw query to handle model extension issues)
@@ -110,6 +113,7 @@ async function buildPatientHistory(patientId: string): Promise<HistoryEvent[]> {
       JOIN physicians p ON p.id = pn.physician_id
       WHERE pn.patient_id = ${patientId}
       ORDER BY pn.created_at DESC
+      LIMIT 50
     `.catch(() => []),
     // Get refill requests (if model exists)
     prisma.$queryRaw<Array<{
@@ -122,6 +126,7 @@ async function buildPatientHistory(patientId: string): Promise<HistoryEvent[]> {
       FROM refill_requests
       WHERE patient_id = ${patientId}
       ORDER BY created_at DESC
+      LIMIT 50
     `.catch(() => []), // Gracefully handle if table doesn't exist yet
   ]);
 
