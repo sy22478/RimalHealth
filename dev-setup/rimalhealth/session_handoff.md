@@ -8,9 +8,11 @@
 
 ## 1. Where We Are
 
-**45 of 81 tasks complete (56%).** All P0 security issues fixed. App flow redesigned. 42 CFR Part 2 Phase 1 done. Accessibility pass done. CSRF wired in. Tests written. Build passes. Deployed to production.
+**65 of 81 tasks complete (80%).** All P0 + P1 done. Most P2/P3 done. App flow redesigned. 42 CFR Part 2 Phase 1 done. Patient MFA implemented. 356 unit tests. Deployed to production.
 
-**Architecture health: 3.7/5** (up from 2.8/5 at start of sprint).
+**Architecture health: ~4.2/5** (up from 2.8/5 at start of sprint).
+
+**CRITICAL:** SendGrid does NOT sign BAAs — must migrate to AWS SES. See `email_provider_evaluation.md`.
 
 ## 2. What To Read (In Order)
 
@@ -158,4 +160,28 @@ PM Deployment Guide in skills_matrix.md has common patterns.
 - **TypeScript:** Passes clean (zero errors)
 - **Build:** Passes clean (all routes compiled)
 - **Last deploy:** 2026-03-26 to https://rimalhealth.com (health check 200 OK)
-- **Uncommitted changes:** YES — 60+ files modified since last commit. Need to commit before next deploy.
+- **Last commit:** `d2ad950` — all changes committed
+- **Last deploy:** 2026-03-26 — `https://rimalhealth.com` (health check 200 OK)
+- **Git push:** Failed — remote repo not found. User needs to verify remote URL: `git remote -v`
+- **Tests:** 356 passing (12 test files)
+
+## 8. Remaining Tasks (16 items)
+
+### User Action Required (5)
+- 1.1.1-1.1.2: Rotate Neon DB password + Netlify auth token
+- 1.3.1-1.3.5: Verify BAAs with vendors
+
+### Code Tasks (5)
+- 4.1: Data retention automation (deletedAt columns, scheduled cleanup)
+- 4.4.2: React Compiler evaluation
+- 5.1.3: DoseSpot replacement (ON HOLD — evaluating alternatives)
+- 7.1.3: Update build_instructions.md with new API routes
+
+### Compliance Phase 2-3 (6)
+- 6.1: Accounting of disclosures API + UI
+- 6.2: ConsentRecord Prisma model + revocation workflow
+- 6.3: Disclosure restriction requests
+
+### CRITICAL: SendGrid -> AWS SES Migration
+SendGrid refuses BAAs. Must migrate to AWS SES for HIPAA compliance.
+See `dev-setup/rimalhealth/email_provider_evaluation.md` for migration plan.
