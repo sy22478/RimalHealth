@@ -134,9 +134,9 @@
   - [x] 4.2.4 Delete orphaned `lib/db/encryption-middleware.ts` (25 lines)
   - [x] 4.2.5 Delete orphaned `lib/db/encryption.ts` (37 lines)
 
-- [~] **4.3 Session & Security**
+- [x] **4.3 Session & Security**
   - [x] 4.3.1 Move session timeout check BEFORE user header injection in `middleware.ts`
-  - [ ] 4.3.2 Implement in-memory fallback rate limiter for auth when Redis is down
+  - [x] 4.3.2 Implement in-memory fallback rate limiter for auth when Redis is down -- added `useMemoryFallback` option to RateLimitConfig; Map-based fallback with periodic cleanup; enabled on `auth` and `strict` presets; general API still fails open
   - [x] 4.3.3 Add timing-safe comparison for token lookups
 
 - [~] **4.4 Performance**
@@ -153,14 +153,14 @@
 
 - [~] **5.1 Integrations**
   - [x] 5.1.1 Implement subscription cancellation email (`app/api/patient/billing/cancel/route.ts`) -- added `sendEmail()` with `SUBSCRIPTION_CANCELLED` template; HIPAA-safe (no PHI, directs user to log in)
-  - [ ] 5.1.2 Implement email retry worker for `notifications:email:retry` Redis queue
+  - [x] 5.1.2 Implement email retry worker for `notifications:email:retry` Redis queue -- created `app/api/cron/process-email-retry/route.ts` with CRON_SECRET auth, calls `processRetryQueue()`, returns processed/remaining/dead-lettered counts; added CRON_SECRET to `.env.example`
   - [ ] 5.1.3 DoseSpot production mode (currently always mock)
 
-- [~] **5.2 Minor Quality**
+- [x] **5.2 Minor Quality**
   - [x] 5.2.1 Replace `'CONSENT_RECORDED'` string literal with AuditEventType enum -- added `CONSENT_RECORDED` to `AuditEventType` enum, updated consent route import
   - [x] 5.2.2 Remove dead `notes` parameter from `NotificationService.notifyReviewComplete()` -- removed from standalone function, static class method, and physician review caller
-  - [ ] 5.2.3 Document encryption salt rotation plan
-  - [ ] 5.2.4 Document rollback strategy for flow redesign
+  - [x] 5.2.3 Document encryption salt rotation plan -- added 15-line comment block in `lib/encryption/phi.ts` above `scryptSync` call documenting why salt is hardcoded, how to rotate, risks, and recommendation
+  - [x] 5.2.4 Document rollback strategy for flow redesign -- created `dev-setup/rimalhealth/rollback_strategy.md` with key commits, database considerations, feature flag kill switches, and monitoring checklist
 
 ---
 
@@ -209,11 +209,11 @@
 
 ## TASK 8: SendGrid BAA Evaluation
 
-- [ ] **8.1 Email Provider**
-  - [ ] 8.1.1 Research SendGrid BAA requirements
-  - [ ] 8.1.2 Research AWS SES BAA + integration effort
-  - [ ] 8.1.3 Research Postmark BAA + integration effort
-  - [ ] 8.1.4 Produce recommendation report
+- [x] **8.1 Email Provider**
+  - [x] 8.1.1 Research SendGrid BAA requirements -- SendGrid does NOT sign BAAs (confirmed via Twilio docs)
+  - [x] 8.1.2 Research AWS SES BAA + integration effort -- SES signs BAA (self-service via AWS Artifact, no extra cost); moderate integration effort (1 file rewrite)
+  - [x] 8.1.3 Research Postmark BAA + integration effort -- Postmark does NOT sign BAAs
+  - [x] 8.1.4 Produce recommendation report -- written to `dev-setup/rimalhealth/email_provider_evaluation.md`; recommendation: **migrate to AWS SES** (BAA available, cheapest, already using AWS for S3)
 
 ---
 

@@ -48,8 +48,27 @@ function getEncryptionKey(): Buffer {
     );
   }
 
-  // Derive 32-byte key from provided key using scrypt
-  // Using a fixed salt is acceptable here since the input key is already high-entropy
+  // Derive 32-byte key from provided key using scrypt.
+  //
+  // ── Salt Rotation Plan ──────────────────────────────────────────────
+  // The salt 'phi_encryption_salt_v1' is intentionally hardcoded so that
+  // the same derived key is produced on every app instance. This is safe
+  // because the input key (PHI_ENCRYPTION_KEY) is already high-entropy
+  // (≥256 bits). The salt merely acts as a domain separator for scrypt.
+  //
+  // How to rotate the salt:
+  //   1. Deploy a migration script that reads every encrypted column,
+  //      decrypts with the current salt, re-encrypts with the new salt,
+  //      and writes the result back inside a transaction.
+  //   2. Update the salt string below (e.g. 'phi_encryption_salt_v2').
+  //   3. Invalidate cachedKey/cachedRawKey so the new derivation runs.
+  //
+  // Risk: changing the salt WITHOUT re-encrypting existing rows makes
+  //       all previously encrypted data permanently unreadable.
+  //
+  // Recommendation: salt rotation should only happen during a planned
+  //       maintenance window with a tested migration, never ad-hoc.
+  // ────────────────────────────────────────────────────────────────────
   const derivedKey = scryptSync(key, 'phi_encryption_salt_v1', KEY_LENGTH);
   
   // Cache for performance

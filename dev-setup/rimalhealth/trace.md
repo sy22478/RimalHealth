@@ -416,3 +416,19 @@
 
 **ALL P1 TASKS COMPLETE.** Remaining: P2, P3, Compliance Phase 2-3, Evaluation.
 
+**AD6: Infrastructure Cleanup** (47K tokens, 24 tool calls) — DONE
+- GitHub Actions upgraded (v1->v2, v3->v4)
+- Duplicate netlify.toml headers removed
+- Session timeout moved before header injection
+- Timing-safe token comparison added
+- npm audit fix (remaining vulns need major bumps)
+
+**AD7: Performance + Quick Wins** (61K tokens, 53 tool calls) — DONE
+- Neon pooler docs added to prisma.ts
+- PPR enabled for 5 marketing pages
+- Subscription cancellation email implemented (was TODO)
+- CONSENT_RECORDED enum fix
+- Dead notes parameter removed
+
+- **[PM-029]** 2026-03-26 — AutoDream Wave 3 complete. ~108K tokens, 77 tool calls. Committed as `97d271c`. 356 tests passing.
+

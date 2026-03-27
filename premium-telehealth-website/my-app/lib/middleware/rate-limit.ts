@@ -5,7 +5,9 @@
  * HIPAA Compliance Notes:
  * - No PHI stored in rate limit keys (use hashed identifiers)
  * - IP addresses are transient and not logged with PHI
- * - Fails open (allows requests) if Redis is unavailable
+ * - General endpoints fail open (allow requests) if Redis is unavailable
+ * - Auth-critical endpoints use an in-memory fallback (`useMemoryFallback`)
+ *   to prevent brute-force attacks when Redis is down
  * 
  * @module lib/middleware/rate-limit
  */
@@ -27,6 +29,18 @@ export interface RateLimitConfig {
   windowMs: number;
   /** Redis key prefix for rate limit entries (default: 'ratelimit') */
   keyPrefix?: string;
+  /**
+   * When true, an in-memory Map-based rate limiter kicks in if Redis is
+   * unavailable. This prevents brute-force attacks on auth-critical
+   * endpoints even when Redis is down.
+   *
+   * Should ONLY be enabled for auth endpoints (login, password reset,
+   * send-verification, verify-token, verify-email, MFA verify).
+   * General API rate limiting can still fail open.
+   *
+   * @default false
+   */
+  useMemoryFallback?: boolean;
 }
 
 /**
@@ -65,6 +79,7 @@ const DEFAULT_CONFIG: Required<RateLimitConfig> = {
   requests: 5,
   windowMs: 15 * 60 * 1000, // 15 minutes
   keyPrefix: 'ratelimit',
+  useMemoryFallback: false,
 };
 
 // ============================================================================
@@ -87,17 +102,20 @@ export const rateLimitPresets: RateLimitPresets = {
   /**
    * Authentication endpoints preset
    * - 5 requests per 15 minutes
+   * - In-memory fallback enabled (auth-critical)
    * - Use for: login, password reset, registration
    */
   auth: {
     requests: 5,
     windowMs: 15 * 60 * 1000, // 15 minutes
     keyPrefix: 'ratelimit:auth',
+    useMemoryFallback: true,
   },
-  
+
   /**
    * General API endpoints preset
    * - 100 requests per minute
+   * - No memory fallback (fails open if Redis is down)
    * - Use for: general API consumption
    */
   api: {
@@ -105,18 +123,107 @@ export const rateLimitPresets: RateLimitPresets = {
     windowMs: 60 * 1000, // 1 minute
     keyPrefix: 'ratelimit:api',
   },
-  
+
   /**
    * Strict rate limiting preset
    * - 3 requests per hour
+   * - In-memory fallback enabled (auth-critical)
    * - Use for: sensitive operations, password changes, 2FA
    */
   strict: {
     requests: 3,
     windowMs: 60 * 60 * 1000, // 1 hour
     keyPrefix: 'ratelimit:strict',
+    useMemoryFallback: true,
   },
 };
+
+// ============================================================================
+// In-Memory Fallback Rate Limiter
+// ============================================================================
+
+/**
+ * Simple in-memory rate limiter used as a fallback when Redis is unavailable.
+ * Only activated for auth-critical endpoints via `useMemoryFallback: true`.
+ *
+ * Uses a Map<string, { count, resetAt }> with periodic cleanup.
+ * Not shared across server instances — acceptable for a last-resort
+ * brute-force guard, not a substitute for Redis.
+ */
+interface MemoryBucket {
+  count: number;
+  resetAt: number;
+}
+
+const memoryStore = new Map<string, MemoryBucket>();
+
+/** Cleanup interval handle (lazy-initialized) */
+let cleanupInterval: ReturnType<typeof setInterval> | null = null;
+
+/** Cleanup every 60 seconds to avoid unbounded memory growth */
+const CLEANUP_INTERVAL_MS = 60_000;
+
+function ensureCleanupScheduled(): void {
+  if (cleanupInterval) return;
+  cleanupInterval = setInterval(() => {
+    const now = Date.now();
+    for (const [key, bucket] of memoryStore) {
+      if (now >= bucket.resetAt) {
+        memoryStore.delete(key);
+      }
+    }
+  }, CLEANUP_INTERVAL_MS);
+  // Allow the process to exit even if the interval is still running
+  if (typeof cleanupInterval === 'object' && 'unref' in cleanupInterval) {
+    cleanupInterval.unref();
+  }
+}
+
+/**
+ * Check rate limit using the in-memory store.
+ * Returns same shape as the Redis-based rateLimit().
+ */
+function memoryRateLimit(
+  identifier: string,
+  config: Required<RateLimitConfig>
+): RateLimitResult {
+  ensureCleanupScheduled();
+
+  const { requests: limit, windowMs, keyPrefix } = config;
+  const key = `${keyPrefix}:${identifier}`;
+  const now = Date.now();
+
+  let bucket = memoryStore.get(key);
+
+  // Expired or new — start a fresh window
+  if (!bucket || now >= bucket.resetAt) {
+    bucket = { count: 0, resetAt: now + windowMs };
+    memoryStore.set(key, bucket);
+  }
+
+  bucket.count += 1;
+
+  if (bucket.count > limit) {
+    const retryAfter = Math.max(1, Math.ceil((bucket.resetAt - now) / 1000));
+    return {
+      success: false,
+      limit,
+      remaining: 0,
+      reset: Math.ceil(bucket.resetAt / 1000),
+      retryAfter,
+    };
+  }
+
+  return {
+    success: true,
+    limit,
+    remaining: Math.max(0, limit - bucket.count),
+    reset: Math.ceil(bucket.resetAt / 1000),
+  };
+}
+
+// Exported for testing
+export { memoryStore as _memoryStoreForTesting };
 
 // ============================================================================
 // Core Rate Limit Function
@@ -165,6 +272,7 @@ export async function rateLimit(
     requests: config?.requests ?? DEFAULT_CONFIG.requests,
     windowMs: config?.windowMs ?? DEFAULT_CONFIG.windowMs,
     keyPrefix: config?.keyPrefix ?? DEFAULT_CONFIG.keyPrefix,
+    useMemoryFallback: config?.useMemoryFallback ?? false,
   };
 
   const { requests: limit, windowMs, keyPrefix } = mergedConfig;
@@ -260,9 +368,17 @@ export async function rateLimit(
     };
 
   } catch (error) {
-    // Fail open: log error but allow request
+    // If useMemoryFallback is enabled (auth-critical endpoints), use the
+    // in-memory rate limiter instead of failing open. This prevents
+    // brute-force attacks when Redis is unavailable.
+    if (mergedConfig.useMemoryFallback) {
+      console.error('[RateLimit] Redis error, using in-memory fallback:', error instanceof Error ? error.message : 'Unknown error');
+      return memoryRateLimit(identifier, mergedConfig);
+    }
+
+    // For non-critical endpoints: fail open (allow requests)
     // This ensures availability even if Redis is down
-    console.error('[RateLimit] Redis error, allowing request:', error);
+    console.error('[RateLimit] Redis error, allowing request:', error instanceof Error ? error.message : 'Unknown error');
 
     // Return success with conservative remaining count
     return {
@@ -630,6 +746,7 @@ export async function getRateLimitStatus(
     requests: config?.requests ?? DEFAULT_CONFIG.requests,
     windowMs: config?.windowMs ?? DEFAULT_CONFIG.windowMs,
     keyPrefix: config?.keyPrefix ?? DEFAULT_CONFIG.keyPrefix,
+    useMemoryFallback: config?.useMemoryFallback ?? false,
   };
 
   const { requests: limit, windowMs, keyPrefix } = mergedConfig;
