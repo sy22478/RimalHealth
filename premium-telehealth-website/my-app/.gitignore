@@ -66,4 +66,4 @@ website-*.png
 
 # Build artifacts and audit screenshots
 .netlify/
-audit/
+/audit/

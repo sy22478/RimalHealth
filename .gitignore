@@ -58,5 +58,5 @@ previews/
 monitor-*.png
 website-*.png
 
-# Build artifacts
-audit/
+# Build artifacts and audit screenshots (anchored to repo root only)
+/audit/
