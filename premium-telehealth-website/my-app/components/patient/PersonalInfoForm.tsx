@@ -19,25 +19,27 @@ import { LoadingButton } from '@/components/ui/LoadingButton';
 
 const personalInfoSchema = z.object({
   firstName: z.string()
-    .min(1, 'First name is required')
-    .max(100, 'First name must be under 100 characters'),
+    .max(100, 'First name must be under 100 characters')
+    .optional().or(z.literal('')),
   lastName: z.string()
-    .min(1, 'Last name is required')
-    .max(100, 'Last name must be under 100 characters'),
+    .max(100, 'Last name must be under 100 characters')
+    .optional().or(z.literal('')),
   dateOfBirth: z.string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Please enter a valid date (YYYY-MM-DD)'),
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Please enter a valid date')
+    .optional().or(z.literal('')),
   phone: z.string()
-    .min(10, 'Phone number is required')
-    .regex(/^\+?1?\d{10,15}$/, 'Please enter a valid phone number'),
+    .regex(/^\+?1?\d{10,15}$/, 'Please enter a valid phone number')
+    .optional().or(z.literal('')),
   addressStreet: z.string()
-    .min(1, 'Street address is required')
-    .max(200, 'Address must be under 200 characters'),
+    .max(200, 'Address must be under 200 characters')
+    .optional().or(z.literal('')),
   addressCity: z.string()
-    .min(1, 'City is required')
-    .max(100, 'City must be under 100 characters'),
-  addressState: z.string().min(1, 'State is required'),
+    .max(100, 'City must be under 100 characters')
+    .optional().or(z.literal('')),
+  addressState: z.string().optional().or(z.literal('')),
   addressZip: z.string()
-    .regex(/^9\d{4}(-\d{4})?$/, 'Must be a valid California ZIP code (starts with 9)'),
+    .regex(/^9\d{4}(-\d{4})?$/, 'Must be a valid California ZIP code (starts with 9)')
+    .optional().or(z.literal('')),
   medicalHistory: z.string()
     .max(2000, 'Medical history must be under 2000 characters')
     .optional(),
@@ -552,6 +554,15 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{submitError}</AlertDescription>
+          </Alert>
+        )}
+
+        {Object.keys(errors).length > 0 && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Please fix the highlighted fields above before saving.
+            </AlertDescription>
           </Alert>
         )}
 
