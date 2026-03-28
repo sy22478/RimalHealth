@@ -123,7 +123,7 @@ function VerifyEmailContent(): React.JSX.Element {
   }, [token]);
 
   useEffect(() => {
-    verifyEmail();
+    void verifyEmail();
   }, [verifyEmail]);
 
   // Auto-redirect to login after successful verification

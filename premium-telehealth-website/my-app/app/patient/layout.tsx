@@ -81,9 +81,11 @@ export default async function PatientLayout({
     select: { mfaEnabled: true, createdAt: true },
   });
 
+  // eslint-disable-next-line react-hooks/purity -- Date.now() is safe in server components (single render per request)
+  const now = Date.now();
   if (user && !user.mfaEnabled) {
     const accountAgeDays = Math.floor(
-      (Date.now() - new Date(user.createdAt).getTime()) / (1000 * 60 * 60 * 24)
+      (now - new Date(user.createdAt).getTime()) / (1000 * 60 * 60 * 24)
     );
 
     if (accountAgeDays > MFA_GRACE_PERIOD_DAYS) {
@@ -109,7 +111,7 @@ export default async function PatientLayout({
   // when user is already on /patient/mfa-setup)
   const mfaRequired = user ? !user.mfaEnabled : false;
   const accountAgeDays = user
-    ? Math.floor((Date.now() - new Date(user.createdAt).getTime()) / (1000 * 60 * 60 * 24))
+    ? Math.floor((now - new Date(user.createdAt).getTime()) / (1000 * 60 * 60 * 24))
     : 0;
 
   return (
