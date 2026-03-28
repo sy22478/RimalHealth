@@ -75,7 +75,7 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/rimalhealth_test
           REDIS_URL: redis://localhost:6379
           JWT_SECRET: test-jwt-secret-for-ci
-          PHI_ENCRYPTION_KEY: test-encryption-key-for-ci-only
+          PHI_ENCRYPTION_KEY: ${{ secrets.PHI_ENCRYPTION_KEY }}
 
       - name: Run integration tests
         run: npm run test:integration
@@ -83,7 +83,7 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/rimalhealth_test
           REDIS_URL: redis://localhost:6379
           JWT_SECRET: test-jwt-secret-for-ci
-          PHI_ENCRYPTION_KEY: test-encryption-key-for-ci-only
+          PHI_ENCRYPTION_KEY: ${{ secrets.PHI_ENCRYPTION_KEY }}
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_TEST_WEBHOOK_SECRET }}
 
