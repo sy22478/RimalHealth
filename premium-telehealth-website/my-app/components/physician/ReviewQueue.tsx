@@ -122,7 +122,7 @@ function filterAndSortItems(
         comparison = a.waitTimeHours - b.waitTimeHours;
         break;
       case 'patientName':
-        comparison = a.patientName.localeCompare(b.patientName);
+        comparison = (a.patientName || '').localeCompare(b.patientName || '');
         break;
       case 'riskScore':
         comparison = (a.riskScore || 0) - (b.riskScore || 0);

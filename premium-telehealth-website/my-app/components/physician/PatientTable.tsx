@@ -128,7 +128,7 @@ function formatDate(date: Date | undefined): string {
  * Get initials from name
  */
 function getInitials(name: string): string {
-  return name
+  return (name || '?')
     .split(' ')
     .map((n) => n[0])
     .join('')
@@ -215,8 +215,8 @@ export function PatientTable({
       const query = searchQuery.toLowerCase();
       result = result.filter(
         (p) =>
-          p.name.toLowerCase().includes(query) ||
-          p.emailMasked.toLowerCase().includes(query)
+          (p.name || '').toLowerCase().includes(query) ||
+          (p.emailMasked || '').toLowerCase().includes(query)
       );
     }
 
@@ -230,7 +230,7 @@ export function PatientTable({
       let comparison = 0;
       switch (sort.column) {
         case 'name':
-          comparison = a.name.localeCompare(b.name);
+          comparison = (a.name || '').localeCompare(b.name || '');
           break;
         case 'age':
           comparison = a.age - b.age;
@@ -241,7 +241,7 @@ export function PatientTable({
           comparison = aDate - bDate;
           break;
         case 'status':
-          comparison = a.status.localeCompare(b.status);
+          comparison = (a.status || '').localeCompare(b.status || '');
           break;
       }
       return sort.direction === 'desc' ? -comparison : comparison;

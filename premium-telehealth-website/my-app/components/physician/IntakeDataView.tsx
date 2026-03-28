@@ -56,17 +56,127 @@ function SectionCard({
   );
 }
 
+// Label mappings for DSM-5 enum values
+const GOAL_LABELS: Record<string, string> = {
+  abstinence: 'Stop completely (abstinence)',
+  'harm-reduction': 'Reduce use (harm reduction)',
+  unsure: 'Unsure / exploring options',
+};
+
+const MOTIVATION_LABELS: Record<string, string> = {
+  very: 'Very motivated',
+  somewhat: 'Somewhat motivated',
+  unsure: 'Unsure',
+};
+
+const SUPPORT_LABELS: Record<string, string> = {
+  strong: 'Strong support system',
+  limited: 'Limited support',
+  none: 'No support system',
+};
+
+const PREGNANCY_LABELS: Record<string, string> = {
+  pregnant: 'Currently pregnant',
+  breastfeeding: 'Currently breastfeeding',
+  'planning-pregnancy': 'Planning pregnancy',
+  none: 'Not applicable',
+};
+
+const LIVER_LABELS: Record<string, string> = {
+  cirrhosis: 'Cirrhosis',
+  'acute-hepatitis': 'Acute hepatitis',
+  'liver-failure': 'Liver failure',
+  'elevated-enzymes': 'Elevated liver enzymes',
+  none: 'None',
+};
+
+const LIVER_TEST_LABELS: Record<string, string> = {
+  normal: 'Normal',
+  'mild-elevated': 'Mildly elevated',
+  'significant-elevated': 'Significantly elevated',
+  'no-tests': 'No recent tests',
+};
+
+const ALLERGY_LABELS: Record<string, string> = {
+  naltrexone: 'Naltrexone allergy',
+  other: 'Other medication allergy',
+  none: 'No known allergies',
+};
+
+const DRINKING_DAYS_LABELS: Record<string, string> = {
+  '1-2': '1-2 days per week',
+  '3-4': '3-4 days per week',
+  '5-6': '5-6 days per week',
+  everyday: 'Every day',
+};
+
+const DRINKS_PER_DAY_LABELS: Record<string, string> = {
+  '1-2': '1-2 drinks',
+  '3-4': '3-4 drinks',
+  '5-6': '5-6 drinks',
+  '7+': '7 or more drinks',
+};
+
+const LAST_DRINK_LABELS: Record<string, string> = {
+  today: 'Today',
+  yesterday: 'Yesterday',
+  '2-7days': '2-7 days ago',
+  'more-than-week': 'More than a week ago',
+};
+
+function formatMedicalCondition(condition: string): string {
+  const labels: Record<string, string> = {
+    depression: 'Depression',
+    anxiety: 'Anxiety',
+    bipolar: 'Bipolar disorder',
+    schizophrenia: 'Schizophrenia',
+    ptsd: 'PTSD',
+    seizures: 'Seizure history',
+    heart: 'Heart condition',
+    hypertension: 'Hypertension',
+    kidney: 'Kidney disease',
+    diabetes: 'Diabetes',
+    thyroid: 'Thyroid condition',
+  };
+  return labels[condition] || condition;
+}
+
+function formatTreatmentType(treatment: string): string {
+  const labels: Record<string, string> = {
+    'inpatient-rehab': 'Inpatient rehab',
+    'outpatient-program': 'Outpatient program',
+    'aa-12step': 'AA / 12-step program',
+    medication: 'Medication-assisted treatment',
+    counseling: 'Counseling / therapy',
+    detox: 'Medical detox',
+    none: 'None',
+  };
+  return labels[treatment] || treatment;
+}
+
 /**
  * Intake Data View Component
- * 
+ *
  * Displays patient intake form data in an organized, readable format.
  * Used by physicians during intake review.
- * 
+ * Supports both DSM-5 format (current) and legacy AUDIT-C format.
+ *
  * HIPAA: This component displays PHI - ensure proper access controls
  */
 export function IntakeDataView({ formData, scores, riskAssessment }: IntakeDataViewProps) {
   // Extract provider decision summary if available (attached by review.ts)
   const providerSummary = (formData as unknown as Record<string, unknown>)?._providerDecisionSummary as ProviderDecisionSummary | undefined;
+
+  // Detect whether this is DSM-5 format (has dsm5Q1) or legacy AUDIT-C format
+  const isDsm5Format = formData.dsm5Q1 !== undefined;
+
+  // Derive medical flags from both formats
+  const isPregnant = !!formData.isPregnant ||
+    (formData.pregnancyStatus !== undefined && formData.pregnancyStatus !== 'none');
+  const hasLiverDisease = !!formData.hasLiverDisease ||
+    (formData.liverCondition !== undefined && formData.liverCondition !== 'none');
+  const isTakingMeds = !!formData.takingMedications || !!formData.currentMedications;
+
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '-';
     return new Date(dateStr).toLocaleDateString('en-US', {
@@ -270,20 +380,49 @@ export function IntakeDataView({ formData, scores, riskAssessment }: IntakeDataV
           </AccordionTrigger>
           <AccordionContent>
             <dl className="space-y-1">
-              <DataRow label="Full Name" value={`${formData.firstName} ${formData.lastName}`} />
-              <DataRow label="Date of Birth" value={formatDate(formData.dateOfBirth)} />
+              <DataRow
+                label="Full Name"
+                value={
+                  formData.firstName || formData.lastName
+                    ? `${formData.firstName || ''} ${formData.lastName || ''}`.trim()
+                    : undefined
+                }
+              />
+              <DataRow label="Date of Birth" value={formData.dateOfBirth ? formatDate(formData.dateOfBirth) : undefined} />
               <DataRow label="Phone" value={formData.phone} />
-              <DataRow label="Email" value={formData.email} />
+              {formData.email && <DataRow label="Email" value={formData.email} />}
+              {formData.age && <DataRow label="Age" value={formData.age} />}
+              {formData.biologicalSex && (
+                <DataRow
+                  label="Biological Sex"
+                  value={
+                    formData.biologicalSex === 'OTHER' && formData.biologicalSexOther
+                      ? formData.biologicalSexOther
+                      : formData.biologicalSex
+                  }
+                />
+              )}
               <Separator className="my-2" />
               <DataRow
                 label="Primary Concern"
-                value={formData.primaryConcern ? CONCERN_TYPE_LABELS[formData.primaryConcern] : '-'}
+                value={formData.primaryConcern ? CONCERN_TYPE_LABELS[formData.primaryConcern] : 'Alcohol Use'}
               />
               <DataRow
                 label="Treatment Goal"
-                value={formData.treatmentGoal ? TREATMENT_GOAL_LABELS[formData.treatmentGoal] : '-'}
+                value={
+                  formData.treatmentGoal
+                    ? TREATMENT_GOAL_LABELS[formData.treatmentGoal]
+                    : formData.primaryGoal
+                    ? GOAL_LABELS[formData.primaryGoal] || formData.primaryGoal
+                    : '-'
+                }
               />
-
+              {formData.motivationLevel && (
+                <DataRow label="Motivation Level" value={MOTIVATION_LABELS[formData.motivationLevel] || formData.motivationLevel} />
+              )}
+              {formData.supportSystem && (
+                <DataRow label="Support System" value={SUPPORT_LABELS[formData.supportSystem] || formData.supportSystem} />
+              )}
             </dl>
           </AccordionContent>
         </AccordionItem>
@@ -300,9 +439,24 @@ export function IntakeDataView({ formData, scores, riskAssessment }: IntakeDataV
             <dl className="space-y-1">
               <DataRow label="Street" value={formData.addressStreet} />
               <DataRow label="City" value={formData.addressCity} />
-              <DataRow label="State" value={formData.addressState} />
+              <DataRow label="State" value={formData.addressState || 'CA'} />
               <DataRow label="ZIP Code" value={formData.addressZip} />
             </dl>
+            {formData.pharmacyName && (
+              <>
+                <Separator className="my-3" />
+                <p className="text-sm font-medium text-muted-foreground mb-2">Preferred Pharmacy</p>
+                <dl className="space-y-1">
+                  <DataRow label="Pharmacy Name" value={formData.pharmacyName} />
+                  <DataRow label="Pharmacy Address" value={formData.pharmacyAddress} />
+                  <DataRow label="Pharmacy City" value={formData.pharmacyCity} />
+                  <DataRow label="Pharmacy ZIP" value={formData.pharmacyZip} />
+                  {formData.pharmacyPhone && (
+                    <DataRow label="Pharmacy Phone" value={formData.pharmacyPhone} />
+                  )}
+                </dl>
+              </>
+            )}
           </AccordionContent>
         </AccordionItem>
 
@@ -312,7 +466,7 @@ export function IntakeDataView({ formData, scores, riskAssessment }: IntakeDataV
             <div className="flex items-center gap-2">
               <Heart className="h-4 w-4 text-primary" />
               <span className="text-sm font-medium">Medical History</span>
-              {formData.isPregnant && (
+              {isPregnant && (
                 <Badge variant="destructive" className="ml-2 text-xs">
                   Pregnant
                 </Badge>
@@ -321,56 +475,109 @@ export function IntakeDataView({ formData, scores, riskAssessment }: IntakeDataV
           </AccordionTrigger>
           <AccordionContent>
             <dl className="space-y-1">
+              {/* Pregnancy status -- DSM-5 or legacy format */}
               <DataRow
-                label="Pregnant"
-                value={formatBoolean(formData.isPregnant)}
-                highlight={formData.isPregnant}
+                label="Pregnancy / Breastfeeding Status"
+                value={
+                  formData.pregnancyStatus
+                    ? PREGNANCY_LABELS[formData.pregnancyStatus] || formData.pregnancyStatus
+                    : formData.isPregnant !== undefined
+                    ? formatBoolean(!!formData.isPregnant)
+                    : undefined
+                }
+                highlight={isPregnant}
               />
               {formData.isPregnant && formData.isPregnantDetails && (
                 <DataRow label="Pregnancy Details" value={formData.isPregnantDetails} />
               )}
+
+              {/* Liver condition -- DSM-5 or legacy */}
               <DataRow
-                label="Seizure History"
-                value={formatBoolean(formData.hasSeizureHistory)}
-                highlight={formData.hasSeizureHistory}
+                label="Liver Condition"
+                value={
+                  formData.liverCondition
+                    ? LIVER_LABELS[formData.liverCondition] || formData.liverCondition
+                    : formData.hasLiverDisease !== undefined
+                    ? formatBoolean(!!formData.hasLiverDisease)
+                    : undefined
+                }
+                highlight={hasLiverDisease}
               />
-              {formData.hasSeizureHistory && formData.seizureDetails && (
-                <DataRow label="Seizure Details" value={formData.seizureDetails} />
+              {formData.liverTests && (
+                <DataRow label="Liver Test Results" value={LIVER_TEST_LABELS[formData.liverTests] || formData.liverTests} />
               )}
-              <DataRow
-                label="Psychiatric History"
-                value={formatBoolean(formData.hasPsychiatricHistory)}
-                highlight={formData.hasPsychiatricHistory}
-              />
-              {formData.hasPsychiatricHistory && formData.psychiatricDetails && (
-                <DataRow label="Psychiatric Details" value={formData.psychiatricDetails} />
-              )}
-              <DataRow
-                label="Liver Disease"
-                value={formatBoolean(formData.hasLiverDisease)}
-                highlight={formData.hasLiverDisease}
-              />
               {formData.hasLiverDisease && formData.liverDiseaseDetails && (
                 <DataRow label="Liver Disease Details" value={formData.liverDiseaseDetails} />
               )}
-              <DataRow
-                label="Kidney Disease"
-                value={formatBoolean(formData.hasKidneyDisease)}
-                highlight={formData.hasKidneyDisease}
-              />
+
+              {/* Medical history items -- DSM-5 array format */}
+              {formData.medicalHistory && formData.medicalHistory.length > 0 && (
+                <DataRow
+                  label="Medical Conditions"
+                  value={formData.medicalHistory.map(formatMedicalCondition).join(', ')}
+                />
+              )}
+
+              {/* Legacy fields */}
+              {formData.hasSeizureHistory !== undefined && (
+                <DataRow
+                  label="Seizure History"
+                  value={formatBoolean(!!formData.hasSeizureHistory)}
+                  highlight={!!formData.hasSeizureHistory}
+                />
+              )}
+              {formData.hasSeizureHistory && formData.seizureDetails && (
+                <DataRow label="Seizure Details" value={formData.seizureDetails} />
+              )}
+              {formData.hasPsychiatricHistory !== undefined && (
+                <DataRow
+                  label="Psychiatric History"
+                  value={formatBoolean(!!formData.hasPsychiatricHistory)}
+                  highlight={!!formData.hasPsychiatricHistory}
+                />
+              )}
+              {formData.hasPsychiatricHistory && formData.psychiatricDetails && (
+                <DataRow label="Psychiatric Details" value={formData.psychiatricDetails} />
+              )}
+              {formData.hasKidneyDisease !== undefined && (
+                <DataRow
+                  label="Kidney Disease"
+                  value={formatBoolean(!!formData.hasKidneyDisease)}
+                  highlight={!!formData.hasKidneyDisease}
+                />
+              )}
               {formData.hasKidneyDisease && formData.kidneyDiseaseDetails && (
                 <DataRow label="Kidney Disease Details" value={formData.kidneyDiseaseDetails} />
               )}
-              <DataRow
-                label="Heart Condition"
-                value={formatBoolean(formData.hasHeartCondition)}
-                highlight={formData.hasHeartCondition}
-              />
+              {formData.hasHeartCondition !== undefined && (
+                <DataRow
+                  label="Heart Condition"
+                  value={formatBoolean(!!formData.hasHeartCondition)}
+                  highlight={!!formData.hasHeartCondition}
+                />
+              )}
               {formData.hasHeartCondition && formData.heartConditionDetails && (
                 <DataRow label="Heart Condition Details" value={formData.heartConditionDetails} />
               )}
               {formData.otherConditions && (
                 <DataRow label="Other Conditions" value={formData.otherConditions} />
+              )}
+
+              {/* Drug allergies -- DSM-5 */}
+              {formData.drugAllergies && (
+                <DataRow
+                  label="Drug Allergies"
+                  value={ALLERGY_LABELS[formData.drugAllergies] || formData.drugAllergies}
+                  highlight={formData.drugAllergies !== 'none'}
+                />
+              )}
+
+              {/* Seeing therapist -- DSM-5 */}
+              {formData.seeingTherapist !== undefined && (
+                <DataRow
+                  label="Currently Seeing Therapist/Counselor"
+                  value={formatBoolean(formData.seeingTherapist)}
+                />
               )}
             </dl>
           </AccordionContent>
@@ -388,67 +595,135 @@ export function IntakeDataView({ formData, scores, riskAssessment }: IntakeDataV
             <dl className="space-y-1">
               <DataRow
                 label="Taking Medications"
-                value={formatBoolean(formData.takingMedications)}
+                value={formatBoolean(isTakingMeds)}
               />
-              {formData.takingMedications && (
-                <>
-                  <DataRow label="Medication List" value={formData.medicationList} />
-                  <DataRow label="Allergies" value={formData.medicationAllergies || 'None reported'} />
-                </>
+              {isTakingMeds && formData.medicationList && (
+                <DataRow label="Medication List" value={formData.medicationList} />
+              )}
+              {formData.medicationAllergies && (
+                <DataRow label="Allergies" value={formData.medicationAllergies} />
+              )}
+
+              {/* Opioid use -- DSM-5 Naltrexone safety screening */}
+              {formData.opioidUse && formData.opioidUse.length > 0 && (
+                <DataRow
+                  label="Opioid Use"
+                  value={formData.opioidUse.join(', ')}
+                  highlight={formData.opioidUse.some(v => v !== 'none')}
+                />
+              )}
+              {formData.opioidMaintenance !== undefined && (
+                <DataRow
+                  label="In Opioid Maintenance Program"
+                  value={formatBoolean(formData.opioidMaintenance)}
+                  highlight={formData.opioidMaintenance}
+                />
               )}
             </dl>
           </AccordionContent>
         </AccordionItem>
 
-        {/* Alcohol Assessment */}
-        {(formData.primaryConcern === 'ALCOHOL' || formData.primaryConcern === 'BOTH') && (
-          <AccordionItem value="alcohol" className="border rounded-lg px-4">
+        {/* Alcohol Assessment -- show for both DSM-5 and legacy formats */}
+        <AccordionItem value="alcohol" className="border rounded-lg px-4">
+          <AccordionTrigger className="hover:no-underline py-3">
+            <div className="flex items-center gap-2">
+              <Wine className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium">Alcohol Assessment</span>
+              {scores?.auditScore !== undefined && (
+                <Badge
+                  variant={scores.auditScore > 7 ? 'destructive' : 'secondary'}
+                  className="ml-2 text-xs"
+                >
+                  AUDIT-C: {scores.auditScore}
+                </Badge>
+              )}
+            </div>
+          </AccordionTrigger>
+          <AccordionContent>
+            <dl className="space-y-1">
+              {scores?.auditScore !== undefined && auditInterpretation && (
+                <>
+                  <DataRow
+                    label="AUDIT-C Score"
+                    value={
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold">{scores.auditScore} / 12</span>
+                        <Badge className={auditInterpretation.color}>
+                          {auditInterpretation.label}
+                        </Badge>
+                      </div>
+                    }
+                  />
+                  <Separator className="my-2" />
+                </>
+              )}
+
+              {/* DSM-5 drinking pattern fields */}
+              {formData.drinkingDaysPerWeek && (
+                <DataRow label="Drinking days per week" value={DRINKING_DAYS_LABELS[formData.drinkingDaysPerWeek] || formData.drinkingDaysPerWeek} />
+              )}
+              {formData.drinksPerDay && (
+                <DataRow label="Drinks per day" value={DRINKS_PER_DAY_LABELS[formData.drinksPerDay] || formData.drinksPerDay} />
+              )}
+              {formData.lastDrink && (
+                <DataRow label="Last drink" value={LAST_DRINK_LABELS[formData.lastDrink] || formData.lastDrink} />
+              )}
+              {formData.bingeDrinking && (
+                <DataRow label="Binge drinking episodes" value={formData.bingeDrinking === 'yes' ? 'Yes' : 'No'} />
+              )}
+
+              {/* Legacy AUDIT-C fields (fallback) */}
+              {formData.audit_1 && <DataRow label="How often drink alcohol" value={formData.audit_1} />}
+              {formData.audit_2 && <DataRow label="Drinks on typical day" value={formData.audit_2} />}
+              {formData.audit_3 && <DataRow label="How often 6+ drinks" value={formData.audit_3} />}
+              {formData.alcoholQuitAttempts && (
+                <DataRow label="Previous quit attempts" value={formData.alcoholQuitAttempts} />
+              )}
+              {formData.alcoholQuitDetails && (
+                <DataRow label="Quit attempt details" value={formData.alcoholQuitDetails} />
+              )}
+              {formData.alcoholConcernLevel && (
+                <DataRow label="Concern level" value={formData.alcoholConcernLevel} />
+              )}
+            </dl>
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* Withdrawal Risk Assessment -- DSM-5 format */}
+        {isDsm5Format && (
+          <AccordionItem value="withdrawal" className="border rounded-lg px-4">
             <AccordionTrigger className="hover:no-underline py-3">
               <div className="flex items-center gap-2">
-                <Wine className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium">Alcohol Assessment</span>
-                {scores?.auditScore !== undefined && (
-                  <Badge
-                    variant={scores.auditScore > 7 ? 'destructive' : 'secondary'}
-                    className="ml-2 text-xs"
-                  >
-                    AUDIT-C: {scores.auditScore}
-                  </Badge>
-                )}
+                <AlertTriangle className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium">Withdrawal Risk Assessment</span>
               </div>
             </AccordionTrigger>
             <AccordionContent>
               <dl className="space-y-1">
-                {scores?.auditScore !== undefined && auditInterpretation && (
-                  <>
-                    <DataRow
-                      label="AUDIT-C Score"
-                      value={
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold">{scores.auditScore} / 12</span>
-                          <Badge className={auditInterpretation.color}>
-                            {auditInterpretation.label}
-                          </Badge>
-                        </div>
-                      }
-                    />
-                    <Separator className="my-2" />
-                  </>
-                )}
-                <DataRow label="How often drink alcohol" value={formData.audit_1} />
-                <DataRow label="Drinks on typical day" value={formData.audit_2} />
-                <DataRow label="How often 6+ drinks" value={formData.audit_3} />
-                <DataRow label="Previous quit attempts" value={formData.alcoholQuitAttempts} />
-                {formData.alcoholQuitDetails && (
-                  <DataRow label="Quit attempt details" value={formData.alcoholQuitDetails} />
-                )}
-                <DataRow label="Concern level" value={formData.alcoholConcernLevel} />
+                <DataRow
+                  label="History of seizures during withdrawal"
+                  value={formatBoolean(!!formData.withdrawalSeizure)}
+                  highlight={!!formData.withdrawalSeizure}
+                />
+                <DataRow
+                  label="History of delirium tremens (DTs)"
+                  value={formatBoolean(!!formData.withdrawalDTs)}
+                  highlight={!!formData.withdrawalDTs}
+                />
+                <DataRow
+                  label="Hospitalized for alcohol detox"
+                  value={formatBoolean(!!formData.withdrawalHospitalized)}
+                  highlight={!!formData.withdrawalHospitalized}
+                />
+                <DataRow
+                  label="Drinks in the morning to avoid withdrawal"
+                  value={formatBoolean(!!formData.morningDrinking)}
+                  highlight={!!formData.morningDrinking}
+                />
               </dl>
             </AccordionContent>
           </AccordionItem>
         )}
-
-
 
         {/* Previous Treatment */}
         <AccordionItem value="previous" className="border rounded-lg px-4">
@@ -460,15 +735,31 @@ export function IntakeDataView({ formData, scores, riskAssessment }: IntakeDataV
           </AccordionTrigger>
           <AccordionContent>
             <dl className="space-y-1">
-              <DataRow
-                label="Previous treatment"
-                value={formatBoolean(formData.previousTreatment)}
-              />
-              {formData.previousTreatment && (
+              {/* DSM-5 format: previousTreatments is an array of strings */}
+              {formData.previousTreatments && formData.previousTreatments.length > 0 ? (
+                <DataRow
+                  label="Previous treatments"
+                  value={formData.previousTreatments.map(formatTreatmentType).join(', ')}
+                />
+              ) : formData.previousTreatment !== undefined ? (
                 <>
-                  <DataRow label="Treatment details" value={formData.previousTreatmentDetails} />
-                  <DataRow label="Previous medications" value={formData.previousMedications} />
+                  <DataRow
+                    label="Previous treatment"
+                    value={formatBoolean(!!formData.previousTreatment)}
+                  />
+                  {formData.previousTreatment && (
+                    <>
+                      {formData.previousTreatmentDetails && (
+                        <DataRow label="Treatment details" value={formData.previousTreatmentDetails} />
+                      )}
+                      {formData.previousMedications && (
+                        <DataRow label="Previous medications" value={formData.previousMedications} />
+                      )}
+                    </>
+                  )}
                 </>
+              ) : (
+                <DataRow label="Previous treatment" value="None reported" />
               )}
             </dl>
           </AccordionContent>
@@ -483,40 +774,12 @@ export function IntakeDataView({ formData, scores, riskAssessment }: IntakeDataV
             </div>
           </AccordionTrigger>
           <AccordionContent>
-            <dl className="space-y-1">
-              <DataRow
-                label="HIPAA Consent"
-                value={
-                  <Badge variant={formData.hipaaConsent ? 'default' : 'destructive'}>
-                    {formData.hipaaConsent ? 'Accepted' : 'Not Accepted'}
-                  </Badge>
-                }
-              />
-              <DataRow
-                label="Terms of Service"
-                value={
-                  <Badge variant={formData.termsConsent ? 'default' : 'destructive'}>
-                    {formData.termsConsent ? 'Accepted' : 'Not Accepted'}
-                  </Badge>
-                }
-              />
-              <DataRow
-                label="Telehealth Consent"
-                value={
-                  <Badge variant={formData.telehealthConsent ? 'default' : 'destructive'}>
-                    {formData.telehealthConsent ? 'Accepted' : 'Not Accepted'}
-                  </Badge>
-                }
-              />
-              <DataRow
-                label="Treatment Consent"
-                value={
-                  <Badge variant={formData.treatmentConsent ? 'default' : 'destructive'}>
-                    {formData.treatmentConsent ? 'Accepted' : 'Not Accepted'}
-                  </Badge>
-                }
-              />
-            </dl>
+            <p className="text-sm text-muted-foreground">
+              All required consents (HIPAA, Terms of Service, Telehealth, Treatment, and 42 CFR Part 2) were accepted during checkout prior to payment. Consent records are stored separately in the audit log.
+            </p>
+            <Badge variant="default" className="mt-2">
+              Consents Accepted at Checkout
+            </Badge>
           </AccordionContent>
         </AccordionItem>
       </Accordion>

@@ -94,8 +94,8 @@ function filterAndSortPatients(
     const query = filters.searchQuery.toLowerCase();
     result = result.filter(
       (p) =>
-        p.name.toLowerCase().includes(query) ||
-        p.emailMasked.toLowerCase().includes(query)
+        (p.name || '').toLowerCase().includes(query) ||
+        (p.emailMasked || '').toLowerCase().includes(query)
     );
   }
 
@@ -104,7 +104,7 @@ function filterAndSortPatients(
     let comparison = 0;
     switch (filters.sortBy) {
       case 'name':
-        comparison = a.name.localeCompare(b.name);
+        comparison = (a.name || '').localeCompare(b.name || '');
         break;
       case 'enrolledAt':
         comparison = new Date(a.enrolledAt).getTime() - new Date(b.enrolledAt).getTime();

@@ -254,7 +254,51 @@ function decryptPHIFields<T>(
 }
 
 /**
- * Recursively decrypt PHI fields in nested objects/arrays
+ * Map of Prisma relation field names to their target model names.
+ * This allows the encryption extension to recursively decrypt PHI fields
+ * on nested included relations, not just the top-level queried model.
+ */
+const RELATION_TO_MODEL: Record<string, string> = {
+  // User relations
+  patientProfile: 'PatientProfile',
+  physician: 'Physician',
+  intakes: 'Intake',
+  messages: 'Message',
+  subscriptions: 'Subscription',
+  invoices: 'Invoice',
+  sessions: 'Session',
+  passwordResets: 'PasswordReset',
+  consentRecords: 'ConsentRecord',
+  disclosureRestrictions: 'DisclosureRestriction',
+  // PatientProfile relations
+  user: 'User',
+  preferredPharmacy: 'Pharmacy',
+  documents: 'Document',
+  // Intake relations
+  patient: 'User',
+  reviews: 'Review',
+  prescriptions: 'Prescription',
+  // Review relations
+  intake: 'Intake',
+  // Prescription relations
+  pharmacy: 'Pharmacy',
+  refillRequests: 'RefillRequest',
+  // Physician relations
+  physicianNotes: 'PhysicianNote',
+  sentMessages: 'PhysicianMessage',
+  receivedMessages: 'PhysicianMessage',
+  // PhysicianMessage relations
+  sender: 'Physician',
+  recipient: 'Physician',
+  parent: 'PhysicianMessage',
+  replies: 'PhysicianMessage',
+};
+
+/**
+ * Recursively decrypt PHI fields in nested objects/arrays.
+ * Walks into nested relations using RELATION_TO_MODEL mapping
+ * so that included relations (e.g., patient.patientProfile) are
+ * also decrypted automatically.
  */
 function decryptNestedPHIFields<T>(model: string, data: T): T {
   if (data === null || data === undefined) {
@@ -268,7 +312,18 @@ function decryptNestedPHIFields<T>(model: string, data: T): T {
 
   // Handle objects
   if (typeof data === 'object' && data !== null) {
-    return decryptPHIFields(model, data as Record<string, unknown>) as T;
+    // First, decrypt PHI fields for this model
+    const decrypted = decryptPHIFields(model, data as Record<string, unknown>);
+
+    // Then recursively decrypt any nested relations
+    for (const key of Object.keys(decrypted)) {
+      const nestedModel = RELATION_TO_MODEL[key];
+      if (nestedModel && decrypted[key] != null && typeof decrypted[key] === 'object') {
+        decrypted[key] = decryptNestedPHIFields(nestedModel, decrypted[key]);
+      }
+    }
+
+    return decrypted as T;
   }
 
   return data;

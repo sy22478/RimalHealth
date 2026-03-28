@@ -58,56 +58,117 @@ export interface IntakeFormData {
   lastName: string;
   dateOfBirth: string;
   phone: string;
-  email: string;
+  email?: string;
 
   // Address
   addressStreet: string;
   addressCity: string;
-  addressState: string;
+  addressState?: string;
   addressZip: string;
 
   // Treatment
-  primaryConcern: ConcernType;
-  treatmentGoal: TreatmentGoal;
+  primaryConcern?: ConcernType;
+  treatmentGoal?: TreatmentGoal;
 
-  // Medical History
-  isPregnant: boolean;
+  // Medical History (legacy AUDIT-C format)
+  isPregnant?: boolean;
   isPregnantDetails?: string;
-  hasSeizureHistory: boolean;
+  hasSeizureHistory?: boolean;
   seizureDetails?: string;
-  hasPsychiatricHistory: boolean;
+  hasPsychiatricHistory?: boolean;
   psychiatricDetails?: string;
-  hasLiverDisease: boolean;
+  hasLiverDisease?: boolean;
   liverDiseaseDetails?: string;
-  hasKidneyDisease: boolean;
+  hasKidneyDisease?: boolean;
   kidneyDiseaseDetails?: string;
-  hasHeartCondition: boolean;
+  hasHeartCondition?: boolean;
   heartConditionDetails?: string;
   otherConditions?: string;
 
-  // Medications
-  takingMedications: boolean;
+  // Medications (legacy AUDIT-C format)
+  takingMedications?: boolean;
   medicationList?: string;
   medicationAllergies?: string;
 
-  // Previous Treatment
-  previousTreatment: boolean;
+  // Previous Treatment (legacy AUDIT-C format)
+  previousTreatment?: boolean;
   previousTreatmentDetails?: string;
   previousMedications?: string;
 
-  // Alcohol Questions (AUDIT-C)
-  audit_1?: string; // How often drink alcohol
-  audit_2?: string; // How many drinks typical day
-  audit_3?: string; // How often 6+ drinks
+  // Alcohol Questions (legacy AUDIT-C format)
+  audit_1?: string;
+  audit_2?: string;
+  audit_3?: string;
   alcoholQuitAttempts?: string;
   alcoholQuitDetails?: string;
   alcoholConcernLevel?: string;
 
-  // Consent
-  hipaaConsent: boolean;
-  termsConsent: boolean;
-  telehealthConsent: boolean;
-  treatmentConsent: boolean;
+  // Consent (collected during checkout, not part of intake form)
+  hipaaConsent?: boolean;
+  termsConsent?: boolean;
+  telehealthConsent?: boolean;
+  treatmentConsent?: boolean;
+
+  // ---- DSM-5 Intake Form Fields ----
+
+  // Pharmacy
+  pharmacyName?: string;
+  pharmacyAddress?: string;
+  pharmacyCity?: string;
+  pharmacyZip?: string;
+  pharmacyPhone?: string;
+
+  // DSM-5 AUD Screening (Q1-Q11)
+  dsm5Q1?: boolean;
+  dsm5Q2?: boolean;
+  dsm5Q3?: boolean;
+  dsm5Q4?: boolean;
+  dsm5Q5?: boolean;
+  dsm5Q6?: boolean;
+  dsm5Q7?: boolean;
+  dsm5Q8?: boolean;
+  dsm5Q9?: boolean;
+  dsm5Q10?: boolean;
+  dsm5Q11?: boolean;
+
+  // Current Drinking Pattern (Q12-Q15)
+  drinkingDaysPerWeek?: string;
+  drinksPerDay?: string;
+  lastDrink?: string;
+  bingeDrinking?: string;
+
+  // Withdrawal Risk Assessment (Q16-Q19)
+  withdrawalSeizure?: boolean;
+  withdrawalDTs?: boolean;
+  withdrawalHospitalized?: boolean;
+  morningDrinking?: boolean;
+
+  // Naltrexone Safety Screening (Q20-Q25)
+  opioidUse?: string[];
+  opioidMaintenance?: boolean;
+  liverCondition?: string;
+  liverTests?: string;
+  pregnancyStatus?: string;
+  drugAllergies?: string;
+
+  // Medical & Psychiatric History (Q26-Q29)
+  medicalHistory?: string[];
+  currentMedications?: boolean;
+  previousTreatments?: string[];
+  seeingTherapist?: boolean;
+
+  // Treatment Goals & Readiness (Q30-Q32)
+  primaryGoal?: string;
+  motivationLevel?: string;
+  supportSystem?: string;
+
+  // Demographics (Q33-Q34)
+  biologicalSex?: string;
+  biologicalSexOther?: string;
+  age?: string;
+
+  // Injected by submit route
+  treatmentType?: string;
 }
 
 // ============================================================================

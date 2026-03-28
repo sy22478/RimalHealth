@@ -209,9 +209,10 @@ export async function getIntakeForReview(
     await logIntakeAccess(intakeId, physicianId, auditContext);
 
     // Transform to expected format
-    // Note: In production, decrypt PHI fields here
+    // Note: PHI fields are auto-decrypted by the Prisma encryption extension,
+    // including nested relations (patientProfile) via RELATION_TO_MODEL mapping.
     const profile = intake.patient?.patientProfile;
-    
+
     // Compute scores and risk assessment from formData
     const formDataRecord = intake.formData as Record<string, unknown> || {};
     const scores = calculateIntakeScores(formDataRecord);
@@ -223,6 +224,13 @@ export async function getIntakeForReview(
       ...(intake.formData as Record<string, unknown>),
       _providerDecisionSummary: providerSummary,
     } as unknown as IntakeFormData;
+
+    // Prefer intake formData names (filled during intake) over profile names
+    // (which may be empty when profile was auto-created by Stripe webhook)
+    const formFirstName = typeof formDataRecord.firstName === 'string' ? formDataRecord.firstName : '';
+    const formLastName = typeof formDataRecord.lastName === 'string' ? formDataRecord.lastName : '';
+    const firstName = formFirstName || (typeof profile?.firstName === 'string' ? profile.firstName : '') || 'Not provided';
+    const lastName = formLastName || (typeof profile?.lastName === 'string' ? profile.lastName : '') || '';
 
     const data: IntakeWithPatient = {
       id: intake.id,
@@ -236,16 +244,16 @@ export async function getIntakeForReview(
       updatedAt: intake.updatedAt,
       patient: {
         id: intake.patientId,
-        firstName: profile?.firstName || 'Unknown',
-        lastName: profile?.lastName || 'Patient',
-        dateOfBirth: profile?.dateOfBirth ? new Date(profile.dateOfBirth) : new Date(),
+        firstName,
+        lastName,
+        dateOfBirth: profile?.dateOfBirth ? new Date(profile.dateOfBirth as string) : new Date(),
         email: intake.patient?.email || '',
-        phone: profile?.phone || '',
+        phone: (typeof profile?.phone === 'string' ? profile.phone : '') || '',
         address: profile ? {
-          street: profile.addressStreet || '',
-          city: profile.addressCity || '',
-          state: profile.addressState || '',
-          zipCode: profile.addressZip || '',
+          street: (typeof profile.addressStreet === 'string' ? profile.addressStreet : '') || '',
+          city: (typeof profile.addressCity === 'string' ? profile.addressCity : '') || '',
+          state: (typeof profile.addressState === 'string' ? profile.addressState : '') || '',
+          zipCode: (typeof profile.addressZip === 'string' ? profile.addressZip : '') || '',
         } : null,
         preferredPharmacy: profile?.preferredPharmacy ? {
           name: profile.preferredPharmacy.name,

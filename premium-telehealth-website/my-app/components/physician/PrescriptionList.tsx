@@ -115,10 +115,10 @@ function filterAndSortPrescriptions(
         comparison = new Date(b.prescribedAt).getTime() - new Date(a.prescribedAt).getTime();
         break;
       case 'patientName':
-        comparison = a.patientName.localeCompare(b.patientName);
+        comparison = (a.patientName || '').localeCompare(b.patientName || '');
         break;
       case 'status':
-        comparison = a.status.localeCompare(b.status);
+        comparison = (a.status || '').localeCompare(b.status || '');
         break;
     }
     return filters.sortOrder === 'asc' ? comparison : -comparison;
