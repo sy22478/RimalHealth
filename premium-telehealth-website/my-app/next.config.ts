@@ -26,8 +26,9 @@ const nextConfig: NextConfig = {
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
 
-  // React Compiler — auto-memoizes components and hooks (requires React 19+)
-  reactCompiler: true,
+  // React Compiler — DISABLED: incompatible with react-hook-form's watch/setValue
+  // pattern across 18+ form components. Re-enable when RHF compatibility improves.
+  // reactCompiler: true,
 
   // Experimental features for performance
   experimental: {
