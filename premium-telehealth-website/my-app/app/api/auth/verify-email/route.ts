@@ -38,16 +38,6 @@ function getAuditContext(request: NextRequest): AuditContext {
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  // Rate limiting: strict — 3 requests per hour per IP (prevents token brute-force)
-  const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
-  const rateLimitResult = await rateLimit(clientIp, rateLimitPresets.strict);
-  if (!rateLimitResult.success) {
-    return NextResponse.json(
-      { error: 'Too many requests. Please try again later.', code: 'RATE_LIMITED' },
-      { status: 429, headers: { 'Retry-After': String(rateLimitResult.retryAfter ?? 60) } }
-    );
-  }
-
   const auditContext = getAuditContext(request);
   const token = request.nextUrl.searchParams.get('token');
 
@@ -82,6 +72,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
 
     if (!verificationRecord) {
+      // Apply rate limiting only for invalid tokens (prevents brute-force guessing)
+      const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
+      const rateLimitResult = await rateLimit(clientIp, rateLimitPresets.strict);
+      if (!rateLimitResult.success) {
+        return NextResponse.json(
+          { error: 'Too many requests. Please try again later.', code: 'RATE_LIMITED' },
+          { status: 429, headers: { 'Retry-After': String(rateLimitResult.retryAfter ?? 60) } }
+        );
+      }
+
       await auditPasswordEvent(
         AuditEventType.EMAIL_VERIFIED,
         'unknown',
@@ -93,6 +93,32 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json(
         { error: 'Invalid or expired verification link', code: 'INVALID_TOKEN' },
         { status: 400 }
+      );
+    }
+
+    // If the user's email is already verified, return success immediately
+    // (handles re-clicks on the verification link without rate limiting)
+    if (verificationRecord.user.emailVerified) {
+      return NextResponse.json({
+        success: true,
+        message: 'Email already verified. You can log in.',
+        alreadyVerified: true,
+      });
+    }
+
+    // Rate limiting for valid tokens that haven't been verified yet
+    // 10 requests per 15 minutes per IP — lenient enough for legitimate re-clicks
+    const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
+    const rateLimitResult = await rateLimit(clientIp, {
+      requests: 10,
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      keyPrefix: 'ratelimit:verify-email',
+      useMemoryFallback: true,
+    });
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.', code: 'RATE_LIMITED' },
+        { status: 429, headers: { 'Retry-After': String(rateLimitResult.retryAfter ?? 60) } }
       );
     }
 
@@ -112,17 +138,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Check if already used
+    // Check if already used (but email not yet verified — edge case)
     if (verificationRecord.usedAt !== null) {
-      // Token already used — if email is verified, return success anyway
-      if (verificationRecord.user.emailVerified) {
-        return NextResponse.json({
-          success: true,
-          message: 'Email already verified. You can log in.',
-          alreadyVerified: true,
-        });
-      }
-
       await auditPasswordEvent(
         AuditEventType.EMAIL_VERIFIED,
         verificationRecord.userId,

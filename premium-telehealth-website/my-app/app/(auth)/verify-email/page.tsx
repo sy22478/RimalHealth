@@ -95,7 +95,7 @@ function VerifyEmailContent(): React.JSX.Element {
   const token = searchParams.get('token');
   const redirectDelay = 4;
 
-  const [status, setStatus] = useState<'verifying' | 'success' | 'error'>('verifying');
+  const [status, setStatus] = useState<'verifying' | 'success' | 'already-verified' | 'error'>('verifying');
   const [errorMessage, setErrorMessage] = useState('');
 
   const verifyEmail = useCallback(async (): Promise<void> => {
@@ -115,7 +115,11 @@ function VerifyEmailContent(): React.JSX.Element {
         return;
       }
 
-      setStatus('success');
+      if (result.alreadyVerified) {
+        setStatus('already-verified');
+      } else {
+        setStatus('success');
+      }
     } catch {
       setStatus('error');
       setErrorMessage('Unable to verify email. Please try again.');
@@ -126,9 +130,9 @@ function VerifyEmailContent(): React.JSX.Element {
     void verifyEmail();
   }, [verifyEmail]);
 
-  // Auto-redirect to login after successful verification
+  // Auto-redirect to login after successful verification (or already verified)
   useEffect(() => {
-    if (status === 'success') {
+    if (status === 'success' || status === 'already-verified') {
       const timer = setTimeout(() => router.push('/login'), redirectDelay * 1000);
       return () => clearTimeout(timer);
     }
@@ -146,6 +150,33 @@ function VerifyEmailContent(): React.JSX.Element {
           <p className="text-muted-foreground max-w-xs mx-auto">
             Please wait while we verify your email address...
           </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Already verified state (re-click on verification link)
+  if (status === 'already-verified') {
+    return (
+      <Card className="shadow-lg border-gray-200/80">
+        <CardContent className="pt-10 pb-10 text-center">
+          <AnimatedCheckmark />
+          <h1 className="text-2xl font-bold text-navy mb-2">Already Verified</h1>
+          <p className="text-muted-foreground mb-6 max-w-xs mx-auto">
+            Your email was already verified. Redirecting to login...
+          </p>
+
+          <RedirectCountdown seconds={redirectDelay} />
+
+          <div className="mt-6">
+            <Button
+              onClick={() => router.push('/login')}
+              className="w-full rounded-full h-11 font-semibold bg-gradient-to-r from-navy-500 to-ocean-500 hover:from-navy-600 hover:to-ocean-500 shadow-lg shadow-ocean/20 transition-all duration-200"
+            >
+              Go to Login Now
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
         </CardContent>
       </Card>
     );
