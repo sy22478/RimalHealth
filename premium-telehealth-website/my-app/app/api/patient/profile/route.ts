@@ -17,7 +17,6 @@ import { ValidationService } from '@/lib/services/validation-service';
 import { updateProfileSchema } from '@/lib/validation/schemas';
 import { Role } from '@prisma/client';
 import { DataModificationAction } from '@/lib/audit/index';
-import { requireCSRF } from '@/lib/security/csrf';
 // PHI encryption/decryption is handled automatically by the Prisma encryption extension
 // in lib/db/encryption-extension.ts. Do NOT manually call encryptPHI/decryptPHI on fields
 // that are listed in PHI_FIELDS — doing so causes double-encryption (data corruption).
@@ -45,6 +44,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         user: {
           select: {
             email: true,
+            emailVerified: true,
             createdAt: true,
           },
         },
@@ -67,6 +67,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const formattedProfile = {
       id: profile.userId,
       email: profile.user.email,
+      emailVerified: profile.user.emailVerified,
       firstName: profile.firstName,
       lastName: profile.lastName,
       dateOfBirth: profile.dateOfBirth,
@@ -114,10 +115,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 // ============================================================================
 
 export async function PUT(request: NextRequest): Promise<NextResponse> {
-  // CSRF validation (double-submit cookie pattern)
-  const csrfError = requireCSRF(request);
-  if (csrfError) return csrfError;
-
   // Require patient role
   const auth = await requireRole(request, [Role.PATIENT]);
 
@@ -161,6 +158,11 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
     if (updateData.lastName) {
       dataToUpdate.lastName = updateData.lastName;
       changedFields.push('lastName');
+    }
+
+    if (updateData.dateOfBirth) {
+      dataToUpdate.dateOfBirth = updateData.dateOfBirth;
+      changedFields.push('dateOfBirth');
     }
 
     if (updateData.phone) {

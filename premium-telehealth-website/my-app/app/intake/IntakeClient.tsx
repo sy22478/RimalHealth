@@ -31,10 +31,24 @@ import { cn } from '@/lib/utils';
 import { LoadingButton } from '@/components/ui/LoadingButton';
 
 // ============================================================================
-// Validation Schema -- 7 Sections, 34 Questions (no personal info, no consent)
+// Validation Schema -- 8 Sections, 34 Questions + Personal Info (no consent)
 // ============================================================================
 
 const intakeFormSchema = z.object({
+  // SECTION 0: Personal Information
+  firstName: z.string().min(1, { message: 'First name is required' }),
+  lastName: z.string().min(1, { message: 'Last name is required' }),
+  dateOfBirth: z.string().min(1, { message: 'Date of birth is required' }),
+  phone: z.string().min(10, { message: 'Valid phone number required' }),
+  addressStreet: z.string().min(1, { message: 'Street address is required' }),
+  addressCity: z.string().min(1, { message: 'City is required' }),
+  addressZip: z.string().regex(/^9\d{4}$/, { message: 'Must be a valid California ZIP code (starts with 9)' }),
+  pharmacyName: z.string().min(1, { message: 'Pharmacy name is required' }),
+  pharmacyAddress: z.string().min(1, { message: 'Pharmacy address is required' }),
+  pharmacyCity: z.string().min(1, { message: 'Pharmacy city is required' }),
+  pharmacyZip: z.string().regex(/^9\d{4}$/, { message: 'Must be a valid California ZIP code' }),
+  pharmacyPhone: z.string().optional(),
+
   // SECTION 1: DSM-5 AUD Screening (Q1-Q11)
   dsm5Q1: z.boolean({ message: 'Please indicate if you drank more or longer than intended' }),
   dsm5Q2: z.boolean({ message: 'Please indicate if you wanted to cut down but couldn\'t' }),
@@ -173,6 +187,120 @@ function BooleanRadio({ fieldKey, label }: { fieldKey: keyof IntakeFormData; lab
         <p id={errorId} className="text-sm text-red-500 mt-1" role="alert">{(errors[fieldKey]?.message as string) || 'Required'}</p>
       )}
     </div>
+  );
+}
+
+// ============================================================================
+// Section 0: Personal Information
+// ============================================================================
+
+function PersonalInfoStep(): React.ReactElement {
+  const { register, formState: { errors } } = useFormContext<IntakeFormData>();
+
+  return (
+    <section aria-label="Section 0: Personal Information" className="space-y-6">
+      <StepErrorSummary stepFields={['firstName', 'lastName', 'dateOfBirth', 'phone', 'addressStreet', 'addressCity', 'addressZip', 'pharmacyName', 'pharmacyAddress', 'pharmacyCity', 'pharmacyZip']} />
+
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold text-gray-900">Personal Information</h3>
+        <p className="text-sm text-gray-600">This information is required for your treatment.</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* First Name */}
+        <div className="space-y-2">
+          <Label htmlFor="firstName">First Name *</Label>
+          <Input id="firstName" {...register('firstName')} placeholder="Enter your first name" />
+          {errors.firstName && <p className="text-sm text-red-500" role="alert">{errors.firstName.message}</p>}
+        </div>
+        {/* Last Name */}
+        <div className="space-y-2">
+          <Label htmlFor="lastName">Last Name *</Label>
+          <Input id="lastName" {...register('lastName')} placeholder="Enter your last name" />
+          {errors.lastName && <p className="text-sm text-red-500" role="alert">{errors.lastName.message}</p>}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Date of Birth */}
+        <div className="space-y-2">
+          <Label htmlFor="dateOfBirth">Date of Birth *</Label>
+          <Input id="dateOfBirth" type="date" {...register('dateOfBirth')} />
+          {errors.dateOfBirth && <p className="text-sm text-red-500" role="alert">{errors.dateOfBirth.message}</p>}
+        </div>
+        {/* Phone */}
+        <div className="space-y-2">
+          <Label htmlFor="phone">Phone Number *</Label>
+          <Input id="phone" type="tel" {...register('phone')} placeholder="(555) 555-5555" />
+          {errors.phone && <p className="text-sm text-red-500" role="alert">{errors.phone.message}</p>}
+        </div>
+      </div>
+
+      {/* Address section */}
+      <div className="pt-4 border-t">
+        <h4 className="text-md font-medium text-gray-900 mb-3">Home Address</h4>
+        <p className="text-sm text-gray-500 mb-4">Rimal Health currently serves California residents only.</p>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="addressStreet">Street Address *</Label>
+            <Input id="addressStreet" {...register('addressStreet')} placeholder="123 Main St" />
+            {errors.addressStreet && <p className="text-sm text-red-500" role="alert">{errors.addressStreet.message}</p>}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="addressCity">City *</Label>
+              <Input id="addressCity" {...register('addressCity')} placeholder="Los Angeles" />
+              {errors.addressCity && <p className="text-sm text-red-500" role="alert">{errors.addressCity.message}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="addressState">State</Label>
+              <Input id="addressState" value="California" disabled className="bg-gray-50" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="addressZip">ZIP Code *</Label>
+              <Input id="addressZip" {...register('addressZip')} placeholder="90001" maxLength={5} />
+              {errors.addressZip && <p className="text-sm text-red-500" role="alert">{errors.addressZip.message}</p>}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Pharmacy section */}
+      <div className="pt-4 border-t">
+        <h4 className="text-md font-medium text-gray-900 mb-3">Preferred Pharmacy</h4>
+        <p className="text-sm text-gray-500 mb-4">Where would you like prescriptions sent?</p>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="pharmacyName">Pharmacy Name *</Label>
+            <Input id="pharmacyName" {...register('pharmacyName')} placeholder="CVS Pharmacy" />
+            {errors.pharmacyName && <p className="text-sm text-red-500" role="alert">{errors.pharmacyName.message}</p>}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="pharmacyAddress">Pharmacy Address *</Label>
+            <Input id="pharmacyAddress" {...register('pharmacyAddress')} placeholder="456 Oak Ave" />
+            {errors.pharmacyAddress && <p className="text-sm text-red-500" role="alert">{errors.pharmacyAddress.message}</p>}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="pharmacyCity">City *</Label>
+              <Input id="pharmacyCity" {...register('pharmacyCity')} placeholder="Los Angeles" />
+              {errors.pharmacyCity && <p className="text-sm text-red-500" role="alert">{errors.pharmacyCity.message}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="pharmacyZip">ZIP Code *</Label>
+              <Input id="pharmacyZip" {...register('pharmacyZip')} placeholder="90001" maxLength={5} />
+              {errors.pharmacyZip && <p className="text-sm text-red-500" role="alert">{errors.pharmacyZip.message}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="pharmacyPhone">Phone (optional)</Label>
+              <Input id="pharmacyPhone" {...register('pharmacyPhone')} placeholder="(555) 555-5555" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -967,13 +1095,24 @@ function ReviewStep({ onEditSection }: { onEditSection: (index: number) => void 
 
   const sections = [
     {
-      title: 'Section 1: DSM-5 AUD Screening',
+      title: 'Personal Information',
       index: 0,
+      items: [
+        `Name: ${values.firstName || 'Not answered'} ${values.lastName || ''}`.trim(),
+        `Date of birth: ${values.dateOfBirth || 'Not answered'}`,
+        `Phone: ${values.phone || 'Not answered'}`,
+        `Address: ${values.addressStreet || 'Not answered'}, ${values.addressCity || ''}, CA ${values.addressZip || ''}`.trim(),
+        `Pharmacy: ${values.pharmacyName || 'Not answered'}${values.pharmacyAddress ? `, ${values.pharmacyAddress}` : ''}${values.pharmacyCity ? `, ${values.pharmacyCity}` : ''}${values.pharmacyZip ? ` ${values.pharmacyZip}` : ''}`,
+      ],
+    },
+    {
+      title: 'Section 1: DSM-5 AUD Screening',
+      index: 1,
       items: [`${dsm5YesCount} of 11 questions answered Yes`],
     },
     {
       title: 'Section 2: Current Drinking Pattern',
-      index: 1,
+      index: 2,
       items: [
         `Days per week: ${formatEnum(values.drinkingDaysPerWeek, drinkingLabels)}`,
         `Drinks per day: ${formatEnum(values.drinksPerDay, drinksLabels)}`,
@@ -983,7 +1122,7 @@ function ReviewStep({ onEditSection }: { onEditSection: (index: number) => void 
     },
     {
       title: 'Section 3: Withdrawal Risk',
-      index: 2,
+      index: 3,
       items: [
         `Seizure history: ${formatBoolean(values.withdrawalSeizure)}`,
         `Delirium tremens: ${formatBoolean(values.withdrawalDTs)}`,
@@ -993,7 +1132,7 @@ function ReviewStep({ onEditSection }: { onEditSection: (index: number) => void 
     },
     {
       title: 'Section 4: Naltrexone Safety',
-      index: 3,
+      index: 4,
       items: [
         `Opioid use: ${values.opioidUse?.length > 0 ? values.opioidUse.join(', ') : 'None'}`,
         `Opioid maintenance: ${formatBoolean(values.opioidMaintenance)}`,
@@ -1005,7 +1144,7 @@ function ReviewStep({ onEditSection }: { onEditSection: (index: number) => void 
     },
     {
       title: 'Section 5: Medical & Psychiatric History',
-      index: 4,
+      index: 5,
       items: [
         `Conditions: ${values.medicalHistory?.length > 0 ? values.medicalHistory.join(', ') : 'None'}`,
         `Taking medications: ${formatBoolean(values.currentMedications)}`,
@@ -1016,7 +1155,7 @@ function ReviewStep({ onEditSection }: { onEditSection: (index: number) => void 
     },
     {
       title: 'Section 6: Treatment Goals',
-      index: 5,
+      index: 6,
       items: [
         `Primary goal: ${formatEnum(values.primaryGoal, goalLabels)}`,
         `Motivation: ${formatEnum(values.motivationLevel, motivationLabels)}`,
@@ -1025,7 +1164,7 @@ function ReviewStep({ onEditSection }: { onEditSection: (index: number) => void 
     },
     {
       title: 'Section 7: Demographics',
-      index: 6,
+      index: 7,
       items: [
         `Biological sex: ${formatEnum(values.biologicalSex, sexLabels)}${values.biologicalSex === 'OTHER' && values.biologicalSexOther ? ` (${values.biologicalSexOther})` : ''}`,
         `Age: ${values.age || 'Not answered'}`,
@@ -1193,6 +1332,7 @@ export default function IntakePage(): React.ReactElement {
   const saveTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const steps = [
+    { id: 'personal', title: 'Personal Info', sectionTitle: 'Personal Information', component: PersonalInfoStep },
     { id: 'dsm5', title: 'AUD Screening', sectionTitle: 'Section 1: DSM-5 Alcohol Use Disorder Screening', component: DSM5ScreeningStep },
     { id: 'drinking', title: 'Drinking Pattern', sectionTitle: 'Section 2: Current Drinking Pattern', component: DrinkingPatternStep },
     { id: 'withdrawal', title: 'Withdrawal Risk', sectionTitle: 'Section 3: Withdrawal Risk Assessment', component: WithdrawalRiskStep },
@@ -1206,6 +1346,18 @@ export default function IntakePage(): React.ReactElement {
   const methods = useForm<IntakeFormData>({
     resolver: zodResolver(intakeFormSchema),
     defaultValues: {
+      firstName: '',
+      lastName: '',
+      dateOfBirth: '',
+      phone: '',
+      addressStreet: '',
+      addressCity: '',
+      addressZip: '',
+      pharmacyName: '',
+      pharmacyAddress: '',
+      pharmacyCity: '',
+      pharmacyZip: '',
+      pharmacyPhone: '',
       dsm5Q1: undefined,
       dsm5Q2: undefined,
       dsm5Q3: undefined,
@@ -1304,6 +1456,7 @@ export default function IntakePage(): React.ReactElement {
   // Validate current step fields before proceeding
   const validateCurrentStep = async (): Promise<boolean> => {
     const stepFields: Record<string, string[]> = {
+      personal: ['firstName', 'lastName', 'dateOfBirth', 'phone', 'addressStreet', 'addressCity', 'addressZip', 'pharmacyName', 'pharmacyAddress', 'pharmacyCity', 'pharmacyZip'],
       dsm5: ['dsm5Q1', 'dsm5Q2', 'dsm5Q3', 'dsm5Q4', 'dsm5Q5', 'dsm5Q6', 'dsm5Q7', 'dsm5Q8', 'dsm5Q9', 'dsm5Q10', 'dsm5Q11'],
       drinking: ['drinkingDaysPerWeek', 'drinksPerDay', 'lastDrink', 'bingeDrinking'],
       withdrawal: ['withdrawalSeizure', 'withdrawalDTs', 'withdrawalHospitalized', 'morningDrinking'],

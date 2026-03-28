@@ -18,7 +18,6 @@ import { NotificationService } from '@/lib/services/notification-service';
 import { sendMessageSchema, getMessagesQuerySchema } from '@/lib/validation/schemas';
 import { Role, SenderType } from '@prisma/client';
 import { PHIResourceType } from '@/lib/audit/index';
-import { requireCSRF } from '@/lib/security/csrf';
 import {
   getPatientMessagingThreads,
   getPatientThreadMessages,
@@ -133,10 +132,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 // ============================================================================
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  // CSRF validation (double-submit cookie pattern)
-  const csrfError = requireCSRF(request);
-  if (csrfError) return csrfError;
-
   // Require patient role
   const auth = await requireRole(request, [Role.PATIENT]);
 

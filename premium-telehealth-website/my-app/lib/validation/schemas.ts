@@ -207,15 +207,22 @@ export type SubmitIntakeInput = z.infer<typeof submitIntakeSchema>;
 // Patient Profile Schemas
 // ============================================================================
 
+/** California ZIP code validation (must start with 9) */
+export const californiaZipCodeSchema = z.string().regex(
+  /^9\d{4}(-\d{4})?$/,
+  { message: 'Must be a valid California ZIP code (starts with 9)' }
+);
+
 /** Update profile request */
 export const updateProfileSchema = z.object({
   firstName: nonEmptyString(100).optional(),
   lastName: nonEmptyString(100).optional(),
+  dateOfBirth: dateSchema.optional(),
   phone: phoneSchema.optional(),
   addressStreet: nonEmptyString(255).optional(),
   addressCity: nonEmptyString(100).optional(),
-  addressState: nonEmptyString(2).optional(),
-  addressZip: zipCodeSchema.optional(),
+  addressState: z.literal('CA').optional(),
+  addressZip: californiaZipCodeSchema.optional(),
   medicalHistory: z.string().max(2000).optional(),
   currentMedications: z.string().max(1000).optional(),
   allergies: z.string().max(500).optional(),

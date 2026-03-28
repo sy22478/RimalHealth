@@ -18,6 +18,14 @@ import { LoadingButton } from '@/components/ui/LoadingButton';
 // ============================================================================
 
 const personalInfoSchema = z.object({
+  firstName: z.string()
+    .min(1, 'First name is required')
+    .max(100, 'First name must be under 100 characters'),
+  lastName: z.string()
+    .min(1, 'Last name is required')
+    .max(100, 'Last name must be under 100 characters'),
+  dateOfBirth: z.string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Please enter a valid date (YYYY-MM-DD)'),
   phone: z.string()
     .min(10, 'Phone number is required')
     .regex(/^\+?1?\d{10,15}$/, 'Please enter a valid phone number'),
@@ -29,7 +37,7 @@ const personalInfoSchema = z.object({
     .max(100, 'City must be under 100 characters'),
   addressState: z.string().min(1, 'State is required'),
   addressZip: z.string()
-    .regex(/^\d{5}(-\d{4})?$/, 'Please enter a valid ZIP code'),
+    .regex(/^9\d{4}(-\d{4})?$/, 'Must be a valid California ZIP code (starts with 9)'),
   medicalHistory: z.string()
     .max(2000, 'Medical history must be under 2000 characters')
     .optional(),
@@ -87,6 +95,9 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
   } = useForm<PersonalInfoFormValues>({
     resolver: zodResolver(personalInfoSchema),
     defaultValues: {
+      firstName: profile.firstName || '',
+      lastName: profile.lastName || '',
+      dateOfBirth: profile.dateOfBirth || '',
       phone: profile.phone || '',
       addressStreet: profile.addressStreet || '',
       addressCity: profile.addressCity || '',
@@ -101,6 +112,9 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
   // Reset form when profile changes
   React.useEffect(() => {
     reset({
+      firstName: profile.firstName || '',
+      lastName: profile.lastName || '',
+      dateOfBirth: profile.dateOfBirth || '',
       phone: profile.phone || '',
       addressStreet: profile.addressStreet || '',
       addressCity: profile.addressCity || '',
@@ -155,18 +169,12 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
               Personal Information
             </CardTitle>
             <CardDescription>
-              Your basic information (some fields cannot be edited)
+              Your basic personal details
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Read-only fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
-              <div>
-                <Label className="text-muted-foreground">Full Name</Label>
-                <p className="font-medium text-gray-900">
-                  {profile.firstName} {profile.lastName}
-                </p>
-              </div>
               <div>
                 <Label className="text-muted-foreground">Email</Label>
                 <p className="font-medium text-gray-900">{profile.email}</p>
@@ -175,15 +183,101 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
                 )}
               </div>
               <div>
-                <Label className="text-muted-foreground">Date of Birth</Label>
-                <p className="font-medium text-gray-900">{profile.dateOfBirth}</p>
-              </div>
-              <div>
                 <Label className="text-muted-foreground">Treatment</Label>
                 <p className="font-medium text-gray-900 capitalize">
                   {profile.primaryConcern?.toLowerCase().replace('_', ' ') || 'Not specified'}
                 </p>
               </div>
+            </div>
+
+            {/* Editable: First Name and Last Name */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="firstName" className="flex items-center gap-1">
+                  First Name <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="firstName"
+                  autoComplete="given-name"
+                  placeholder="John"
+                  className="mt-1.5"
+                  aria-invalid={!!errors.firstName}
+                  aria-describedby={errors.firstName ? 'firstName-error' : undefined}
+                  {...register('firstName')}
+                />
+                <AnimatePresence>
+                  {errors.firstName && (
+                    <motion.p
+                      id="firstName-error"
+                      role="alert"
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      className="text-sm text-red-500 mt-1.5"
+                    >
+                      {errors.firstName.message}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
+              </div>
+              <div>
+                <Label htmlFor="lastName" className="flex items-center gap-1">
+                  Last Name <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="lastName"
+                  autoComplete="family-name"
+                  placeholder="Doe"
+                  className="mt-1.5"
+                  aria-invalid={!!errors.lastName}
+                  aria-describedby={errors.lastName ? 'lastName-error' : undefined}
+                  {...register('lastName')}
+                />
+                <AnimatePresence>
+                  {errors.lastName && (
+                    <motion.p
+                      id="lastName-error"
+                      role="alert"
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      className="text-sm text-red-500 mt-1.5"
+                    >
+                      {errors.lastName.message}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+
+            {/* Editable: Date of Birth */}
+            <div>
+              <Label htmlFor="dateOfBirth" className="flex items-center gap-1">
+                Date of Birth <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="dateOfBirth"
+                type="date"
+                autoComplete="bday"
+                className="mt-1.5"
+                aria-invalid={!!errors.dateOfBirth}
+                aria-describedby={errors.dateOfBirth ? 'dateOfBirth-error' : undefined}
+                {...register('dateOfBirth')}
+              />
+              <AnimatePresence>
+                {errors.dateOfBirth && (
+                  <motion.p
+                    id="dateOfBirth-error"
+                    role="alert"
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="text-sm text-red-500 mt-1.5"
+                  >
+                    {errors.dateOfBirth.message}
+                  </motion.p>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* Editable: Phone */}
@@ -227,7 +321,7 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
               Address
             </CardTitle>
             <CardDescription>
-              Your home address (California residents only)
+              Your home address. Rimal Health currently serves California residents only.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -297,11 +391,12 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
                 <Input
                   id="addressState"
                   autoComplete="address-level1"
-                  value="CA"
+                  value="California (CA)"
                   disabled
-                  className="mt-1.5 bg-gray-100"
-                  {...register('addressState')}
+                  readOnly
+                  className="mt-1.5 bg-gray-100 cursor-not-allowed"
                 />
+                <input type="hidden" value="CA" {...register('addressState')} />
               </div>
 
               <div>
@@ -311,7 +406,7 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
                 <Input
                   id="addressZip"
                   autoComplete="postal-code"
-                  placeholder="90210"
+                  placeholder="e.g. 90210"
                   className="mt-1.5"
                   aria-invalid={!!errors.addressZip}
                   aria-describedby={errors.addressZip ? 'addressZip-error' : undefined}
