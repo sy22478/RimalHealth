@@ -300,14 +300,14 @@ const RELATION_TO_MODEL: Record<string, string> = {
  * so that included relations (e.g., patient.patientProfile) are
  * also decrypted automatically.
  */
-function decryptNestedPHIFields<T>(model: string, data: T): T {
-  if (data === null || data === undefined) {
-    return data;
+function decryptNestedPHIFields<T>(model: string, data: T, depth: number = 0): T {
+  if (data === null || data === undefined || depth > 5) {
+    return data; // Depth guard prevents infinite recursion on circular relations
   }
 
   // Handle arrays
   if (Array.isArray(data)) {
-    return data.map(item => decryptNestedPHIFields(model, item)) as T;
+    return data.map(item => decryptNestedPHIFields(model, item, depth)) as T;
   }
 
   // Handle objects
@@ -319,7 +319,7 @@ function decryptNestedPHIFields<T>(model: string, data: T): T {
     for (const key of Object.keys(decrypted)) {
       const nestedModel = RELATION_TO_MODEL[key];
       if (nestedModel && decrypted[key] != null && typeof decrypted[key] === 'object') {
-        decrypted[key] = decryptNestedPHIFields(nestedModel, decrypted[key]);
+        decrypted[key] = decryptNestedPHIFields(nestedModel, decrypted[key], depth + 1);
       }
     }
 

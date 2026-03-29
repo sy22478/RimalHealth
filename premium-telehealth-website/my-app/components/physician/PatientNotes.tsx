@@ -567,8 +567,8 @@ export function PatientNotes(props: PatientNotesProps): React.ReactElement {
         type: 'CLINICAL', // Legacy notes don't have type
         createdAt: note.createdAt,
         physician: {
-          firstName: note.authorName.split(' ')[0] || 'Unknown',
-          lastName: note.authorName.split(' ').slice(1).join(' ') || '',
+          firstName: (note.authorName || 'Unknown').split(' ')[0] || 'Unknown',
+          lastName: (note.authorName || '').split(' ').slice(1).join(' ') || '',
         },
       }))
     : modernNotes;

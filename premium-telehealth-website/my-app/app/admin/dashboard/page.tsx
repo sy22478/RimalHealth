@@ -422,7 +422,7 @@ function RecentActivityCard({ activities, hasError }: { activities: AdminActivit
                       {activity.description}
                     </p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {formatTimeAgo(activity.createdAt)} • {activity.admin.email.split('@')[0]}
+                      {formatTimeAgo(activity.createdAt)} • {activity.admin?.email?.split('@')[0] || 'Admin'}
                     </p>
                   </div>
                 </div>

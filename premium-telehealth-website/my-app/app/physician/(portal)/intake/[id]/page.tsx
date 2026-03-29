@@ -84,7 +84,7 @@ export default async function IntakeReviewPage({ params }: IntakeReviewPageProps
     <IntakeReview
       intake={intake}
       physicianId={user.userId}
-      physicianName={user.email.split('@')[0]} // Use email prefix as name placeholder
+      physicianName={user.email?.split('@')[0] || 'Physician'} // Use email prefix as name placeholder
     />
   );
 }

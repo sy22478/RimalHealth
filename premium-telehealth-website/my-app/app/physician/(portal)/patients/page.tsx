@@ -59,9 +59,9 @@ function calculateAge(dateOfBirth: string | Date | null | undefined): number {
  */
 function maskEmail(email: string | null | undefined): string {
   if (!email) return 'No email';
-  const [local, domain] = email.split('@');
-  if (!local || !domain) return email;
-  return `${local[0]}***@${domain}`;
+  const parts = email.split('@');
+  if (parts.length !== 2 || !parts[0] || !parts[1]) return 'Invalid email';
+  return `${parts[0][0]}***@${parts[1]}`;
 }
 
 export default async function PatientsPage() {
