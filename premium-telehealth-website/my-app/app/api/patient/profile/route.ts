@@ -15,7 +15,7 @@ import { prisma } from '@/lib/db/prisma';
 import { AuditService } from '@/lib/services/audit-service';
 import { ValidationService } from '@/lib/services/validation-service';
 import { updateProfileSchema } from '@/lib/validation/schemas';
-import { Role } from '@prisma/client';
+import { Role, IntakeStatus } from '@prisma/client';
 import { DataModificationAction } from '@/lib/audit/index';
 // PHI encryption/decryption is handled automatically by the Prisma encryption extension
 // in lib/db/encryption-extension.ts. Do NOT manually call encryptPHI/decryptPHI on fields
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const auditContext = AuditService.createAuditContext(request, userId, 'PATIENT');
 
   try {
-    // Get profile with user data
+    // Get profile with user data and preferred pharmacy
     const profile = await prisma.patientProfile.findUnique({
       where: { userId },
       include: {
@@ -48,6 +48,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             createdAt: true,
           },
         },
+        preferredPharmacy: true,
       },
     });
 
@@ -64,6 +65,49 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // PHI fields are already decrypted by the Prisma encryption extension on read.
     // Address fields are returned flat (addressStreet, addressCity, etc.)
     // to match the format expected by PersonalInfoForm and the PUT handler.
+
+    // Build pharmacy info: prefer linked Pharmacy record, fall back to intake formData
+    let pharmacy: {
+      name: string;
+      address: string;
+      city: string;
+      zip: string;
+      phone?: string;
+      source: 'pharmacy_record' | 'intake';
+    } | null = null;
+
+    if (profile.preferredPharmacy) {
+      pharmacy = {
+        name: profile.preferredPharmacy.name,
+        address: profile.preferredPharmacy.address,
+        city: profile.preferredPharmacy.city,
+        zip: profile.preferredPharmacy.zipCode,
+        phone: profile.preferredPharmacy.phone || undefined,
+        source: 'pharmacy_record',
+      };
+    } else {
+      // Fall back to pharmacy info stored in the latest submitted intake formData
+      const latestIntake = await prisma.intake.findFirst({
+        where: { patientId: userId, status: { not: IntakeStatus.DRAFT } },
+        orderBy: { submittedAt: 'desc' },
+        select: { formData: true },
+      });
+
+      if (latestIntake?.formData && typeof latestIntake.formData === 'object') {
+        const fd = latestIntake.formData as Record<string, unknown>;
+        if (fd.pharmacyName && typeof fd.pharmacyName === 'string') {
+          pharmacy = {
+            name: fd.pharmacyName,
+            address: typeof fd.pharmacyAddress === 'string' ? fd.pharmacyAddress : '',
+            city: typeof fd.pharmacyCity === 'string' ? fd.pharmacyCity : '',
+            zip: typeof fd.pharmacyZip === 'string' ? fd.pharmacyZip : '',
+            phone: typeof fd.pharmacyPhone === 'string' ? fd.pharmacyPhone : undefined,
+            source: 'intake',
+          };
+        }
+      }
+    }
+
     const formattedProfile = {
       id: profile.userId,
       email: profile.user.email,
@@ -78,6 +122,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       addressZip: profile.addressZip,
       primaryConcern: profile.primaryConcern,
       treatmentGoal: profile.treatmentGoal,
+      pharmacy,
       notificationPreferences: profile.notificationPreferences,
       privacyConsent: {
         given: profile.privacyConsentGiven,

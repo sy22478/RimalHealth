@@ -115,7 +115,7 @@ export function DecisionForm({
               onClick={() => handleDecisionChange(option.value)}
               disabled={disabled}
               className={cn(
-                'relative flex flex-col items-center p-4 rounded-lg border-2 transition-all text-center',
+                'relative flex flex-col items-center p-4 rounded-lg border-2 transition-all text-center overflow-hidden',
                 value.decision === option.value
                   ? option.variant === 'default'
                     ? 'border-success bg-success/5'
@@ -128,7 +128,7 @@ export function DecisionForm({
             >
               <div
                 className={cn(
-                  'mb-2',
+                  'mb-2 shrink-0',
                   option.variant === 'default' && 'text-success',
                   option.variant === 'destructive' && 'text-destructive',
                   option.variant === 'secondary' && 'text-muted-foreground'
@@ -137,7 +137,7 @@ export function DecisionForm({
                 {option.icon}
               </div>
               <span className="font-medium text-sm">{option.label}</span>
-              <span className="text-xs text-muted-foreground mt-1">
+              <span className="text-xs text-muted-foreground mt-1 break-words leading-tight w-full">
                 {option.description}
               </span>
               {value.decision === option.value && (

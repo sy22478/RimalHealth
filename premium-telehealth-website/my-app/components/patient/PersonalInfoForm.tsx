@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle, AlertCircle, User, MapPin, FileText, Pill, AlertTriangle } from 'lucide-react';
+import { CheckCircle, AlertCircle, User, MapPin, FileText, Pill, AlertTriangle, Building2, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -74,6 +74,14 @@ interface ProfileData {
   allergies: string | null;
   primaryConcern: string | null;
   treatmentGoal: string | null;
+  pharmacy: {
+    name: string;
+    address: string;
+    city: string;
+    zip: string;
+    phone?: string;
+    source: 'pharmacy_record' | 'intake';
+  } | null;
 }
 
 interface PersonalInfoFormProps {
@@ -432,6 +440,55 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
             </div>
           </CardContent>
         </Card>
+
+        {/* Preferred Pharmacy Card */}
+        {profile.pharmacy && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-ocean-500" />
+                Preferred Pharmacy
+              </CardTitle>
+              <CardDescription>
+                Pharmacy selected during intake. Contact support to update.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+                <div>
+                  <Label className="text-muted-foreground">Pharmacy Name</Label>
+                  <p className="font-medium text-gray-900">{profile.pharmacy.name}</p>
+                </div>
+                {profile.pharmacy.phone && (
+                  <div>
+                    <Label className="text-muted-foreground">Phone</Label>
+                    <p className="font-medium text-gray-900">{profile.pharmacy.phone}</p>
+                  </div>
+                )}
+                {profile.pharmacy.address && (
+                  <div>
+                    <Label className="text-muted-foreground">Address</Label>
+                    <p className="font-medium text-gray-900">{profile.pharmacy.address}</p>
+                  </div>
+                )}
+                <div>
+                  <Label className="text-muted-foreground">City</Label>
+                  <p className="font-medium text-gray-900">
+                    {[profile.pharmacy.city, 'CA', profile.pharmacy.zip].filter(Boolean).join(', ')}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                <Info className="h-4 w-4 mt-0.5 shrink-0" />
+                <span>
+                  {profile.pharmacy.source === 'intake'
+                    ? 'This pharmacy was selected during your intake form. To change your preferred pharmacy, please contact support.'
+                    : 'To change your preferred pharmacy, please contact support.'}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Medical Information Card */}
         <Card>

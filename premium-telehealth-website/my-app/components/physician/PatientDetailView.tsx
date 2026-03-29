@@ -80,13 +80,16 @@ function formatFileSize(bytes: number): string {
 /**
  * Get initials from name
  */
-function getInitials(name: string): string {
+function getInitials(name: string | undefined | null): string {
+  if (!name || !name.trim()) return '?';
   return name
+    .trim()
     .split(' ')
+    .filter((n) => n.length > 0)
     .map((n) => n[0])
     .join('')
     .toUpperCase()
-    .slice(0, 2);
+    .slice(0, 2) || '?';
 }
 
 // ============================================================================
@@ -97,7 +100,8 @@ function getInitials(name: string): string {
  * Patient Header Component
  */
 function PatientHeader({ patient }: { patient: PhysicianPatientDetail }) {
-  const initials = getInitials(patient.name);
+  const displayName = patient.name || 'Unknown Patient';
+  const initials = getInitials(displayName);
   const isHighRisk = patient.riskLevel === 'HIGH' || patient.riskLevel === 'SEVERE';
 
   return (
@@ -115,7 +119,7 @@ function PatientHeader({ patient }: { patient: PhysicianPatientDetail }) {
         </Avatar>
         <div>
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl font-bold">{patient.name}</h1>
+            <h1 className="text-2xl font-bold">{displayName}</h1>
             <PatientStatusBadge status={patient.status} />
             {isHighRisk && (
               <Badge variant="destructive" className="text-xs">
@@ -124,16 +128,16 @@ function PatientHeader({ patient }: { patient: PhysicianPatientDetail }) {
             )}
           </div>
           <p className="text-muted-foreground">
-            {patient.age} years • {patient.gender} • ID: {patient.id}
+            {patient.age ? `${patient.age} years` : 'Age unknown'} • {patient.gender || 'Not specified'} • ID: {patient.id}
           </p>
           <div className="flex items-center gap-4 mt-2 text-sm flex-wrap">
             <span className="flex items-center gap-1 text-muted-foreground">
               <Mail className="w-4 h-4" />
-              {patient.emailMasked}
+              {patient.emailMasked || 'No email'}
             </span>
             <span className="flex items-center gap-1 text-muted-foreground">
               <Phone className="w-4 h-4" />
-              {patient.phoneMasked}
+              {patient.phoneMasked || 'No phone'}
             </span>
           </div>
         </div>

@@ -376,15 +376,15 @@ export function PatientTable({
                           {getInitials(patient.name)}
                         </div>
                         <div>
-                          <p className="font-medium">{patient.name}</p>
-                          <p className="text-xs text-muted-foreground">{patient.gender}</p>
+                          <p className="font-medium">{patient.name || 'Unknown'}</p>
+                          <p className="text-xs text-muted-foreground">{patient.gender || 'Not specified'}</p>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {patient.emailMasked}
+                      {patient.emailMasked || 'No email'}
                     </TableCell>
-                    <TableCell>{patient.age}</TableCell>
+                    <TableCell>{patient.age || 'N/A'}</TableCell>
                     <TableCell>
                       <ConcernBadge type={patient.treatmentType} />
                     </TableCell>

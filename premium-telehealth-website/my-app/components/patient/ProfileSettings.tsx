@@ -40,6 +40,14 @@ interface ProfileData {
   allergies: string | null;
   primaryConcern: string | null;
   treatmentGoal: string | null;
+  pharmacy: {
+    name: string;
+    address: string;
+    city: string;
+    zip: string;
+    phone?: string;
+    source: 'pharmacy_record' | 'intake';
+  } | null;
 }
 
 interface PreferencesData {

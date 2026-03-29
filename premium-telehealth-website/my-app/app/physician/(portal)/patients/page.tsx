@@ -37,6 +37,33 @@ export const metadata: Metadata = {
  * - Click row to view patient detail
  * - Loading state with skeleton
  */
+/**
+ * Calculate age from date of birth string or Date.
+ * Returns 0 if dateOfBirth is missing or invalid.
+ */
+function calculateAge(dateOfBirth: string | Date | null | undefined): number {
+  if (!dateOfBirth) return 0;
+  const dob = new Date(dateOfBirth);
+  if (isNaN(dob.getTime())) return 0;
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const monthDiff = today.getMonth() - dob.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+    age--;
+  }
+  return age;
+}
+
+/**
+ * Mask an email for display (e.g., "j***@example.com").
+ */
+function maskEmail(email: string | null | undefined): string {
+  if (!email) return 'No email';
+  const [local, domain] = email.split('@');
+  if (!local || !domain) return email;
+  return `${local[0]}***@${domain}`;
+}
+
 export default async function PatientsPage() {
   let patients: PhysicianPatientListItem[] = [];
 
@@ -54,7 +81,22 @@ export default async function PatientsPage() {
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data.patients)) {
-          patients = data.patients;
+          // Map API response fields to PhysicianPatientListItem shape
+          patients = data.patients.map((p: Record<string, unknown>) => ({
+            id: (p.id as string) || '',
+            name: [p.firstName, p.lastName].filter(Boolean).join(' ') || 'Unknown',
+            age: calculateAge(p.dateOfBirth as string | null),
+            gender: (p.gender as string) || undefined,
+            treatmentType: (p.primaryConcern as string) || 'ALCOHOL',
+            status: (p.status as string) || 'ACTIVE',
+            enrolledAt: p.createdAt ? new Date(p.createdAt as string) : new Date(),
+            lastVisitAt: p.lastVisitAt ? new Date(p.lastVisitAt as string) : undefined,
+            activePrescriptions: (p.activePrescriptions as number) || 0,
+            unreadMessages: (p.unreadMessages as number) || 0,
+            riskLevel: (p.riskLevel as string) || 'LOW',
+            emailMasked: maskEmail(p.email as string | null),
+            phoneMasked: (p.phoneMasked as string) || 'No phone',
+          }));
         }
       }
     }
