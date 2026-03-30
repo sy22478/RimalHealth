@@ -212,15 +212,16 @@ export function EnhancedQueueClient({
       }
 
       const data = await response.json();
-      setItems(data.items);
-      setStats(data.stats);
-      
+      const fetchedItems: QueueItem[] = Array.isArray(data.queue) ? data.queue : Array.isArray(data.items) ? data.items : [];
+      setItems(fetchedItems);
+      setStats(data.stats ?? stats);
+
       // Update enhanced stats
-      const highPriorityCount = data.items.filter(
+      const highPriorityCount = fetchedItems.filter(
         (item: QueueItem) => (item.riskScore || 0) >= 70
       ).length;
-      const averageWaitTimeHours = data.items.length > 0
-        ? data.items.reduce((sum: number, item: QueueItem) => sum + item.waitTimeHours, 0) / data.items.length
+      const averageWaitTimeHours = fetchedItems.length > 0
+        ? fetchedItems.reduce((sum: number, item: QueueItem) => sum + (item.waitTimeHours || 0), 0) / fetchedItems.length
         : 0;
       
       setEnhancedStats({
