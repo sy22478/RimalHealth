@@ -17,6 +17,7 @@ import {
   LayoutDashboard,
   Users,
   ClipboardList,
+  ListChecks,
   Pill,
   MessageSquare,
   Settings,
@@ -37,6 +38,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { href: '/physician/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/physician/queue', label: 'Patient Queue', icon: ListChecks },
   { href: '/physician/patients', label: 'Patients', icon: Users },
   { href: '/physician/reviews', label: 'Reviews', icon: ClipboardList },
   { href: '/physician/prescriptions', label: 'Prescriptions', icon: Pill },
@@ -316,7 +318,7 @@ function MobileMessagesNavItem({ currentPath }: { currentPath: string }) {
 
 export function MobileNav() {
   const currentPath = usePathname();
-  const mainItems = navItems.slice(0, 4);
+  const mainItems = navItems.slice(0, 3); // Dashboard, Queue, Patients on mobile bottom bar
 
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
