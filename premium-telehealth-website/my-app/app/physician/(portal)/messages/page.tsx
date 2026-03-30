@@ -46,8 +46,7 @@ import {
   Plus,
   ChevronLeft,
   MoreVertical,
-  Stethoscope,
-  Clock,
+  User,
   Loader2,
 } from 'lucide-react';
 
@@ -61,7 +60,6 @@ interface Thread {
     id: string;
     firstName: string;
     lastName: string;
-    specialty?: string;
   };
   lastMessage: {
     subject: string;
@@ -81,11 +79,11 @@ interface Message {
   isRead: boolean;
 }
 
-interface Physician {
+interface Patient {
   id: string;
   firstName: string;
   lastName: string;
-  specialty: string;
+  email: string;
 }
 
 // ============================================================================
@@ -190,8 +188,8 @@ function ThreadList({
       <div className="p-4 border-b">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Stethoscope className="w-5 h-5" />
-            Colleagues
+            <Users className="w-5 h-5" />
+            Patients
             {totalUnread > 0 && (
               <Badge variant="destructive">{totalUnread}</Badge>
             )}
@@ -205,7 +203,7 @@ function ThreadList({
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search colleagues..."
+            placeholder="Search patients..."
             value={searchQuery}
             onChange={(e) => onSearch(e.target.value)}
             className="pl-9"
@@ -219,7 +217,7 @@ function ThreadList({
         ) : threads.length === 0 ? (
           <EmptyState
             title="No messages yet"
-            description="Start a conversation with a colleague."
+            description="Start a conversation with a patient."
             icon="message"
             compact
             className="py-8"
@@ -236,7 +234,7 @@ function ThreadList({
                 )}
               >
                 <Avatar className="h-10 w-10 shrink-0">
-                  <AvatarFallback className="bg-ocean-100 text-ocean-700 text-sm">
+                  <AvatarFallback className="bg-green-100 text-green-700 text-sm">
                     {getInitials(thread.participant.firstName, thread.participant.lastName)}
                   </AvatarFallback>
                 </Avatar>
@@ -244,15 +242,12 @@ function ThreadList({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
                     <h4 className="font-medium truncate">
-                      Dr. {thread.participant.lastName}
+                      {thread.participant.firstName} {thread.participant.lastName}
                     </h4>
                     <span className="text-xs text-muted-foreground shrink-0">
                       {formatMessageTime(thread.lastMessage.timestamp)}
                     </span>
                   </div>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {thread.participant.specialty}
-                  </p>
                   <p
                     className={cn(
                       'text-sm truncate mt-1',
@@ -327,16 +322,16 @@ function MessageThread({
     <div className="flex flex-col h-full bg-white">
       <div className="flex items-center gap-4 p-4 border-b">
         <Avatar className="h-10 w-10">
-          <AvatarFallback className="bg-ocean-100 text-ocean-700">
+          <AvatarFallback className="bg-green-100 text-green-700">
             {getInitials(thread.participant.firstName, thread.participant.lastName)}
           </AvatarFallback>
         </Avatar>
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold">
-            Dr. {thread.participant.firstName} {thread.participant.lastName}
+            {thread.participant.firstName} {thread.participant.lastName}
           </h3>
           <p className="text-sm text-muted-foreground truncate">
-            {thread.participant.specialty}
+            Patient
           </p>
         </div>
         <Button variant="ghost" size="icon">
@@ -389,7 +384,7 @@ function MessageThread({
                           'text-xs',
                           isCurrentUser
                             ? 'bg-primary text-primary-foreground'
-                            : 'bg-ocean-100 text-ocean-700'
+                            : 'bg-green-100 text-green-700'
                         )}
                       >
                         {isCurrentUser
@@ -481,15 +476,15 @@ function MessageThread({
 interface ComposeDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  physicians: Physician[];
-  onSend: (recipientId: string, subject: string, body: string) => Promise<void>;
+  patients: Patient[];
+  onSend: (patientId: string, subject: string, body: string) => Promise<void>;
   isLoading?: boolean;
 }
 
 function ComposeDialog({
   isOpen,
   onOpenChange,
-  physicians,
+  patients,
   onSend,
   isLoading,
 }: ComposeDialogProps) {
@@ -520,7 +515,7 @@ function ComposeDialog({
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>New Message</DialogTitle>
-          <DialogDescription>Send a message to a colleague</DialogDescription>
+          <DialogDescription>Send a message to a patient</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
@@ -528,22 +523,22 @@ function ComposeDialog({
             <label className="text-sm font-medium">To</label>
             {isLoading ? (
               <Skeleton className="h-10 w-full" />
-            ) : physicians.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No colleagues available.</p>
+            ) : patients.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No patients available.</p>
             ) : (
               <Select value={recipientId} onValueChange={setRecipientId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a colleague" />
+                  <SelectValue placeholder="Select a patient" />
                 </SelectTrigger>
                 <SelectContent>
-                  {physicians.map((physician) => (
-                    <SelectItem key={physician.id} value={physician.id}>
+                  {patients.map((patient) => (
+                    <SelectItem key={patient.id} value={patient.id}>
                       <div className="flex flex-col">
                         <span>
-                          Dr. {physician.firstName} {physician.lastName}
+                          {patient.firstName} {patient.lastName}
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          {physician.specialty}
+                          {patient.email}
                         </span>
                       </div>
                     </SelectItem>
@@ -601,7 +596,7 @@ function NoThreadSelected({ onComposeClick }: { onComposeClick: () => void }) {
     <div className="flex-1 flex items-center justify-center bg-muted/30">
       <EmptyState
         title="Select a conversation"
-        description="Choose a colleague from the list or start a new conversation."
+        description="Choose a patient from the list or start a new conversation."
         icon="message"
         actionLabel="New Message"
         onAction={onComposeClick}
@@ -650,8 +645,8 @@ export default function PhysicianMessagingPage() {
   const [isComposeOpen, setIsComposeOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
-  const [isLoadingPhysicians, setIsLoadingPhysicians] = useState(false);
-  const [physicians, setPhysicians] = useState<Physician[]>([]);
+  const [isLoadingPatients, setIsLoadingPatients] = useState(false);
+  const [patients, setPatients] = useState<Patient[]>([]);
   const [currentUserId, setCurrentUserId] = useState('');
 
   // -----------------------------------------------------------------------
@@ -668,27 +663,40 @@ export default function PhysicianMessagingPage() {
             (t: {
               threadId: string;
               patientId?: string;
-              participantId?: string;
+              patientName?: string;
               participantFirstName?: string;
               participantLastName?: string;
-              participantSpecialty?: string;
               lastMessage: { body: string; sentAt: string; subject?: string };
               unreadCount: number;
-            }) => ({
-              id: t.threadId,
-              participant: {
-                id: t.participantId || t.patientId || '',
-                firstName: t.participantFirstName || '',
-                lastName: t.participantLastName || '',
-                specialty: t.participantSpecialty,
-              },
-              lastMessage: {
-                subject: t.lastMessage.subject || '',
-                preview: t.lastMessage.body,
-                timestamp: t.lastMessage.sentAt,
-              },
-              unreadCount: t.unreadCount,
-            })
+            }) => {
+              // The API returns patientName as "FirstName LastName"
+              // Parse it into firstName/lastName for the participant
+              let firstName = '';
+              let lastName = '';
+              if (t.patientName) {
+                const parts = t.patientName.split(' ');
+                firstName = parts[0] || '';
+                lastName = parts.slice(1).join(' ') || '';
+              } else if (t.participantFirstName || t.participantLastName) {
+                firstName = t.participantFirstName || '';
+                lastName = t.participantLastName || '';
+              }
+
+              return {
+                id: t.threadId,
+                participant: {
+                  id: t.patientId || '',
+                  firstName,
+                  lastName,
+                },
+                lastMessage: {
+                  subject: t.lastMessage.subject || '',
+                  preview: t.lastMessage.body,
+                  timestamp: t.lastMessage.sentAt,
+                },
+                unreadCount: t.unreadCount,
+              };
+            }
           );
           setThreads(mapped);
         }
@@ -704,22 +712,31 @@ export default function PhysicianMessagingPage() {
   }, []);
 
   // -----------------------------------------------------------------------
-  // Fetch physicians for compose dialog
+  // Fetch patients for compose dialog
   // -----------------------------------------------------------------------
-  const fetchPhysicians = useCallback(async () => {
-    setIsLoadingPhysicians(true);
+  const fetchPatients = useCallback(async () => {
+    setIsLoadingPatients(true);
     try {
-      const res = await fetch('/api/physician/colleagues', { cache: 'no-store' });
+      const res = await fetch('/api/physician/patients?limit=100', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data.physicians)) {
-          setPhysicians(data.physicians);
+        if (Array.isArray(data.patients)) {
+          setPatients(
+            data.patients.map(
+              (p: { id: string; firstName: string; lastName: string; email: string }) => ({
+                id: p.id,
+                firstName: p.firstName,
+                lastName: p.lastName,
+                email: p.email,
+              })
+            )
+          );
         }
       }
     } catch {
       // silently keep empty
     } finally {
-      setIsLoadingPhysicians(false);
+      setIsLoadingPatients(false);
     }
   }, []);
 
@@ -817,7 +834,7 @@ export default function PhysicianMessagingPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             threadId: selectedThreadId,
-            recipientId: thread.participant.id,
+            patientId: thread.participant.id,
             body,
           }),
         });
@@ -836,7 +853,7 @@ export default function PhysicianMessagingPage() {
         const newMessage: Message = {
           id: data.message?.id || `msg-${Date.now()}`,
           senderId: currentUserId,
-          senderName: 'Dr. You',
+          senderName: 'You',
           subject: '',
           body,
           timestamp: data.message?.sentAt || new Date().toISOString(),
@@ -874,15 +891,18 @@ export default function PhysicianMessagingPage() {
   );
 
   // -----------------------------------------------------------------------
-  // Compose new message
+  // Compose new message to a patient
   // -----------------------------------------------------------------------
   const handleComposeSend = useCallback(
-    async (recipientId: string, subject: string, body: string) => {
+    async (patientId: string, subject: string, body: string) => {
+      // Generate thread ID in the expected format: thread-{patientId}-{physicianId}
+      const threadId = `thread-${patientId}-${currentUserId}`;
+
       try {
         const res = await fetch('/api/physician/messages', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ recipientId, subject, body }),
+          body: JSON.stringify({ patientId, threadId, body, subject: subject || undefined }),
         });
 
         if (!res.ok) {
@@ -909,18 +929,18 @@ export default function PhysicianMessagingPage() {
         });
       }
     },
-    [fetchThreads, toast]
+    [fetchThreads, toast, currentUserId]
   );
 
   // -----------------------------------------------------------------------
-  // Open compose dialog — fetch colleagues if not yet loaded
+  // Open compose dialog -- fetch patients if not yet loaded
   // -----------------------------------------------------------------------
   const handleComposeClick = useCallback(() => {
-    if (physicians.length === 0 && !isLoadingPhysicians) {
-      void fetchPhysicians();
+    if (patients.length === 0 && !isLoadingPatients) {
+      void fetchPatients();
     }
     setIsComposeOpen(true);
-  }, [physicians.length, isLoadingPhysicians, fetchPhysicians]);
+  }, [patients.length, isLoadingPatients, fetchPatients]);
 
   // -----------------------------------------------------------------------
   // Initial load
@@ -948,8 +968,7 @@ export default function PhysicianMessagingPage() {
           `${t.participant.firstName} ${t.participant.lastName}`
             .toLowerCase()
             .includes(searchQuery.toLowerCase()) ||
-          t.lastMessage.preview.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (t.participant.specialty || '').toLowerCase().includes(searchQuery.toLowerCase())
+          t.lastMessage.preview.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : threads;
 
@@ -972,7 +991,7 @@ export default function PhysicianMessagingPage() {
             <MessageSquare className="w-6 h-6" />
             Messages
           </h1>
-          <p className="text-muted-foreground">Communicate with your colleagues</p>
+          <p className="text-muted-foreground">Communicate with your patients</p>
         </div>
         <div className="flex items-center gap-2">
           {totalUnread > 0 && (
@@ -986,7 +1005,7 @@ export default function PhysicianMessagingPage() {
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <StatsCard
-          title="Total Conversations"
+          title="Patient Conversations"
           value={totalThreads}
           icon={Users}
           colorClass="bg-blue-100 text-blue-600"
@@ -1063,9 +1082,9 @@ export default function PhysicianMessagingPage() {
       <ComposeDialog
         isOpen={isComposeOpen}
         onOpenChange={setIsComposeOpen}
-        physicians={physicians}
+        patients={patients}
         onSend={handleComposeSend}
-        isLoading={isLoadingPhysicians}
+        isLoading={isLoadingPatients}
       />
     </div>
   );

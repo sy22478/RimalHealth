@@ -51,7 +51,9 @@ export function IntakeReview({ intake, physicianId, physicianName }: IntakeRevie
 
   // Calculate patient age
   const patientAge = React.useMemo(() => {
+    if (!intake.patient.dateOfBirth) return null;
     const dob = new Date(intake.patient.dateOfBirth);
+    if (isNaN(dob.getTime())) return null;
     const today = new Date();
     let age = today.getFullYear() - dob.getFullYear();
     const monthDiff = today.getMonth() - dob.getMonth();
@@ -281,14 +283,14 @@ export function IntakeReview({ intake, physicianId, physicianName }: IntakeRevie
                 <div className="text-center">
                   <Avatar className="h-20 w-20 mx-auto mb-3">
                     <AvatarFallback className="bg-primary/10 text-primary text-2xl">
-                      {intake.patient.firstName[0]}
-                      {intake.patient.lastName[0]}
+                      {intake.patient.firstName?.[0] ?? ''}
+                      {intake.patient.lastName?.[0] ?? ''}
                     </AvatarFallback>
                   </Avatar>
                   <h3 className="font-semibold text-lg">
                     {intake.patient.firstName} {intake.patient.lastName}
                   </h3>
-                  <p className="text-sm text-muted-foreground">{patientAge} years old</p>
+                  <p className="text-sm text-muted-foreground">{patientAge !== null ? `${patientAge} years old` : 'Age unknown'}</p>
                 </div>
 
                 <Separator />

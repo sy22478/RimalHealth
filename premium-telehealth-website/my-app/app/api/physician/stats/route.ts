@@ -181,10 +181,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       },
     });
 
-    const totalDecisions = reviewDecisions.reduce((sum, r) => sum + r._count.id, 0);
+    const totalDecisions = reviewDecisions.reduce((sum, r) => sum + (r._count?.id ?? 0), 0);
     const approvedCount =
-      reviewDecisions.find((r) => r.decision === 'APPROVE')?._count.id || 0;
-    const approvalRate = totalDecisions > 0 ? (approvedCount / totalDecisions) * 100 : 0;
+      reviewDecisions.find((r) => r.decision === 'APPROVE')?._count?.id ?? 0;
+    const approvalRate = totalDecisions > 0 ? Math.round((approvedCount / totalDecisions) * 100) : 0;
 
     // Calculate average wait time
     const pendingIntakeDates = await prisma.intake.findMany({

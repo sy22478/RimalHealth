@@ -22,7 +22,7 @@ import { PHIResourceType, DataModificationAction } from '@/lib/audit/index';
 
 const querySchema = z.object({
   status: z.enum(['PENDING', 'INVITED', 'ACTIVE', 'INACTIVE', 'ALL']).optional().default('ALL'),
-  search: z.string().optional(),
+  search: z.string().max(100).optional(),
   page: z.coerce.number().min(1).optional().default(1),
   limit: z.coerce.number().min(1).max(100).optional().default(20),
 });

@@ -30,6 +30,15 @@ import {
   markThreadAsReadForPatient,
 } from '@/lib/patient/messaging';
 
+// Thread ID format: thread-{patientUUID}-{physicianUUID}
+const UUID_PATTERN = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
+
+/** Validates that a thread ID belongs to the given patient using strict regex matching. */
+function isPatientThread(threadId: string, patientId: string): boolean {
+  const pattern = new RegExp(`^thread-${patientId}-${UUID_PATTERN}$`, 'i');
+  return pattern.test(threadId);
+}
+
 // ============================================================================
 // GET - List Messages/Threads
 // ============================================================================
@@ -67,9 +76,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // If threadId provided, get messages in thread
     if (threadId) {
-      // Verify thread access
-      const hasAccess = threadId === `thread-${userId}` || threadId.startsWith(`thread-${userId}-`) || threadId.includes(`-${userId}-`) || threadId.endsWith(`-${userId}`);
-      if (!hasAccess) {
+      if (!isPatientThread(threadId, userId)) {
         await AuditService.logUnauthorizedAccess(
           userId,
           `/api/patient/messages?threadId=${threadId}`,
@@ -184,9 +191,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const { threadId, body, subject } = validation.data!;
 
-    // Verify thread access
-    const hasAccess = threadId === `thread-${userId}` || threadId.startsWith(`thread-${userId}-`) || threadId.includes(`-${userId}-`) || threadId.endsWith(`-${userId}`);
-    if (!hasAccess) {
+    if (!isPatientThread(threadId, userId)) {
       await AuditService.logUnauthorizedAccess(
         userId,
         '/api/patient/messages',
@@ -230,9 +235,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       patientName,
     });
 
-    // Non-critical: audit + notification (don't block response)
-    AuditService.logMessageAccess(userId, 'PATIENT', threadId, 'CREATE', auditContext).catch(() => {});
-    NotificationService.notifyPhysicianNewMessage(physicianId, userId, threadId).catch(() => {});
+    // Non-critical: audit + notification (don't block response, but log failures)
+    AuditService.logMessageAccess(userId, 'PATIENT', threadId, 'CREATE', auditContext).catch((err) => {
+      console.error('[Message] Failed to log access:', err instanceof Error ? err.message : 'Unknown error');
+    });
+    NotificationService.notifyPhysicianNewMessage(physicianId, userId, threadId).catch((err) => {
+      console.error('[Message] Failed to notify physician:', err instanceof Error ? err.message : 'Unknown error');
+    });
 
     return NextResponse.json(
       {

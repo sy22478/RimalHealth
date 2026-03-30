@@ -116,6 +116,14 @@ npm run health-check     # Run health check script
 - Do not make changes beyond what was requested.
 - Before fixing a bug, verify the root cause. Check env vars, API URLs, middleware config first.
 
+**Code Review — Mandatory Runtime Verification:**
+- NEVER conduct a code review using only static code analysis. Always run the app (`npm run dev`) and test affected user flows in a browser.
+- For every page changed, open it in Chrome with DevTools Console + Issues tabs open. Fix any errors/warnings.
+- Verify all API endpoints exist and return correct data shapes by testing with `fetch()` or curl.
+- Use `Array.isArray()` before calling `.map()` on any data from JSON columns or API responses.
+- Every `.catch()` block must log the error — never use `.catch(() => {})`.
+- After fixes, run `npm run type-check` and verify 0 errors before claiming work is complete.
+
 **Imports:** Use `@/` path alias for all imports (maps to project root `premium-telehealth-website/my-app/`). Example: `import { cn } from '@/lib/utils'`.
 
 **TypeScript:** Strict mode, explicit return types, `interface` for objects, `type` for unions. `'use client'` required for hooks/browser APIs. No `any` without justification.

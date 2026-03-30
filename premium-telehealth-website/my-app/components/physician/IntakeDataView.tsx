@@ -163,7 +163,10 @@ function formatTreatmentType(treatment: string): string {
  *
  * HIPAA: This component displays PHI - ensure proper access controls
  */
-export function IntakeDataView({ formData, scores, riskAssessment }: IntakeDataViewProps) {
+export function IntakeDataView({ formData: rawFormData, scores, riskAssessment }: IntakeDataViewProps) {
+  // Defensive: ensure formData is always an object even if null/undefined from DB
+  const formData = (rawFormData ?? {}) as IntakeFormData;
+
   // Extract provider decision summary if available (attached by review.ts)
   const providerSummary = (formData as unknown as Record<string, unknown>)?._providerDecisionSummary as ProviderDecisionSummary | undefined;
 
@@ -309,7 +312,8 @@ export function IntakeDataView({ formData, scores, riskAssessment }: IntakeDataV
             </div>
 
             {/* Absolute Contraindications */}
-            {providerSummary.contraindications.hasAbsoluteContraindication && (
+            {providerSummary.contraindications.hasAbsoluteContraindication &&
+              Array.isArray(providerSummary.contraindications.absolute) && (
               <Alert variant="destructive">
                 <ShieldAlert className="h-4 w-4" />
                 <AlertTitle>Absolute Contraindications</AlertTitle>
@@ -324,7 +328,8 @@ export function IntakeDataView({ formData, scores, riskAssessment }: IntakeDataV
             )}
 
             {/* Relative Contraindications */}
-            {providerSummary.contraindications.hasRelativeContraindication && (
+            {providerSummary.contraindications.hasRelativeContraindication &&
+              Array.isArray(providerSummary.contraindications.relative) && (
               <Alert className="border-amber-300 bg-amber-50">
                 <AlertTriangle className="h-4 w-4 text-amber-600" />
                 <AlertTitle className="text-amber-800">Relative Contraindications</AlertTitle>
@@ -339,7 +344,8 @@ export function IntakeDataView({ formData, scores, riskAssessment }: IntakeDataV
             )}
 
             {/* Withdrawal Risk */}
-            {providerSummary.withdrawalRisk.isElevated && (
+            {providerSummary.withdrawalRisk.isElevated &&
+              Array.isArray(providerSummary.withdrawalRisk.riskFactors) && (
               <Alert className="border-orange-300 bg-orange-50">
                 <AlertTriangle className="h-4 w-4 text-orange-600" />
                 <AlertTitle className="text-orange-800">Elevated Withdrawal Risk</AlertTitle>
@@ -512,7 +518,7 @@ export function IntakeDataView({ formData, scores, riskAssessment }: IntakeDataV
               )}
 
               {/* Medical history items -- DSM-5 array format */}
-              {formData.medicalHistory && formData.medicalHistory.length > 0 && (
+              {Array.isArray(formData.medicalHistory) && formData.medicalHistory.length > 0 && (
                 <DataRow
                   label="Medical Conditions"
                   value={formData.medicalHistory.map(formatMedicalCondition).join(', ')}
@@ -606,7 +612,7 @@ export function IntakeDataView({ formData, scores, riskAssessment }: IntakeDataV
               )}
 
               {/* Opioid use -- DSM-5 Naltrexone safety screening */}
-              {formData.opioidUse && formData.opioidUse.length > 0 && (
+              {Array.isArray(formData.opioidUse) && formData.opioidUse.length > 0 && (
                 <DataRow
                   label="Opioid Use"
                   value={formData.opioidUse.join(', ')}
@@ -737,7 +743,7 @@ export function IntakeDataView({ formData, scores, riskAssessment }: IntakeDataV
           <AccordionContent>
             <dl className="space-y-1">
               {/* DSM-5 format: previousTreatments is an array of strings */}
-              {formData.previousTreatments && formData.previousTreatments.length > 0 ? (
+              {Array.isArray(formData.previousTreatments) && formData.previousTreatments.length > 0 ? (
                 <DataRow
                   label="Previous treatments"
                   value={formData.previousTreatments.map(formatTreatmentType).join(', ')}

@@ -211,11 +211,11 @@
     @apply font-soehne font-bold text-gray-900;
   }
 
-  /* Accessible focus-visible states — ocean outline with subtle glow */
+  /* Accessible focus-visible states — ocean outline with visible glow */
   *:focus-visible {
     outline: 2px solid var(--color-ocean-500);
     outline-offset: 2px;
-    box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.1);
+    box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.25);
   }
 }
 

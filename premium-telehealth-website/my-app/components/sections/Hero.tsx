@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { TrustBadges } from "@/components/TrustBadges";
 
 const containerVariants = {
@@ -22,23 +22,25 @@ const itemVariants = {
 };
 
 export function Hero() {
+  const prefersReducedMotion = useReducedMotion();
+
   return (
     <section className="relative w-full min-h-[90vh] flex items-center justify-center bg-gradient-to-b from-white to-gray-50 px-4 py-20 overflow-hidden">
 
-      {/* Ambient gradient orbs — slow, subtle, brand-colored */}
+      {/* Ambient gradient orbs — slow, subtle, brand-colored; disabled for reduced-motion */}
       <motion.div
         className="absolute -top-48 -right-48 w-[700px] h-[700px] rounded-full bg-ocean-500/[0.06] blur-3xl pointer-events-none"
-        animate={{ x: [0, 24, 0], y: [0, -16, 0] }}
+        animate={prefersReducedMotion ? {} : { x: [0, 24, 0], y: [0, -16, 0] }}
         transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
       />
       <motion.div
         className="absolute -bottom-32 -left-48 w-[600px] h-[600px] rounded-full bg-navy/[0.05] blur-3xl pointer-events-none"
-        animate={{ x: [0, -16, 0], y: [0, 24, 0] }}
+        animate={prefersReducedMotion ? {} : { x: [0, -16, 0], y: [0, 24, 0] }}
         transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }}
       />
       <motion.div
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[400px] rounded-full bg-blue-500/[0.03] blur-3xl pointer-events-none"
-        animate={{ scale: [1, 1.05, 1] }}
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[400px] rounded-full bg-ocean-500/[0.03] blur-3xl pointer-events-none"
+        animate={prefersReducedMotion ? {} : { scale: [1, 1.05, 1] }}
         transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
       />
 
@@ -63,7 +65,7 @@ export function Hero() {
         >
           Get medication to quit
           <br />
-          <span className="bg-gradient-to-r from-ocean-500 to-blue-500 bg-clip-text text-transparent">
+          <span className="bg-gradient-to-r from-ocean-500 to-ocean-600 bg-clip-text text-transparent">
             drinking.
           </span>
         </motion.h1>
@@ -91,7 +93,7 @@ export function Hero() {
             className="inline-flex items-center gap-1.5 text-gray-600 hover:text-ocean-600 font-medium transition-colors text-base"
           >
             See how it works
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
             </svg>
           </Link>

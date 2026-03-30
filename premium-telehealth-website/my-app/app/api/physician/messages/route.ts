@@ -229,7 +229,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       { recordCount: threads.length }
     );
 
-    return NextResponse.json({ threads, limit, offset });
+    return NextResponse.json({ threads, currentUserId: userId, limit, offset });
   } catch (error) {
     console.error('Get messages error:', error instanceof Error ? error.message : 'Unknown error');
     

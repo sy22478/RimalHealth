@@ -321,6 +321,8 @@ export function ReviewQueue({
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
+              id="queue-search"
+              name="queue-search"
               placeholder="Search patients..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -330,12 +332,13 @@ export function ReviewQueue({
           {showFilters && (
             <>
               <Select
+                name="queue-treatment-type"
                 value={filters.treatmentType}
                 onValueChange={(value) =>
                   setFilters((prev) => ({ ...prev, treatmentType: value as ReviewQueueFilters['treatmentType'] }))
                 }
               >
-                <SelectTrigger className="w-[140px]">
+                <SelectTrigger id="queue-treatment-type" className="w-[140px]">
                   <SelectValue placeholder="Type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -345,12 +348,13 @@ export function ReviewQueue({
                 </SelectContent>
               </Select>
               <Select
+                name="queue-risk-level"
                 value={filters.riskLevel}
                 onValueChange={(value) =>
                   setFilters((prev) => ({ ...prev, riskLevel: value as ReviewQueueFilters['riskLevel'] }))
                 }
               >
-                <SelectTrigger className="w-[140px]">
+                <SelectTrigger id="queue-risk-level" className="w-[140px]">
                   <SelectValue placeholder="Risk" />
                 </SelectTrigger>
                 <SelectContent>

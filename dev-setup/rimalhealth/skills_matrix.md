@@ -32,6 +32,44 @@ RimalHealth is a mature, production-deployed application. Teams are structured f
 
 ---
 
+## 1.1 Mandatory Review Checklist (Post-Mortem: 2026-03-30)
+
+> **Background:** A comprehensive code review on 2026-03-29 deployed 6 agent teams that performed 100% static code analysis. Four critical production bugs were missed because no agent actually ran the app. This checklist prevents that from happening again.
+
+### Phase 0: Runtime Verification (MANDATORY — before any static analysis)
+
+Every review MUST begin with this phase. It cannot be skipped or deferred.
+
+- [ ] **Run the app** — `npm run dev` from `premium-telehealth-website/my-app/`
+- [ ] **Test physician portal** — Login as `dr.sarah.johnson@rimalhealth.test` / `TestPhysician123!`, navigate every page: Dashboard, Patients, Reviews, Prescriptions, Messages. Open Chrome DevTools Console + Issues tab. Screenshot or log any errors.
+- [ ] **Test patient portal** — Login as `patient.test@rimalhealth.test` / `TestPatient123@`, navigate every page: Dashboard, Messages, Prescriptions, Billing, Documents, Profile/Settings.
+- [ ] **Verify all API endpoints** — For every `fetch()` call in page components, confirm the API route file exists and returns the expected data shape.
+- [ ] **Check form accessibility** — Open Chrome DevTools → Issues tab on every form page. Fix any "form field missing id/name" or "label not associated" warnings.
+- [ ] **Run type-check** — `npm run type-check` must pass with 0 errors.
+
+### Phase 1: Static Analysis (only after Phase 0 passes)
+
+Standard code review: security, HIPAA, code quality, architecture, UX.
+
+### Phase 2: Fix Verification
+
+- [ ] Every fix must be verified by actually loading the affected page in the browser
+- [ ] Every `.catch()` block must log the error (never empty)
+- [ ] Every `.map()` on API/JSON data must be guarded with `Array.isArray()`
+- [ ] Every API endpoint referenced by a frontend component must actually exist
+
+### Common Patterns That Cause Runtime Crashes
+
+| Pattern | Risk | Fix |
+|---------|------|-----|
+| `data.items.map(...)` | Crashes if `items` is null/string | `Array.isArray(data.items) && data.items.map(...)` |
+| `fetch('/api/some/route')` | 404 if route doesn't exist | Verify file exists at `app/api/some/route/route.ts` |
+| `.catch(() => {})` | Hides real errors | `.catch(err => console.error('context:', err.message))` |
+| `obj.nested.field` | Crashes if `nested` is null | `obj?.nested?.field` or guard check |
+| UI copy says "colleagues" | Wrong audience | Always verify UI text matches the feature's actual users |
+
+---
+
 ## 2. Skill-to-Task Mapping
 
 ### `superpowers:systematic-debugging`

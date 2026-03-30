@@ -13,7 +13,6 @@ import { requireRole } from '@/lib/auth/require-auth';
 import { prisma } from '@/lib/db/prisma';
 import { AuditService } from '@/lib/services/audit-service';
 import { ValidationService } from '@/lib/services/validation-service';
-import { NotificationService } from '@/lib/services/notification-service';
 import { createIntakeSchema } from '@/lib/validation/schemas';
 import { Role, IntakeStatus, PaymentStatus, Prisma } from '@prisma/client';
 
@@ -22,7 +21,6 @@ import { Role, IntakeStatus, PaymentStatus, Prisma } from '@prisma/client';
 // ============================================================================
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  // Require patient role
   const auth = await requireRole(request, [Role.PATIENT]);
 
   if (auth instanceof NextResponse) {
@@ -33,7 +31,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const auditContext = AuditService.createAuditContext(request, userId, 'PATIENT');
 
   try {
-    // Validate request body
     const validation = await ValidationService.validateRequestBody(
       request,
       createIntakeSchema
@@ -52,53 +49,38 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const { primaryConcern, formData } = validation.data!;
 
-    // Check if patient already has an active intake
-    const existingIntake = await prisma.intake.findFirst({
-      where: {
-        patientId: userId,
-        status: {
-          in: [IntakeStatus.DRAFT, IntakeStatus.SUBMITTED, IntakeStatus.UNDER_REVIEW],
-        },
-      },
-    });
-
-    if (existingIntake) {
-      if (existingIntake.status === IntakeStatus.DRAFT) {
-        // Update existing draft with new form data and return it
-        const updated = await prisma.intake.update({
-          where: { id: existingIntake.id },
-          data: { formData: (formData ?? {}) as Prisma.InputJsonValue },
-        });
-
-        await prisma.patientProfile.update({
-          where: { userId },
-          data: { primaryConcern },
-        });
-
-        return NextResponse.json({
-          success: true,
-          intake: {
-            id: updated.id,
-            status: updated.status,
-            createdAt: updated.createdAt.toISOString(),
+    // Check + create atomically inside a transaction to prevent race conditions
+    // (concurrent requests from multiple tabs creating duplicate intakes)
+    const result = await prisma.$transaction(async (tx) => {
+      const existingIntake = await tx.intake.findFirst({
+        where: {
+          patientId: userId,
+          status: {
+            in: [IntakeStatus.DRAFT, IntakeStatus.SUBMITTED, IntakeStatus.UNDER_REVIEW],
           },
-        });
+        },
+      });
+
+      if (existingIntake) {
+        if (existingIntake.status === IntakeStatus.DRAFT) {
+          const updated = await tx.intake.update({
+            where: { id: existingIntake.id },
+            data: { formData: (formData ?? {}) as Prisma.InputJsonValue },
+          });
+
+          await tx.patientProfile.update({
+            where: { userId },
+            data: { primaryConcern },
+          });
+
+          return { type: 'updated' as const, intake: updated };
+        }
+
+        // SUBMITTED or UNDER_REVIEW — can't create a new one
+        return { type: 'conflict' as const, intakeId: existingIntake.id };
       }
 
-      // SUBMITTED or UNDER_REVIEW — can't create a new one
-      return NextResponse.json(
-        {
-          error: 'Active intake already exists',
-          code: 'ACTIVE_INTAKE_EXISTS',
-          intakeId: existingIntake.id,
-        },
-        { status: 409 }
-      );
-    }
-
-    // Create intake draft and update patient profile atomically
-    // Note: formData is auto-encrypted by the Prisma encryption extension
-    const intake = await prisma.$transaction(async (tx) => {
+      // formData is auto-encrypted by the Prisma encryption extension
       const newIntake = await tx.intake.create({
         data: {
           patientId: userId,
@@ -108,25 +90,42 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         },
       });
 
-      // Update patient profile with primary concern
       await tx.patientProfile.update({
         where: { userId },
         data: { primaryConcern },
       });
 
-      return newIntake;
+      return { type: 'created' as const, intake: newIntake };
     });
 
-    // Log intake creation
+    if (result.type === 'updated') {
+      return NextResponse.json({
+        success: true,
+        intake: {
+          id: result.intake.id,
+          status: result.intake.status,
+          createdAt: result.intake.createdAt.toISOString(),
+        },
+      });
+    }
+
+    if (result.type === 'conflict') {
+      return NextResponse.json(
+        {
+          error: 'Active intake already exists',
+          code: 'ACTIVE_INTAKE_EXISTS',
+          intakeId: result.intakeId,
+        },
+        { status: 409 }
+      );
+    }
+
+    const intake = result.intake;
+
     await AuditService.logIntakeAccess(userId, 'PATIENT', intake.id, 'CREATE', auditContext);
 
-    // Notify physicians of new intake waiting for review
-    try {
-      await NotificationService.notifyPhysicianNewIntake(intake.id, primaryConcern || 'ALCOHOL');
-    } catch {
-      // Notification failures should not block intake creation
-      console.error('[Intake] Failed to notify physicians, continuing...');
-    }
+    // Note: physician notification happens on intake SUBMIT, not draft creation
+    // (see /api/patient/intake/[id]/submit/route.ts)
 
     return NextResponse.json(
       {

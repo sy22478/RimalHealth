@@ -2,16 +2,24 @@
 
 > **Purpose:** Continue development exactly where the previous session left off. Read this file FIRST in any new session.
 > **Created:** 2026-03-26
-> **Updated:** 2026-03-28 (Phase 10 — Code Review + Physician Portal Fixes)
-> **Session:** Phase 10 — Comprehensive code review, bug fixes, physician portal overhaul, intake form redesign
+> **Updated:** 2026-03-30 (Phase 12 — Production Bug Fixes + Review Process Overhaul)
+> **Session:** Phase 12 — Fixed 4 critical physician portal bugs, overhauled review process
 
 ---
 
 ## 1. Where We Are
 
-**81 of 81 original tasks complete. 30+ additional fixes deployed in Phase 10.** Physician portal fully functional. Intake form collects personal info + pharmacy. Profile page editable. Encryption extension decrypts nested relations. Null safety hardened across entire physician portal.
+**102 of 102 tasks complete + Phase 12 fixes deployed.** Phase 12 fixed 4 critical production bugs in the physician portal that were missed by the Phase 11 static code review. Review process updated with mandatory runtime verification checklist.
 
-**Architecture health: ~4.7/5** (up from 4.5/5 at start of session).
+**Architecture health: ~4.8/5** (up from 4.7/5).
+
+**Phase 12 Fixes (2026-03-30):**
+- Intake review crash (`TypeError: e is not iterable`) — added `Array.isArray()` guards on 6 array fields
+- Dashboard prescriptions failure — created missing `GET /api/physician/prescriptions` route
+- Dashboard form accessibility — added `id`/`name` to 5 form fields
+- Messages page wrong audience — rewrote UI from "colleagues" to "patients"
+- 15+ P0/P1 security fixes (thread ID validation, webhook null safety, open redirect, intake race condition)
+- Review process: added mandatory runtime verification to CLAUDE.md and skills_matrix.md
 
 **React Compiler: DISABLED** — incompatible with react-hook-form's watch/setValue pattern across 18+ form components.
 

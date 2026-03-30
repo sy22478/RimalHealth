@@ -16,7 +16,6 @@ import { ValidationService } from '@/lib/services/validation-service';
 import { NotificationService } from '@/lib/services/notification-service';
 import { sendPrescriptionSchema } from '@/lib/validation/schemas';
 import { Role, PrescriptionStatus } from '@prisma/client';
-// import { sendPrescription as sendToDoseSpot } from '@/lib/integrations/dosespot';
 
 // ============================================================================
 // POST - Send Prescription

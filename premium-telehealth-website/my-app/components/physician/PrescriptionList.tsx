@@ -360,6 +360,8 @@ export function PrescriptionList({
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
+                id="prescription-search"
+                name="prescription-search"
                 placeholder="Search by patient or medication..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -368,12 +370,13 @@ export function PrescriptionList({
             </div>
             {showFilters && (
               <Select
+                name="prescription-status-filter"
                 value={filters.status}
                 onValueChange={(value) =>
                   setFilters((prev) => ({ ...prev, status: value as PrescriptionFilters['status'] }))
                 }
               >
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger id="prescription-status-filter" className="w-[180px]">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>

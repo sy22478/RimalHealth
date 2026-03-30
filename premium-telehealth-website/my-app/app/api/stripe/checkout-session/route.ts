@@ -196,16 +196,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Validate redirect URLs start with the app URL to prevent open redirect
     const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-    if (appUrl) {
-      if (!successUrl.startsWith(appUrl) || !cancelUrl.startsWith(appUrl)) {
-        return NextResponse.json(
-          {
-            error: 'Invalid redirect URL',
-            code: 'INVALID_REDIRECT',
-          },
-          { status: 400 }
-        );
-      }
+    if (!appUrl) {
+      console.error('[Checkout] NEXT_PUBLIC_APP_URL not configured — cannot validate redirect URLs');
+      return NextResponse.json(
+        { error: 'Server configuration error', code: 'CONFIG_ERROR' },
+        { status: 500 }
+      );
+    }
+    if (!successUrl.startsWith(appUrl) || !cancelUrl.startsWith(appUrl)) {
+      return NextResponse.json(
+        {
+          error: 'Invalid redirect URL',
+          code: 'INVALID_REDIRECT',
+        },
+        { status: 400 }
+      );
     }
 
     // Get user from database

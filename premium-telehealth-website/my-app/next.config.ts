@@ -224,14 +224,7 @@ const nextConfig: NextConfig = {
 
   // Redirects configuration
   async redirects() {
-    return [
-      // Redirect old URLs to new ones
-      {
-        source: "/old-path",
-        destination: "/new-path",
-        permanent: true,
-      },
-    ];
+    return [];
   },
 
   // Webpack configuration for bundle optimization

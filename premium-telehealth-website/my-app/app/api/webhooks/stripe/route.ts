@@ -300,7 +300,7 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
         interval: 'month',
         stripeCustomerId: customerId,
         stripeSubscriptionId: subscriptionId || '',
-        stripePriceId: stripeSubscription?.items.data[0]?.price.id || '',
+        stripePriceId: stripeSubscription?.items?.data?.[0]?.price?.id || '',
         currentPeriodStart: periodStart,
         currentPeriodEnd: periodEnd,
       },
@@ -321,10 +321,10 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
         where: { stripeInvoiceId },
       });
 
-      if (!existingInvoice) {
+      if (!existingInvoice && subscriptionId) {
         // Look up the subscription we just created to get its ID
         const newSub = await tx.subscription.findFirst({
-          where: { stripeSubscriptionId: subscriptionId || '' },
+          where: { stripeSubscriptionId: subscriptionId },
           select: { id: true },
         });
 
@@ -474,9 +474,9 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
           success: true,
         },
       });
-    } catch {
+    } catch (error) {
       // Don't fail checkout if consent linkage fails — it's logged for compliance
-      console.warn('[Stripe Webhook] Failed to link consent record to user');
+      console.warn('[Stripe Webhook] Failed to link consent record to user:', error instanceof Error ? error.message : 'Unknown error');
     }
   }
 
@@ -694,10 +694,10 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription): Pro
   let amount = localSubscription.amount;
 
   if (subscription.items.data.length > 0) {
-    const priceId = subscription.items.data[0].price.id;
+    const priceId = subscription.items.data[0]?.price?.id;
     
     // Check if price ID matches a different plan
-    if (priceId === process.env.STRIPE_PRICE_ACTIVE_TREATMENT && planType !== PlanType.ACTIVE_TREATMENT) {
+    if (priceId && priceId === process.env.STRIPE_PRICE_ACTIVE_TREATMENT && planType !== PlanType.ACTIVE_TREATMENT) {
       planType = PlanType.ACTIVE_TREATMENT;
       amount = 5000; // $50.00
     } else if (priceId === process.env.STRIPE_PRICE_MAINTENANCE && planType !== PlanType.MAINTENANCE) {
