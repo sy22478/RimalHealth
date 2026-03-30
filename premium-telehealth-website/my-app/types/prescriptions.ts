@@ -213,8 +213,8 @@ export function canRequestRefill(prescription: {
   const daysUntilRefill = getDaysUntilRefill(prescription.nextRefillAvailable);
   if (daysUntilRefill === null) return false;
   
-  // Eligible if within 7 days of refill date
-  return daysUntilRefill <= 7 && daysUntilRefill >= 0;
+  // Eligible if within 7 days of refill date or overdue (negative means past due)
+  return daysUntilRefill <= 7;
 }
 
 /**

@@ -311,7 +311,7 @@ export function IntakeReview({ intake, physicianId, physicianName }: IntakeRevie
                     >
                       {slaStatus?.isOverdue
                         ? 'Overdue'
-                        : slaStatus?.hoursRemaining
+                        : slaStatus?.hoursRemaining != null
                         ? `${slaStatus.hoursRemaining}h left`
                         : 'N/A'}
                     </Badge>

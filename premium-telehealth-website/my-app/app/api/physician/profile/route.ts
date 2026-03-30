@@ -50,11 +50,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
 
+    // Destructure to exclude nested `user` object from response
+    const { user, ...physicianData } = physician;
     return NextResponse.json({
       success: true,
       physician: {
-        ...physician,
-        email: physician.user.email,
+        ...physicianData,
+        email: user.email,
       },
     });
   } catch (error) {

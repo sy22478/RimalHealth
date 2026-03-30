@@ -13,6 +13,8 @@ import { cookies } from 'next/headers';
 import { Settings } from 'lucide-react';
 import { PhysicianSettingsClient } from './PhysicianSettingsClient';
 
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: 'Settings | Physician Portal',
   description: 'Manage your physician account settings.',

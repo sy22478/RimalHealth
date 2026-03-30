@@ -1,25 +1,22 @@
 'use client';
 
 import * as React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  MessageSquare, 
-  Send, 
-  Paperclip, 
-  MoreVertical, 
+import { motion } from 'framer-motion';
+import {
+  MessageSquare,
+  Send,
+  Paperclip,
+  MoreVertical,
   Search,
-  Clock,
   Check,
   CheckCheck,
-  AlertCircle,
-  Loader2,
   User,
-  Stethoscope
+  Stethoscope,
+  ChevronLeft,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -30,10 +27,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-// Simple dropdown menu component since the actual one doesn't exist
-function SimpleDropdownMenu({ children }: { children: React.ReactNode }) {
-  return <div className="relative">{children}</div>;
-}
 import { cn } from '@/lib/utils';
 
 // ============================================================================
@@ -92,13 +85,14 @@ function ConversationList({
   conversations,
   selectedId,
   onSelect,
+  isLoading = false,
 }: {
   conversations: Conversation[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  isLoading?: boolean;
 }) {
   const [searchQuery, setSearchQuery] = React.useState('');
-  const [isLoading] = React.useState(false);
 
   const filteredConversations = conversations.filter((conv) =>
     conv.participantName.toLowerCase().includes(searchQuery.toLowerCase())
@@ -280,10 +274,12 @@ function MessageThread({
   messages,
   conversation,
   onSendMessage,
+  onBack,
 }: {
   messages: Message[];
   conversation: Conversation | null;
   onSendMessage: (content: string) => void;
+  onBack?: () => void;
 }) {
   const [newMessage, setNewMessage] = React.useState('');
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
@@ -318,6 +314,17 @@ function MessageThread({
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
         <div className="flex items-center gap-3">
+          {onBack && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="lg:hidden shrink-0"
+              onClick={onBack}
+              aria-label="Back to conversations"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+          )}
           <Avatar className="h-10 w-10">
             <AvatarFallback
               className={cn(
@@ -439,6 +446,10 @@ export default function MessagesPage() {
           unreadCount: t.unreadCount || 0,
         }));
         setConversations(convs);
+      } else if (res.status !== 401) {
+        // Non-auth errors should show feedback (401 is handled by middleware redirect)
+        const errorData = await res.json().catch(() => null);
+        setError(errorData?.error || 'Failed to load messages. Please try again.');
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
@@ -611,6 +622,7 @@ export default function MessagesPage() {
             conversations={conversations}
             selectedId={selectedConversationId}
             onSelect={handleSelectConversation}
+            isLoading={isLoadingConvs}
           />
         </div>
 
@@ -619,6 +631,7 @@ export default function MessagesPage() {
             messages={selectedMessages}
             conversation={selectedConversation}
             onSendMessage={handleSendMessage}
+            onBack={() => setSelectedConversationId(null)}
           />
         </div>
       </div>

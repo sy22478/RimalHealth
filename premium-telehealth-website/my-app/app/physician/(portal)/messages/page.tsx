@@ -972,10 +972,13 @@ export default function PhysicianMessagingPage() {
       )
     : threads;
 
-  const selectedThread = selectedThreadId
+  const selectedThreadObj = selectedThreadId
+    ? threads.find((t) => t.id === selectedThreadId)
+    : undefined;
+  const selectedThread = selectedThreadObj
     ? {
-        thread: threads.find((t) => t.id === selectedThreadId)!,
-        messages: messages[selectedThreadId] || [],
+        thread: selectedThreadObj,
+        messages: messages[selectedThreadId!] || [],
       }
     : undefined;
 

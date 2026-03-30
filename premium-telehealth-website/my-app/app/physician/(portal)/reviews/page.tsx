@@ -23,6 +23,8 @@ import { cn } from '@/lib/utils';
 // Metadata
 // ============================================================================
 
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: 'Review Queue | Physician Portal',
   description: 'Review and approve patient intakes.',
@@ -97,9 +99,12 @@ export default async function ReviewsPage() {
           const status = item.status === 'SUBMITTED' ? 'PENDING'
             : item.status === 'UNDER_REVIEW' ? 'IN_REVIEW'
             : (item.status as string) || 'PENDING';
+          const waitTimeHours = typeof item.waitTimeHours === 'number' ? item.waitTimeHours : 0;
           return {
             ...item,
             status,
+            waitTimeHours,
+            isOverdue: typeof item.isOverdue === 'boolean' ? item.isOverdue : waitTimeHours >= 24,
             treatmentType: (item.treatmentType as string) || (item.concernType as string) || 'ALCOHOL',
             riskLevel: (item.riskLevel as string) || getRiskLevelFromScore(item.riskScore as number | undefined),
           } as ReviewQueueItem;

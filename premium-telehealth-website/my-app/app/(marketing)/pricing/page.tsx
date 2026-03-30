@@ -420,6 +420,8 @@ export default function PricingPage() {
                   onClick={() =>
                     setOpenIndex(openIndex === index ? null : index)
                   }
+                  aria-expanded={openIndex === index}
+                  aria-controls={`pricing-faq-${index}`}
                 >
                   <span className="font-semibold text-lg text-gray-900 pr-8">
                     {faq.question}
@@ -431,7 +433,7 @@ export default function PricingPage() {
                   />
                 </button>
                 {openIndex === index && (
-                  <div className="px-6 pb-6">
+                  <div id={`pricing-faq-${index}`} role="region" className="px-6 pb-6">
                     <p className="text-gray-700 leading-relaxed">
                       {faq.answer}
                     </p>

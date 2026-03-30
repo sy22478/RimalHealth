@@ -101,9 +101,9 @@ function filterAndSortPrescriptions(
     const query = filters.searchQuery.toLowerCase();
     result = result.filter(
       (p) =>
-        p.patientName.toLowerCase().includes(query) ||
-        p.medicationName.toLowerCase().includes(query) ||
-        p.genericName.toLowerCase().includes(query)
+        (p.patientName || '').toLowerCase().includes(query) ||
+        (p.medicationName || '').toLowerCase().includes(query) ||
+        (p.genericName || '').toLowerCase().includes(query)
     );
   }
 

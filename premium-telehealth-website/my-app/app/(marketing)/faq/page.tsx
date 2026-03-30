@@ -340,11 +340,14 @@ export default function FAQPage() {
                         key={questionIndex}
                         className="border-b border-gray-200 py-5"
                       >
-                        <div
-                          className="flex justify-between items-center cursor-pointer"
+                        <button
+                          type="button"
+                          className="flex justify-between items-center cursor-pointer w-full text-left"
                           onClick={() =>
                             toggleQuestion(section.id, questionIndex)
                           }
+                          aria-expanded={isOpen}
+                          aria-controls={`faq-${section.id}-${questionIndex}`}
                         >
                           <h3 className="text-lg font-semibold text-gray-900 pr-4">
                             {item.question}
@@ -354,11 +357,13 @@ export default function FAQPage() {
                               isOpen ? "rotate-180" : ""
                             }`}
                           />
-                        </div>
+                        </button>
                         {isOpen && (
-                          <p className="text-base text-gray-600 leading-relaxed mt-3">
-                            {item.answer}
-                          </p>
+                          <div id={`faq-${section.id}-${questionIndex}`} role="region">
+                            <p className="text-base text-gray-600 leading-relaxed mt-3">
+                              {item.answer}
+                            </p>
+                          </div>
                         )}
                       </div>
                     );

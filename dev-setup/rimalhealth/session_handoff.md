@@ -2,24 +2,40 @@
 
 > **Purpose:** Continue development exactly where the previous session left off. Read this file FIRST in any new session.
 > **Created:** 2026-03-26
-> **Updated:** 2026-03-30 (Phase 12 — Production Bug Fixes + Review Process Overhaul)
-> **Session:** Phase 12 — Fixed 4 critical physician portal bugs, overhauled review process
+> **Updated:** 2026-03-30 (Phase 13 — Comprehensive Runtime Review + 20 Bug Fixes)
+> **Session:** Phase 13 — Full runtime-verified review across all 3 portals, 20 bugs found and fixed
 
 ---
 
 ## 1. Where We Are
 
-**102 of 102 tasks complete + Phase 12 fixes deployed.** Phase 12 fixed 4 critical production bugs in the physician portal that were missed by the Phase 11 static code review. Review process updated with mandatory runtime verification checklist.
+**All prior 102 tasks verified holding + 20 new bugs fixed in Phase 13.** This was the first review to use mandatory runtime verification (tracing actual data flows, not just reading code). Found CRITICAL intake form data loss bug that had been shipping since initial build.
 
-**Architecture health: ~4.8/5** (up from 4.7/5).
+**Architecture health: ~4.9/5** (up from 4.8/5).
 
-**Phase 12 Fixes (2026-03-30):**
-- Intake review crash (`TypeError: e is not iterable`) — added `Array.isArray()` guards on 6 array fields
-- Dashboard prescriptions failure — created missing `GET /api/physician/prescriptions` route
-- Dashboard form accessibility — added `id`/`name` to 5 form fields
-- Messages page wrong audience — rewrote UI from "colleagues" to "patients"
-- 15+ P0/P1 security fixes (thread ID validation, webhook null safety, open redirect, intake race condition)
-- Review process: added mandatory runtime verification to CLAUDE.md and skills_matrix.md
+**Phase 13 Fixes (2026-03-30):**
+
+Physician Portal (7 bugs fixed):
+- Missing `force-dynamic` on 5 server pages (build failure/stale data)
+- PrescriptionList search crash on null `genericName`
+- Dashboard stats defaults for `waitTimeHours`/`isOverdue`
+- Physician profile API leaking nested `user` object
+- SLA badge falsy-zero bug (`hoursRemaining === 0` showed "N/A")
+- Messages page crash when thread disappears during poll
+
+Patient Portal (9 bugs fixed):
+- **CRITICAL: Intake form checkbox data loss** — Radix Checkbox + register() incompatible; opioid use, medical history, previous treatments never saved
+- Refill request blocked when prescription overdue
+- Messages: no mobile back button, no loading state, silent error handling
+- Dashboard recent messages linked to 404
+- Dashboard message body null safety
+- Patient layout unhandled DB errors (crashes entire portal)
+
+Landing Page / Frontend (4 fixes):
+- Created checkout error boundary (`app/checkout/error.tsx`)
+- Created marketing error boundary (`app/(marketing)/error.tsx`)
+- FAQ accordion ARIA `aria-expanded` + `role="region"` (WCAG 2.1 AA)
+- Pricing FAQ accordion ARIA attributes
 
 **React Compiler: DISABLED** — incompatible with react-hook-form's watch/setValue pattern across 18+ form components.
 

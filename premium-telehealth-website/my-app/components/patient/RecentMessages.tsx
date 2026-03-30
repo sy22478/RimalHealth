@@ -81,9 +81,9 @@ export function RecentMessages({ messages, className }: RecentMessagesProps) {
         ) : (
           <div className="space-y-4">
             {messages.map((msg) => (
-              <Link 
-                key={msg.id} 
-                href={`/patient/messages/${msg.id}`}
+              <Link
+                key={msg.id}
+                href="/patient/messages"
                 className="flex items-start gap-3 group p-2 -mx-2 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 <Avatar className="h-10 w-10 flex-shrink-0">

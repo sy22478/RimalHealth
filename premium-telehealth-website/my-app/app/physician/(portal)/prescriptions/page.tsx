@@ -24,6 +24,8 @@ import { PrescriptionStatus } from '@prisma/client';
 // Metadata
 // ============================================================================
 
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: 'Prescriptions | Physician Portal',
   description: 'Manage patient prescriptions and e-prescribing.',

@@ -25,7 +25,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { LoadingButton } from '@/components/ui/LoadingButton';
@@ -584,10 +583,12 @@ function SafetyScreeningStep(): React.ReactElement {
         <div className="space-y-2">
           {opioidOptions.map((option) => (
             <label key={option.id} className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-              <Checkbox
+              <input
+                type="checkbox"
                 id={`opioid-${option.id}`}
                 value={option.id}
                 {...register('opioidUse')}
+                className="mt-0.5 h-4 w-4 shrink-0 rounded-sm border border-primary text-primary focus:ring-2 focus:ring-ring focus:ring-offset-2"
               />
               <span className="text-sm text-gray-700">{option.label}</span>
             </label>
@@ -785,10 +786,12 @@ function MedicalHistoryStep(): React.ReactElement {
             { id: 'none', label: 'None of the above' },
           ].map((option) => (
             <label key={option.id} className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-              <Checkbox
+              <input
+                type="checkbox"
                 id={`medical-${option.id}`}
                 value={option.id}
                 {...register('medicalHistory')}
+                className="mt-0.5 h-4 w-4 shrink-0 rounded-sm border border-primary text-primary focus:ring-2 focus:ring-ring focus:ring-offset-2"
               />
               <span className="text-sm text-gray-700">{option.label}</span>
             </label>
@@ -838,10 +841,12 @@ function MedicalHistoryStep(): React.ReactElement {
             { id: 'none', label: 'None -- this is my first time seeking treatment' },
           ].map((option) => (
             <label key={option.id} className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-              <Checkbox
+              <input
+                type="checkbox"
                 id={`treatment-${option.id}`}
                 value={option.id}
                 {...register('previousTreatments')}
+                className="mt-0.5 h-4 w-4 shrink-0 rounded-sm border border-primary text-primary focus:ring-2 focus:ring-ring focus:ring-offset-2"
               />
               <span className="text-sm text-gray-700">{option.label}</span>
             </label>

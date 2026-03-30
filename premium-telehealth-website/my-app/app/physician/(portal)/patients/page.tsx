@@ -18,6 +18,8 @@ import type { PhysicianPatientListItem } from '@/types/physician-dashboard';
 // Metadata
 // ============================================================================
 
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: 'Patients | Physician Portal',
   description: 'Manage and view all your patients.',

@@ -71,13 +71,20 @@ export default async function PatientLayout({
   }
 
   // Gate 1: Intake gate — check if patient has a completed/submitted intake
-  const completedIntake = await prisma.intake.findFirst({
-    where: {
-      patientId: userId,
-      status: { in: COMPLETED_INTAKE_STATUSES },
-    },
-    select: { id: true },
-  });
+  let completedIntake: { id: string } | null = null;
+  try {
+    completedIntake = await prisma.intake.findFirst({
+      where: {
+        patientId: userId,
+        status: { in: COMPLETED_INTAKE_STATUSES },
+      },
+      select: { id: true },
+    });
+  } catch (err) {
+    console.error('[PatientLayout] Failed to check intake status:', err instanceof Error ? err.message : 'Unknown error');
+    // On DB failure, allow access rather than permanently blocking the portal.
+    // The dashboard page has its own intake check and will redirect if needed.
+  }
 
   // If no completed intake, redirect to intake form
   if (!completedIntake) {
@@ -86,10 +93,16 @@ export default async function PatientLayout({
 
   // Gate 2: MFA gate — enforce MFA after grace period
   // (Skip this gate if user is already on the MFA setup page to avoid redirect loop)
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { mfaEnabled: true, createdAt: true },
-  });
+  let user: { mfaEnabled: boolean; createdAt: Date } | null = null;
+  try {
+    user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { mfaEnabled: true, createdAt: true },
+    });
+  } catch (err) {
+    console.error('[PatientLayout] Failed to fetch user for MFA check:', err instanceof Error ? err.message : 'Unknown error');
+    // On DB failure, skip MFA gate to avoid blocking portal access
+  }
 
   // eslint-disable-next-line react-hooks/purity -- Date.now() is safe in server components (single render per request)
   const now = Date.now();

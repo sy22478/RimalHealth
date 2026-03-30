@@ -123,19 +123,22 @@ async function getDashboardData(userId: string): Promise<DashboardData> {
     }
   });
 
-  const dashboardMessages = messages.map((msg) => ({
-    id: msg.id,
-    subject: msg.subject,
-    body: msg.body,
-    senderType: msg.senderType,
-    senderId: msg.senderId,
-    senderName:
-      msg.senderType === SenderType.PHYSICIAN ? "Your Doctor" : "System",
-    sentAt: msg.sentAt,
-    read: msg.readAt !== null,
-    preview:
-      msg.body.slice(0, 150) + (msg.body.length > 150 ? "..." : ""),
-  }));
+  const dashboardMessages = messages.map((msg) => {
+    const body = msg.body ?? '';
+    return {
+      id: msg.id,
+      subject: msg.subject,
+      body,
+      senderType: msg.senderType,
+      senderId: msg.senderId,
+      senderName:
+        msg.senderType === SenderType.PHYSICIAN ? "Your Doctor" : "System",
+      sentAt: msg.sentAt,
+      read: msg.readAt !== null,
+      preview:
+        body.slice(0, 150) + (body.length > 150 ? "..." : ""),
+    };
+  });
 
   return {
     profile,
