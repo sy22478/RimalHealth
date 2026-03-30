@@ -29,6 +29,7 @@ import type {
   ReviewQueueItem,
   PhysicianPrescriptionListItem,
 } from '@/types/physician-dashboard';
+import { getRiskLevelFromScore } from '@/types/physician-dashboard';
 
 // ============================================================================
 // Metadata
@@ -135,15 +136,39 @@ export default async function PhysicianDashboardPage() {
 
       if (queueRes.status === 'fulfilled' && queueRes.value.ok) {
         const queueData = await queueRes.value.json();
-        if (Array.isArray(queueData.items)) queueItems = queueData.items;
-        else if (Array.isArray(queueData.queue)) queueItems = queueData.queue;
+        const rawItems = Array.isArray(queueData.items) ? queueData.items
+          : Array.isArray(queueData.queue) ? queueData.queue : [];
+        // Map queue API items (QueueItem shape) to ReviewQueueItem shape
+        queueItems = rawItems.map((item: Record<string, unknown>) => {
+          const status = item.status === 'SUBMITTED' ? 'PENDING'
+            : item.status === 'UNDER_REVIEW' ? 'IN_REVIEW'
+            : (item.status as string) || 'PENDING';
+          return {
+            ...item,
+            status,
+            treatmentType: (item.treatmentType as string) || (item.concernType as string) || 'ALCOHOL',
+            riskLevel: (item.riskLevel as string) || getRiskLevelFromScore(item.riskScore as number | undefined),
+          } as ReviewQueueItem;
+        });
       } else {
         queueFetchFailed = true;
       }
 
       if (statsRes.status === 'fulfilled' && statsRes.value.ok) {
         const statsData = await statsRes.value.json();
-        if (statsData.stats) stats = statsData.stats;
+        if (statsData.stats) {
+          stats = statsData.stats;
+        } else if (statsData.queue) {
+          // Map the stats API response shape to PhysicianDashboardStats
+          stats = {
+            pendingReviews: statsData.queue?.pendingIntakes ?? 0,
+            patientsToday: statsData.patients?.new ?? 0,
+            unreadMessages: statsData.messages?.unread ?? 0,
+            prescriptionsThisMonth: statsData.prescriptions?.sent ?? 0,
+            overdueReviews: statsData.queue?.overdueIntakes ?? 0,
+            averageReviewTime: statsData.queue?.averageWaitHours ?? 0,
+          };
+        }
       } else {
         statsFetchFailed = true;
       }

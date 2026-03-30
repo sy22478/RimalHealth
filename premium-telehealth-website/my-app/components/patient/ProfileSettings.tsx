@@ -3,20 +3,18 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  User, 
-  Lock, 
-  Bell, 
-  Shield, 
+import {
+  User,
+  Lock,
+  Shield,
   Loader2,
-  AlertCircle 
+  AlertCircle
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PersonalInfoForm } from './PersonalInfoForm';
 import { ChangePasswordForm } from './ChangePasswordForm';
-import { NotificationPreferences } from './NotificationPreferences';
 import { PrivacySettings } from './PrivacySettings';
 
 // ============================================================================
@@ -178,7 +176,7 @@ export function ProfileSettings(): React.ReactElement {
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-      <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+      <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
         <TabsTrigger value="personal" className="flex items-center gap-2">
           <User className="h-4 w-4 hidden sm:inline" />
           <span>Personal Info</span>
@@ -186,10 +184,6 @@ export function ProfileSettings(): React.ReactElement {
         <TabsTrigger value="password" className="flex items-center gap-2">
           <Lock className="h-4 w-4 hidden sm:inline" />
           <span>Password</span>
-        </TabsTrigger>
-        <TabsTrigger value="notifications" className="flex items-center gap-2">
-          <Bell className="h-4 w-4 hidden sm:inline" />
-          <span>Notifications</span>
         </TabsTrigger>
         <TabsTrigger value="privacy" className="flex items-center gap-2">
           <Shield className="h-4 w-4 hidden sm:inline" />
@@ -214,13 +208,6 @@ export function ProfileSettings(): React.ReactElement {
 
           <TabsContent value="password" className="mt-0">
             <ChangePasswordForm />
-          </TabsContent>
-
-          <TabsContent value="notifications" className="mt-0">
-            <NotificationPreferences 
-              preferences={preferences}
-              onUpdate={setPreferences}
-            />
           </TabsContent>
 
           <TabsContent value="privacy" className="mt-0">

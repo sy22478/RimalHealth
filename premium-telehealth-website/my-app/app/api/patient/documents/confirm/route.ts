@@ -21,6 +21,7 @@ const confirmUploadSchema = z.object({
     DocumentType.INSURANCE_CARD,
     DocumentType.MEDICAL_RECORD,
     DocumentType.CONSENT_FORM,
+    DocumentType.INTAKE_FORM,
     DocumentType.OTHER,
   ]),
 });

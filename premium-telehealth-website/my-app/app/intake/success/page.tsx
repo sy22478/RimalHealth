@@ -3,15 +3,20 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { 
-  CheckCircle, 
-  Clock, 
-  MessageSquare, 
-  Pill, 
-  FileText, 
+import {
+  CheckCircle,
+  Clock,
+  MessageSquare,
+  Pill,
   ArrowRight,
   Calendar,
-  Shield
+  Shield,
+  Upload,
+  FileImage,
+  AlertCircle,
+  Loader2,
+  X,
+  Camera,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -84,6 +89,275 @@ const nextSteps = [
 ];
 
 // ============================================================================
+// Government ID Upload Component
+// ============================================================================
+
+type UploadState = 'idle' | 'uploading' | 'success' | 'error';
+
+const ACCEPTED_TYPES = [
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/heic',
+  'image/heif',
+  'application/pdf',
+];
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+function GovernmentIdUpload() {
+  const [uploadState, setUploadState] = React.useState<UploadState>('idle');
+  const [error, setError] = React.useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    setError(null);
+
+    // Validate file type
+    if (!ACCEPTED_TYPES.includes(file.type)) {
+      setError('Please upload a JPEG, PNG, HEIC, or PDF file.');
+      return;
+    }
+
+    // Validate file size
+    if (file.size > MAX_FILE_SIZE) {
+      setError('File size must be less than 10MB.');
+      return;
+    }
+
+    setSelectedFile(file);
+
+    // Generate preview for images
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPreviewUrl(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setPreviewUrl(null);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile) return;
+
+    setUploadState('uploading');
+    setError(null);
+
+    try {
+      // Step 1: Get presigned upload URL
+      const urlRes = await fetch('/api/patient/documents/upload-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          fileName: selectedFile.name,
+          contentType: selectedFile.type,
+          documentType: 'ID_VERIFICATION',
+          fileSize: selectedFile.size,
+        }),
+      });
+
+      if (!urlRes.ok) {
+        const err = await urlRes.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to get upload URL');
+      }
+
+      const { uploadUrl, key } = await urlRes.json();
+
+      // Step 2: Upload file directly to S3 with encryption
+      const uploadRes = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': selectedFile.type,
+          'x-amz-server-side-encryption': 'AES256',
+        },
+        body: selectedFile,
+      });
+
+      if (!uploadRes.ok) {
+        throw new Error('Failed to upload file to secure storage');
+      }
+
+      // Step 3: Confirm upload (create DB record)
+      const confirmRes = await fetch('/api/patient/documents/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          key,
+          documentType: 'ID_VERIFICATION',
+        }),
+      });
+
+      if (!confirmRes.ok) {
+        const err = await confirmRes.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to confirm upload');
+      }
+
+      setUploadState('success');
+    } catch (err) {
+      setUploadState('error');
+      setError(err instanceof Error ? err.message : 'Upload failed. Please try again.');
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setError(null);
+    setUploadState('idle');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  if (uploadState === 'success') {
+    return (
+      <Card className="border-green-200 bg-green-50">
+        <CardContent className="p-6">
+          <div className="flex items-start gap-4">
+            <div className="p-2 bg-green-100 rounded-lg shrink-0">
+              <CheckCircle className="h-5 w-5 text-green-600" />
+            </div>
+            <div>
+              <h3 className="font-medium text-green-900 mb-1">
+                Government ID Uploaded Successfully
+              </h3>
+              <p className="text-sm text-green-700">
+                Your ID has been securely uploaded and will be reviewed by your physician.
+                You can view it anytime in your{' '}
+                <Link href="/patient/documents" className="underline font-medium">
+                  Documents
+                </Link>
+                {' '}tab.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="border-amber-200 bg-amber-50/50">
+      <CardContent className="p-6">
+        <div className="flex items-start gap-4">
+          <div className="p-2 bg-amber-100 rounded-lg shrink-0">
+            <Camera className="h-5 w-5 text-amber-600" />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-semibold text-gray-900 mb-1">
+              Upload Your Government-Issued ID
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              A photo of your government ID (driver&apos;s license, state ID, or passport) helps
+              verify your identity for prescribing purposes. This is optional now but will be
+              needed before a prescription can be issued.
+            </p>
+
+            {!selectedFile ? (
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className={cn(
+                  'border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors',
+                  'border-amber-300 hover:border-amber-400 bg-white'
+                )}
+              >
+                <Upload className="h-8 w-8 text-amber-500 mx-auto mb-2" />
+                <p className="text-sm font-medium text-gray-900 mb-1">
+                  Click to select your ID photo
+                </p>
+                <p className="text-xs text-gray-500">
+                  JPEG, PNG, HEIC, or PDF up to 10MB
+                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept={ACCEPTED_TYPES.join(',')}
+                  onChange={(e) => handleFileSelect(e.target.files)}
+                  className="hidden"
+                />
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {/* File preview */}
+                <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200">
+                  {previewUrl ? (
+                    <img
+                      src={previewUrl}
+                      alt="ID preview"
+                      className="w-16 h-12 object-cover rounded border border-gray-200"
+                    />
+                  ) : (
+                    <div className="w-16 h-12 bg-gray-100 rounded flex items-center justify-center">
+                      <FileImage className="h-6 w-6 text-gray-400" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{selectedFile.name}</p>
+                    <p className="text-xs text-gray-500">
+                      {(selectedFile.size / 1024).toFixed(0)} KB
+                    </p>
+                  </div>
+                  {uploadState !== 'uploading' && (
+                    <button
+                      onClick={handleRemoveFile}
+                      className="p-1 text-gray-400 hover:text-red-500"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Upload button */}
+                <div className="flex gap-3">
+                  <Button
+                    onClick={handleUpload}
+                    disabled={uploadState === 'uploading'}
+                    className="bg-ocean-500 hover:bg-ocean-600 text-white"
+                  >
+                    {uploadState === 'uploading' ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Uploading securely...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-4 w-4 mr-2" />
+                        Upload ID
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {error && (
+              <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+            )}
+
+            <p className="text-xs text-gray-400 mt-3 flex items-center gap-1">
+              <Shield className="h-3 w-3" />
+              Your ID is encrypted and stored in HIPAA-compliant secure storage.
+              You can also upload it later from the Documents tab.
+            </p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ============================================================================
 // Main Success Page
 // ============================================================================
 
@@ -101,15 +375,25 @@ export default function IntakeSuccessPage() {
           <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-green-100 mb-6">
             <CheckCircle className="h-10 w-10 text-green-600" />
           </div>
-          
+
           <h1 className="text-3xl font-bold text-gray-900 mb-3">
             Intake Form Submitted!
           </h1>
-          
+
           <p className="text-lg text-gray-600 max-w-xl mx-auto">
-            Thank you for completing your intake form. A California-licensed physician 
+            Thank you for completing your intake form. A California-licensed physician
             will review your information within 24 hours.
           </p>
+        </motion.div>
+
+        {/* Government ID Upload */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.05 }}
+          className="mb-10"
+        >
+          <GovernmentIdUpload />
         </motion.div>
 
         {/* Timeline */}
@@ -206,7 +490,7 @@ export default function IntakeSuccessPage() {
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
             What You Can Do Now
           </h2>
-          
+
           <div className="grid gap-4 sm:grid-cols-3">
             {nextSteps.map((step) => (
               <Card

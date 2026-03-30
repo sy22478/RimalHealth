@@ -115,6 +115,7 @@ export interface IntakeFormData {
   pharmacyName?: string;
   pharmacyAddress?: string;
   pharmacyCity?: string;
+  pharmacyState?: string;
   pharmacyZip?: string;
   pharmacyPhone?: string;
 

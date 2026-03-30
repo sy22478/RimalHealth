@@ -12,7 +12,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 | Document | Location | Purpose |
 |----------|----------|---------|
-| tasks.md | `dev-setup/rimalhealth/tasks.md` | Active work tracker -- read first |
+| session_handoff.md | `dev-setup/rimalhealth/session_handoff.md` | Cross-session state -- read first for context continuity |
+| tasks.md | `dev-setup/rimalhealth/tasks.md` | Active work tracker -- read before starting work |
 | build_instructions.md | `dev-setup/rimalhealth/build_instructions.md` | How to add features, fix bugs, deploy |
 | context_brief.md | `dev-setup/rimalhealth/context_brief.md` | Domain knowledge, HIPAA rules, business logic |
 | asset_manifest.md | `dev-setup/rimalhealth/asset_manifest.md` | Env vars, integrations, infra inventory |
@@ -62,6 +63,7 @@ cd premium-telehealth-website/my-app
 npm run dev              # Start dev server (http://localhost:3000)
 npm run dev:turbo        # Dev server with Turbopack (faster)
 npm run build            # Production build
+npm start                # Start production server (after build)
 npm run build:analyze    # Production build with bundle analyzer
 npm run lint             # Run ESLint
 npm run lint:fix         # Auto-fix lint issues
@@ -85,6 +87,8 @@ npm run test:perf                     # Performance tests (scripts/performance-t
 npx vitest run tests/unit/path/to/file.test.ts
 # Run a single test by name pattern
 npx vitest run --reporter=verbose -t "test name pattern"
+# Note: vitest globals enabled -- describe/it/expect available without imports
+# Tests also live in lib/**/*.test.ts (co-located with source)
 
 # Database
 npm run db:generate      # Generate Prisma client
@@ -112,6 +116,8 @@ npm run health-check     # Run health check script
 - Do not make changes beyond what was requested.
 - Before fixing a bug, verify the root cause. Check env vars, API URLs, middleware config first.
 
+**Imports:** Use `@/` path alias for all imports (maps to project root `premium-telehealth-website/my-app/`). Example: `import { cn } from '@/lib/utils'`.
+
 **TypeScript:** Strict mode, explicit return types, `interface` for objects, `type` for unions. `'use client'` required for hooks/browser APIs. No `any` without justification.
 
 **HIPAA -- NEVER:** log PHI, include PHI in error messages/URLs/JWTs, store PHI unencrypted, cache PHI in browser storage. PHI fields (name, DOB, address, phone, medical data, messages, prescriptions) must use `encryptPHI()`/`decryptPHI()`.
@@ -121,6 +127,8 @@ npm run health-check     # Run health check script
 **Git:** Branch prefixes: `feature/`, `fix/`, `docs/`, `test/`, `refactor/`, `security/`. Commit prefixes: `feat:`, `fix:`, `docs:`, etc. Never commit `.env`, patient data, DB dumps, or PHI logs.
 
 **Forms:** React Hook Form + Zod + `zodResolver`. Zod v4 syntax: `{ message: '...' }` not `{ required_error: '...' }`.
+
+**shadcn/ui:** Style is "new-york". Add components with `npx shadcn add <component>`. Components land in `components/ui/`. Uses Radix primitives + Tailwind.
 
 **Stripe:** Validate API params against current Stripe API version (`2026-01-28.clover`) before deploying. Auth components must be wrapped in AuthProvider.
 
@@ -162,7 +170,9 @@ Route protection runs in `middleware.ts`. The middleware:
 
 **Server Components with DB** -- Admin pages or any server component running Prisma queries need `export const dynamic = 'force-dynamic'` to avoid Next.js static generation errors.
 
-**Third-party integrations** -- DoseSpot for e-prescriptions (has a mock at `lib/integrations/dosespot.mock.ts` for dev), Stripe for subscriptions/billing, S3 for document storage, SendGrid for email, Twilio for SMS.
+**React Compiler** -- Disabled in `next.config.ts` due to incompatibility with react-hook-form's `watch`/`setValue` pattern. Do not re-enable without verifying RHF compatibility.
+
+**Third-party integrations** -- Stripe for subscriptions/billing, S3 for document storage, SendGrid for email, Twilio for SMS. DoseSpot e-prescribing is **on hold** (evaluating alternatives); mock available at `lib/integrations/dosespot.mock.ts`.
 
 **Patient flow (payment-first, with email verification and intake gate)** -- Landing CTA -> `/checkout/consent` (7 checkboxes + 42 CFR Part 2) -> Stripe payment -> Receipt email + "Create Account" email -> `/create-account` (token-based, set password) -> Email verification (`/verify-email`) -> Login (emailVerified enforced for PATIENT) -> Intake gate in patient layout (server component) -> 34-question DSM-5 intake form -> Dashboard. The public checkout uses `POST /api/stripe/public-checkout-session` (no auth). The Stripe webhook handler at `app/api/webhooks/stripe/route.ts` orchestrates user creation in a `prisma.$transaction()`. See `dev-setup/rimalhealth/context_brief.md` "App Flow" section for the full authoritative flow.
 
@@ -183,4 +193,4 @@ Deployed to **Netlify** via GitHub Actions. Push to `main` triggers the deployme
 - After deploying, verify the live URL is not a cached/stale deploy.
 - Prefer local Netlify deploys (`netlify deploy --prod`) when CI has persistent framework-level bugs.
 - Turbopack in CI can't resolve barrel exports (`@/lib/audit`). Use explicit `/index` imports or deploy locally.
-- `next.config.ts` sets `typescript.ignoreBuildErrors = true` in CI -- type errors won't fail the build, so run `npm run type-check` separately.
+- `next.config.ts` has `typescript.ignoreBuildErrors = false` -- type errors will fail the build. Always run `npm run type-check` before deploying.

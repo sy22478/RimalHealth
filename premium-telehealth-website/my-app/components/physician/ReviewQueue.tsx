@@ -11,6 +11,7 @@
 
 import * as React from 'react';
 import { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -160,6 +161,17 @@ export function ReviewQueue({
   className,
   compact = false,
 }: ReviewQueueProps) {
+  const router = useRouter();
+
+  // Default click handler: navigate to the intake review page
+  const handleItemClick = (item: ReviewQueueItem) => {
+    if (onItemClick) {
+      onItemClick(item);
+    } else {
+      router.push(`/physician/intake/${item.intakeId}`);
+    }
+  };
+
   const [filters, setFilters] = useState<ReviewQueueFilters>({
     treatmentType: 'ALL',
     status: 'ALL',
@@ -229,7 +241,7 @@ export function ReviewQueue({
               {filteredItems.slice(0, 5).map((item) => (
                 <button
                   key={item.intakeId}
-                  onClick={() => onItemClick?.(item)}
+                  onClick={() => handleItemClick(item)}
                   className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors text-left"
                 >
                   <div className="flex items-center gap-3">
@@ -398,7 +410,7 @@ export function ReviewQueue({
                   <TableRow
                     key={item.intakeId}
                     className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => onItemClick?.(item)}
+                    onClick={() => handleItemClick(item)}
                   >
                     <TableCell>
                       <div className="flex items-center gap-3">

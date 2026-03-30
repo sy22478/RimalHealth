@@ -50,13 +50,17 @@ export async function GET(
       );
     }
 
-    // Get intake with patient profile
+    // Get intake with patient profile and preferred pharmacy
     const intake = await prisma.intake.findUnique({
       where: { id: intakeId },
       include: {
         patient: {
           include: {
-            patientProfile: true,
+            patientProfile: {
+              include: {
+                preferredPharmacy: true,
+              },
+            },
           },
         },
         prescription: true,
@@ -109,6 +113,7 @@ export async function GET(
 
     // Patient profile fields are already decrypted by Prisma extension
     const profile = intake.patient.patientProfile;
+    const pharmacy = profile?.preferredPharmacy;
     const patientInfo = profile
       ? {
           firstName: profile.firstName,
@@ -124,6 +129,14 @@ export async function GET(
           },
           primaryConcern: profile.primaryConcern,
           treatmentGoal: profile.treatmentGoal,
+          preferredPharmacy: pharmacy ? {
+            name: pharmacy.name,
+            phone: pharmacy.phone,
+            address: pharmacy.address,
+            city: pharmacy.city,
+            state: pharmacy.state,
+            zipCode: pharmacy.zipCode,
+          } : null,
         }
       : null;
 

@@ -306,6 +306,47 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
       },
     });
 
+    // ====================================================================
+    // Create initial Invoice record from the checkout session
+    // This ensures the first invoice exists regardless of whether
+    // invoice.payment_succeeded arrives before or after this handler.
+    // ====================================================================
+    if (session.invoice) {
+      const stripeInvoiceId = typeof session.invoice === 'string'
+        ? session.invoice
+        : (session.invoice as unknown as { id: string }).id;
+
+      // Idempotency: skip if invoice already exists
+      const existingInvoice = await tx.invoice.findFirst({
+        where: { stripeInvoiceId },
+      });
+
+      if (!existingInvoice) {
+        // Look up the subscription we just created to get its ID
+        const newSub = await tx.subscription.findFirst({
+          where: { stripeSubscriptionId: subscriptionId || '' },
+          select: { id: true },
+        });
+
+        if (newSub) {
+          await tx.invoice.create({
+            data: {
+              subscriptionId: newSub.id,
+              userId,
+              amount: session.amount_total || 5000,
+              currency: (session.currency || 'usd').toUpperCase(),
+              status: 'PAID',
+              stripeInvoiceId,
+              stripeChargeId: typeof session.payment_intent === 'string'
+                ? session.payment_intent
+                : null,
+              paidAt: new Date(),
+            },
+          });
+        }
+      }
+    }
+
     // Generate create-account token for new/unverified users
     if (isNewUser || !txUser.emailVerified) {
       const token = crypto.randomUUID();
@@ -475,14 +516,30 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice): Promise<v
 
   // ========================================================================
   // 2. Find subscription and update status
+  //    Fallback: if lookup by stripeSubscriptionId fails, try by
+  //    stripeCustomerId. If still not found, throw so Stripe retries.
   // ========================================================================
-  const subscription = await prisma.subscription.findFirst({
+  let subscription = await prisma.subscription.findFirst({
     where: { stripeSubscriptionId: subscriptionId },
   });
 
   if (!subscription) {
-    console.warn(`[Stripe Webhook] Subscription not found: ${subscriptionId}`);
-    return;
+    // Fallback: look up by stripeCustomerId from the invoice
+    const customerId = typeof invoice.customer === 'string'
+      ? invoice.customer
+      : (invoice.customer as unknown as { id: string } | null)?.id;
+
+    if (customerId) {
+      subscription = await prisma.subscription.findFirst({
+        where: { stripeCustomerId: customerId },
+      });
+    }
+  }
+
+  if (!subscription) {
+    // Throw instead of silently returning — this causes Stripe to retry
+    // the webhook later, after checkout.session.completed has finished.
+    throw new Error(`[Stripe Webhook] Subscription not found for invoice. subscriptionId=${subscriptionId}, invoiceId=${invoice.id}`);
   }
 
   // Update subscription status to ACTIVE

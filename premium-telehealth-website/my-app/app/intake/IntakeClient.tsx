@@ -1554,8 +1554,8 @@ export default function IntakePage(): React.ReactElement {
         throw new Error(error.message || error.error || 'Failed to submit intake form');
       }
 
-      // Redirect to patient dashboard (gate will now pass since intake is SUBMITTED)
-      router.push('/patient/dashboard');
+      // Redirect to intake success page (prompts ID upload, then links to dashboard)
+      router.push('/intake/success');
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'An unexpected error occurred');
       setIsSubmitting(false);

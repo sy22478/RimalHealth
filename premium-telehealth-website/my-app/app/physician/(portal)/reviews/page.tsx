@@ -16,6 +16,7 @@ import { ReviewQueue } from '@/components/physician/ReviewQueue';
 import { Badge } from '@/components/ui/badge';
 import { ClipboardList, AlertCircle } from 'lucide-react';
 import type { ReviewQueueItem, ReviewQueueStats } from '@/types/physician-dashboard';
+import { getRiskLevelFromScore } from '@/types/physician-dashboard';
 import { cn } from '@/lib/utils';
 
 // ============================================================================
@@ -90,8 +91,19 @@ export default async function ReviewsPage() {
 
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data.queue)) queueItems = data.queue;
-        else if (Array.isArray(data.items)) queueItems = data.items;
+        const rawItems = Array.isArray(data.queue) ? data.queue : Array.isArray(data.items) ? data.items : [];
+        // Map queue API items (QueueItem shape) to ReviewQueueItem shape
+        queueItems = rawItems.map((item: Record<string, unknown>) => {
+          const status = item.status === 'SUBMITTED' ? 'PENDING'
+            : item.status === 'UNDER_REVIEW' ? 'IN_REVIEW'
+            : (item.status as string) || 'PENDING';
+          return {
+            ...item,
+            status,
+            treatmentType: (item.treatmentType as string) || (item.concernType as string) || 'ALCOHOL',
+            riskLevel: (item.riskLevel as string) || getRiskLevelFromScore(item.riskScore as number | undefined),
+          } as ReviewQueueItem;
+        });
       }
     }
   } catch {
@@ -99,7 +111,7 @@ export default async function ReviewsPage() {
   }
 
   const queueStats: ReviewQueueStats = {
-    totalPending: queueItems.filter((i) => i.status === 'PENDING').length,
+    totalPending: queueItems.filter((i) => i.status === 'PENDING' || i.status === 'IN_REVIEW').length,
     overdueCount: queueItems.filter((i) => i.isOverdue).length,
     inReviewCount: queueItems.filter((i) => i.status === 'IN_REVIEW').length,
     newlySubmittedCount: queueItems.filter((i) => i.waitTimeHours < 4).length,

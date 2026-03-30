@@ -1,10 +1,10 @@
 # RimalHealth -- Task Tracker
 
 > **Status Legend:** `[ ]` To Do | `[~]` In Progress | `[x]` Done | `[!]` Blocked
-> **Last Updated:** 2026-03-26
+> **Last Updated:** 2026-03-29
 > **Mutable:** YES -- agents update this document as work completes
-> **Source:** Deep review reports (Teams F, G, H, Research), compliance analysis, architecture assessment
-> **Total:** 81 tasks across 8 groups
+> **Source:** Deep review reports (Teams F, G, H, Research), compliance analysis, architecture assessment, user testing feedback
+> **Total:** 102 tasks across 9 groups (81 original + 21 Phase 11)
 
 ---
 
@@ -217,6 +217,45 @@
 
 ---
 
+## TASK 9: Phase 11 — User-Reported Bugs & Features (2026-03-29)
+
+> **Source:** User testing feedback (Sonu Yadav, Willeed, Ahmed Gomaa)
+> **Total:** 21 tasks across 6 groups
+
+- [x] **9.1 Authentication & Session (P0 — Blocking All Portals)**
+  - [x] 9.1.1 Fix 2FA/TOTP verification — added `credentials: 'include'` to all MFA + login fetch calls (MFASetup, LoginForm, PhysicianLoginForm)
+  - [x] 9.1.2 Fix session timeout — created `useTokenRefresh` hook (13-min proactive refresh, 30-min HIPAA idle timeout); wired into both portals
+  - [x] 9.1.3 Fix settings navigation logout — middleware now does inline token refresh (expired access + valid refresh = new access token); server layouts prefer `x-user-id` header over stale cookie
+  - [x] 9.1.4 Fix physician portal session — same token refresh mechanism; `TokenRefreshProvider` wrapper for server component layout
+
+- [x] **9.2 Physician Portal — Review System (P0)**
+  - [x] 9.2.1 Fix pending reviews count — dashboard now maps `queue.pendingIntakes` from API response to stats
+  - [x] 9.2.2 Fix review button — added `useRouter` fallback navigation; fixed status mapping (SUBMITTED→PENDING)
+  - [x] 9.2.3 Fix review submission — fixed physicianId FK: now looks up `Physician.id` instead of using `User.id`
+  - [x] 9.2.4 Fix age calculation — DOB now prefers `intake.formData.dateOfBirth` over `profile.dateOfBirth` (which is empty placeholder)
+  - [x] 9.2.5 Fix pharmacy state display — added DataRow with default "CA" (California-only)
+  - [x] 9.2.6 Fix pharmacy info visibility — API now includes `{ preferredPharmacy: true }` in patientProfile query
+  - [x] 9.2.7 Add patient counts to Patients tab — API returns total/pending/completed/approved/rejected; PatientStats redesigned
+
+- [x] **9.3 Patient Portal — Profile & Navigation (P1)**
+  - [x] 9.3.1 Fix profile save — rewrote `updateProfileSchema` to accept empty strings; PUT handler skips empty values
+  - [x] 9.3.2 Fix/add preferred pharmacy change — replaced static card with interactive pharmacy search + selection UI
+  - [x] 9.3.3 Remove Notifications tab from profile page — removed tab trigger/content/imports; grid 4→3 columns
+  - [x] 9.3.4 Evaluate Disclosures tab — 42 CFR Part 2 requires it; removed from sidebar, added as card link on Settings page
+
+- [x] **9.4 Messaging System (P1)**
+  - [x] 9.4.1 Fix message persistence — removed polymorphic FK constraint (message_physician_fk); fixed 3 client data mapping bugs in messages page
+  - [x] 9.4.2 Add message rate limiting — 20/hour + 50/day per user using existing checkRateLimit infrastructure; 429 + Retry-After
+
+- [x] **9.5 Billing (P1)**
+  - [x] 9.5.1 Fix invoice history display — webhook race condition: added Stripe fallback backfill, webhook creates invoice during checkout, retry on missing subscription
+
+- [x] **9.6 Documents & Features (P2)**
+  - [x] 9.6.1 Add gov ID upload prompt after intake submission — GovernmentIdUpload component on success page, S3 presigned URL, AES256 encryption
+  - [x] 9.6.2 Add intake form record to Documents tab — auto-creates INTAKE_FORM Document on submit; IntakeFormViewer dialog in Documents page
+
+---
+
 ## Priority Matrix
 
 | Priority | Count | Key Items |
@@ -228,4 +267,7 @@
 | **Compliance** | 6 | 42 CFR Phase 2-3 |
 | **Docs** | 10 | Context, memory, trace, CLAUDE.md |
 | **Evaluation** | 4 | SendGrid BAA |
-| **Total** | **81** | |
+| **Phase 11 P0** | 11 | Auth/session fixes, physician review system |
+| **Phase 11 P1** | 8 | Profile, messaging, billing fixes |
+| **Phase 11 P2** | 2 | Document features |
+| **Total** | **102** | 81 original + 21 Phase 11 |

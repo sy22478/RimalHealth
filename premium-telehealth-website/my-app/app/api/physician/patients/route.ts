@@ -68,13 +68,24 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         }
       : {};
 
-    // Get patients with their user data - ordered by last name ascending
+    // Get patients with their user data and latest intake status - ordered by last name ascending
     const [patients, total] = await Promise.all([
       prisma.patientProfile.findMany({
         where: whereClause,
         include: {
           user: {
-            select: { email: true },
+            select: {
+              email: true,
+              intakes: {
+                select: {
+                  id: true,
+                  status: true,
+                  submittedAt: true,
+                },
+                orderBy: { submittedAt: 'desc' },
+                take: 1,
+              },
+            },
           },
         },
         orderBy: [
@@ -86,6 +97,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }),
       prisma.patientProfile.count({ where: whereClause }),
     ]);
+
+    // Get aggregate intake status counts for the stats header
+    const intakeStatusCounts = await prisma.intake.groupBy({
+      by: ['status'],
+      _count: { id: true },
+    });
 
     // Log access
     await AuditService.logPHIAccess(
@@ -102,16 +119,48 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Note: The Prisma encryption extension handles decryption automatically
     // for fields registered in PHI_FIELDS. decryptPHI is used as a safety net
     // for raw query results, but with findMany the extension does the work.
-    const formattedPatients = patients.map((patient) => ({
-      id: patient.userId,
-      firstName: patient.firstName,
-      lastName: patient.lastName,
-      email: patient.user.email,
-      dateOfBirth: patient.dateOfBirth,
-      primaryConcern: patient.primaryConcern,
-      treatmentGoal: patient.treatmentGoal,
-      createdAt: patient.createdAt.toISOString(),
-    }));
+    const formattedPatients = patients.map((patient) => {
+      const latestIntake = patient.user.intakes?.[0];
+      // Derive patient status from their latest intake status
+      let status = 'ACTIVE';
+      if (latestIntake) {
+        switch (latestIntake.status) {
+          case 'SUBMITTED':
+          case 'UNDER_REVIEW':
+          case 'NEEDS_INFO':
+            status = 'PENDING';
+            break;
+          case 'APPROVED':
+          case 'REJECTED':
+            status = 'COMPLETED';
+            break;
+          case 'DRAFT':
+            status = 'PENDING';
+            break;
+          default:
+            status = 'ACTIVE';
+        }
+      }
+
+      return {
+        id: patient.userId,
+        firstName: patient.firstName,
+        lastName: patient.lastName,
+        email: patient.user.email,
+        dateOfBirth: patient.dateOfBirth,
+        primaryConcern: patient.primaryConcern,
+        treatmentGoal: patient.treatmentGoal,
+        createdAt: patient.createdAt.toISOString(),
+        status,
+        intakeStatus: latestIntake?.status || null,
+      };
+    });
+
+    // Build status counts from intake aggregate
+    const statusCountMap: Record<string, number> = {};
+    for (const entry of intakeStatusCounts) {
+      statusCountMap[entry.status] = entry._count.id;
+    }
 
     return NextResponse.json({
       patients: formattedPatients,
@@ -120,6 +169,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         limit,
         offset,
         hasMore: offset + patients.length < total,
+      },
+      counts: {
+        total,
+        pending: (statusCountMap['SUBMITTED'] || 0) + (statusCountMap['UNDER_REVIEW'] || 0) + (statusCountMap['NEEDS_INFO'] || 0),
+        completed: (statusCountMap['APPROVED'] || 0) + (statusCountMap['REJECTED'] || 0),
+        approved: statusCountMap['APPROVED'] || 0,
+        rejected: statusCountMap['REJECTED'] || 0,
       },
     });
   } catch (error) {

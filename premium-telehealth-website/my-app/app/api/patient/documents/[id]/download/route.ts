@@ -80,6 +80,14 @@ export async function GET(
       );
     }
 
+    // Virtual documents (like INTAKE_FORM) have no S3 key
+    if (!document.s3Key) {
+      return NextResponse.json(
+        { error: 'This document does not have a downloadable file' },
+        { status: 400 }
+      );
+    }
+
     // Generate presigned download URL (5 minute expiry for security)
     const downloadUrl = await generateDownloadUrl({
       key: document.s3Key,

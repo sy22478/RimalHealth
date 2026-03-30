@@ -1,8 +1,9 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Bell, Shield, LogOut, Trash2, Mail, MessageSquare } from 'lucide-react';
+import { Bell, Shield, LogOut, Trash2, Mail, MessageSquare, Eye } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -316,6 +317,33 @@ export default function PatientSettingsPage(): React.ReactElement {
                 for full details.
               </p>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Accounting of Disclosures */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5 text-ocean-500" />
+              Accounting of Disclosures
+            </CardTitle>
+            <CardDescription>
+              View a record of how your protected health information has been shared
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-gray-600 mb-4">
+              Under HIPAA and 42 CFR Part 2, you have the right to request an accounting of
+              disclosures of your protected health information. This log shows when and why
+              your information was shared with authorized parties.
+            </p>
+            <Link
+              href="/patient/disclosures"
+              className="inline-flex items-center gap-2 text-sm font-medium text-ocean-600 hover:text-ocean-700 transition-colors"
+            >
+              <Eye className="h-4 w-4" />
+              View Disclosure History
+            </Link>
           </CardContent>
         </Card>
 

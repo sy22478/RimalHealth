@@ -27,6 +27,7 @@ const uploadUrlSchema = z.object({
     DocumentType.INSURANCE_CARD,
     DocumentType.MEDICAL_RECORD,
     DocumentType.CONSENT_FORM,
+    DocumentType.INTAKE_FORM,
     DocumentType.OTHER,
   ]),
   fileSize: z.number().positive('File size must be positive'),
@@ -109,6 +110,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       [DocumentType.INSURANCE_CARD]: 'insurance',
       [DocumentType.MEDICAL_RECORD]: 'medical',
       [DocumentType.CONSENT_FORM]: 'consent',
+      [DocumentType.INTAKE_FORM]: 'medical',
       [DocumentType.OTHER]: 'other',
     };
 

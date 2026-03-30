@@ -429,12 +429,13 @@ export default function MessagesPage() {
         const data = await res.json();
         const threads = data.threads || [];
         // Map API threads to local Conversation type
-        const convs: Conversation[] = threads.map((t: { threadId?: string; id?: string; senderName?: string; participantName?: string; senderType?: string; lastMessagePreview?: string; preview?: string; lastMessageAt?: string; sentAt?: string; unreadCount?: number }) => ({
-          id: t.threadId || t.id,
-          participantName: t.senderName || t.participantName || 'Your Doctor',
-          participantType: (t.senderType === 'PHYSICIAN' ? 'PHYSICIAN' : 'SYSTEM') as 'PHYSICIAN' | 'SYSTEM',
-          lastMessage: t.lastMessagePreview || t.preview || '',
-          lastMessageAt: new Date(t.lastMessageAt || t.sentAt || Date.now()),
+        // API shape: { id, physicianName, lastMessage: { body, sentAt, senderType }, unreadCount }
+        const convs: Conversation[] = threads.map((t: { id?: string; physicianName?: string; lastMessage?: { body?: string; sentAt?: string; senderType?: string }; unreadCount?: number }) => ({
+          id: t.id,
+          participantName: t.physicianName || 'Your Doctor',
+          participantType: 'PHYSICIAN' as const,
+          lastMessage: t.lastMessage?.body || '',
+          lastMessageAt: new Date(t.lastMessage?.sentAt || Date.now()),
           unreadCount: t.unreadCount || 0,
         }));
         setConversations(convs);
@@ -489,14 +490,50 @@ export default function MessagesPage() {
     );
 
     try {
-      await fetch('/api/patient/messages', {
+      const res = await fetch('/api/patient/messages', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ threadId: selectedConversationId, body: content }),
       });
+
+      if (!res.ok) {
+        // Server returned an error — rollback optimistic update
+        setMessages(prev => ({
+          ...prev,
+          [selectedConversationId]: previousMessages,
+        }));
+        if (previousConversation) {
+          setConversations(prev =>
+            prev.map(c => c.id === selectedConversationId
+              ? { ...c, lastMessage: previousConversation.lastMessage, lastMessageAt: previousConversation.lastMessageAt }
+              : c
+            )
+          );
+        }
+        const errorData = await res.json().catch(() => null);
+        setError(errorData?.error || 'Failed to send message. Please try again.');
+        return;
+      }
+
+      // Replace optimistic message with server-confirmed data
+      const data = await res.json();
+      if (data.message) {
+        setMessages(prev => ({
+          ...prev,
+          [selectedConversationId]: (prev[selectedConversationId] || []).map(m =>
+            m.id === optimistic.id
+              ? {
+                  ...m,
+                  id: data.message.id,
+                  sentAt: new Date(data.message.sentAt),
+                }
+              : m
+          ),
+        }));
+      }
     } catch (err) {
-      // Rollback optimistic update
+      // Network error — rollback optimistic update
       setMessages(prev => ({
         ...prev,
         [selectedConversationId]: previousMessages,
@@ -525,7 +562,9 @@ export default function MessagesPage() {
         });
         if (res.ok) {
           const data = await res.json();
-          const msgs: Message[] = (data.messages || []).map((m: { id: string; subject?: string; body?: string; senderType?: string; senderName?: string; senderId?: string; sentAt: string; readAt?: string | null }) => ({
+          // API returns { thread: { messages: [...] } } when threadId is provided
+          const rawMessages = data.thread?.messages || data.messages || [];
+          const msgs: Message[] = (rawMessages).map((m: { id: string; subject?: string; body?: string; senderType?: string; senderName?: string; senderId?: string; sentAt: string; readAt?: string | null }) => ({
             id: m.id,
             subject: m.subject || null,
             body: m.body || '',

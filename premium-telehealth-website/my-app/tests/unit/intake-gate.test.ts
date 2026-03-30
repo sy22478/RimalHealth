@@ -57,6 +57,9 @@ vi.mock('next/headers', () => ({
   cookies: vi.fn().mockResolvedValue({
     get: mockCookieGet,
   }),
+  headers: vi.fn().mockResolvedValue({
+    get: vi.fn().mockReturnValue(null),
+  }),
 }));
 
 vi.mock('next/navigation', () => ({

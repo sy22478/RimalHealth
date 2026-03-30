@@ -64,8 +64,17 @@ function maskEmail(email: string | null | undefined): string {
   return `${parts[0][0]}***@${parts[1]}`;
 }
 
+interface PatientCounts {
+  total: number;
+  pending: number;
+  completed: number;
+  approved: number;
+  rejected: number;
+}
+
 export default async function PatientsPage() {
   let patients: PhysicianPatientListItem[] = [];
+  let counts: PatientCounts | null = null;
 
   try {
     const cookieStore = await cookies();
@@ -98,6 +107,9 @@ export default async function PatientsPage() {
             phoneMasked: (p.phoneMasked as string) || 'No phone',
           }));
         }
+        if (data.counts) {
+          counts = data.counts as PatientCounts;
+        }
       }
     }
   } catch {
@@ -107,7 +119,7 @@ export default async function PatientsPage() {
   return (
     <div className="space-y-6">
       {/* Stats Overview */}
-      <PatientStats patients={patients} />
+      <PatientStats patients={patients} counts={counts} />
 
       {/* Patient Table */}
       <PatientTable

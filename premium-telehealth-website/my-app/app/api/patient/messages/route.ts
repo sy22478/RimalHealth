@@ -19,6 +19,11 @@ import { sendMessageSchema, getMessagesQuerySchema } from '@/lib/validation/sche
 import { Role, SenderType } from '@prisma/client';
 import { PHIResourceType } from '@/lib/audit/index';
 import {
+  checkRateLimit,
+  userKeyGenerator,
+  createRateLimitResponse,
+} from '@/lib/security/rate-limit';
+import {
   getPatientMessagingThreads,
   getPatientThreadMessages,
   sendMessageToPhysician,
@@ -141,6 +146,23 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const { userId } = auth.user;
   const auditContext = AuditService.createAuditContext(request, userId, 'PATIENT');
+
+  // Two-tier rate limiting: hourly (20/hr) and daily (50/day)
+  const hourlyKey = userKeyGenerator(userId, 'message:hourly');
+  const dailyKey = userKeyGenerator(userId, 'message:daily');
+
+  const [hourlyLimit, dailyLimit] = await Promise.all([
+    checkRateLimit(hourlyKey, { maxRequests: 20, interval: 60 * 60 * 1000 }),
+    checkRateLimit(dailyKey, { maxRequests: 50, interval: 24 * 60 * 60 * 1000 }),
+  ]);
+
+  if (!hourlyLimit.success) {
+    return createRateLimitResponse(hourlyLimit);
+  }
+
+  if (!dailyLimit.success) {
+    return createRateLimitResponse(dailyLimit);
+  }
 
   try {
     // Validate request body

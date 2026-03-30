@@ -19,9 +19,9 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { verifyAccessToken, decodeTokenUnsafe } from '@/lib/auth/jwt';
+import { verifyAccessToken, verifyRefreshToken, generateAccessToken, decodeTokenUnsafe } from '@/lib/auth/jwt';
 import { Role } from '@prisma/client';
-import { SESSION_CONFIG } from '@/lib/constants';
+import { SESSION_CONFIG, SESSION_SECURITY } from '@/lib/constants';
 
 // ============================================
 // Route Configuration
@@ -304,11 +304,67 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     return response;
 
   } catch (error) {
-    // Token is invalid or expired
+    // Access token is invalid or expired — attempt inline refresh
     console.error('Token verification failed:', error);
 
-    // Clear invalid cookies
-    const response = NextResponse.redirect(new URL('/login', request.url));
+    // Check for a refresh token cookie
+    const refreshTokenCookie = request.cookies.get(SESSION_SECURITY.REFRESH_TOKEN_COOKIE)?.value;
+
+    if (refreshTokenCookie) {
+      try {
+        // Verify the refresh token (Edge-compatible, uses jose)
+        const refreshPayload = await verifyRefreshToken(refreshTokenCookie);
+
+        // Refresh token is valid — we need the user's email and role to mint
+        // a new access token. Decode the expired access token unsafely to get
+        // these claims (they were verified when originally issued).
+        const decoded = decodeTokenUnsafe(token);
+        const userEmail = (decoded?.email as string) ?? '';
+        const userRole = (decoded?.role as string) ?? '';
+
+        if (refreshPayload.userId && userEmail && userRole) {
+          // Generate a new access token
+          const newAccessToken = await generateAccessToken(
+            refreshPayload.userId,
+            userEmail,
+            userRole as Role
+          );
+
+          // Inject user identity headers for downstream use
+          const requestHeaders = new Headers(request.headers);
+          requestHeaders.set('x-user-id', refreshPayload.userId);
+          requestHeaders.set('x-user-role', userRole);
+          requestHeaders.set('x-user-email', userEmail);
+          requestHeaders.set('x-request-id', requestId);
+
+          const response = NextResponse.next({
+            request: { headers: requestHeaders },
+          });
+
+          // Set the new access token cookie
+          response.cookies.set({
+            name: SESSION_SECURITY.ACCESS_TOKEN_COOKIE,
+            value: newAccessToken,
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: SESSION_CONFIG.ACCESS_TOKEN_EXPIRY,
+            path: '/',
+          });
+
+          response.headers.set('x-request-id', requestId);
+          return response;
+        }
+      } catch {
+        // Refresh token is also invalid — fall through to redirect
+      }
+    }
+
+    // No valid refresh token — redirect to login
+    const loginPath = pathname.startsWith('/physician') ? '/physician/login' : '/login';
+    const loginUrl = new URL(loginPath, request.url);
+    loginUrl.searchParams.set('from', pathname + search);
+    const response = NextResponse.redirect(loginUrl);
     response.cookies.delete('accessToken');
     response.cookies.delete('refreshToken');
     return response;

@@ -9,10 +9,11 @@
 
 import * as React from 'react';
 import { Metadata } from 'next';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { Sidebar, MobileHeader, MobileNav } from './PhysicianNavClient';
 import { MessageNotifications } from '@/components/physician/MessageNotifications';
+import { TokenRefreshProvider } from '@/components/auth/TokenRefreshProvider';
 import { verifyAccessToken } from '@/lib/auth/jwt';
 
 // ============================================================================
@@ -33,45 +34,60 @@ export default async function PhysicianLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('accessToken')?.value;
+  // Prefer middleware-injected headers (already verified, survives inline refresh)
+  const headerStore = await headers();
+  const middlewareUserId = headerStore.get('x-user-id');
+  const middlewareRole = headerStore.get('x-user-role');
 
-  if (!token) {
-    redirect('/physician/login');
-  }
-
-  try {
-    const payload = await verifyAccessToken(token);
-    if (payload.role !== 'PHYSICIAN' && payload.role !== 'ADMIN') {
+  if (middlewareUserId && middlewareRole) {
+    // Middleware already verified the token (or refreshed it inline)
+    if (middlewareRole !== 'PHYSICIAN' && middlewareRole !== 'ADMIN') {
       redirect('/unauthorized');
     }
-  } catch {
-    redirect('/physician/login');
+  } else {
+    // Fallback: verify access token cookie directly
+    const cookieStore = await cookies();
+    const token = cookieStore.get('accessToken')?.value;
+
+    if (!token) {
+      redirect('/physician/login');
+    }
+
+    try {
+      const payload = await verifyAccessToken(token);
+      if (payload.role !== 'PHYSICIAN' && payload.role !== 'ADMIN') {
+        redirect('/unauthorized');
+      }
+    } catch {
+      redirect('/physician/login');
+    }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="flex">
-        {/* Sidebar - Desktop */}
-        <Sidebar />
+    <TokenRefreshProvider loginPath="/physician/login">
+      <div className="min-h-screen bg-gray-50">
+        <div className="flex">
+          {/* Sidebar - Desktop */}
+          <Sidebar />
 
-        {/* Main Content */}
-        <main className="flex-1 min-w-0">
-          {/* Mobile Header */}
-          <MobileHeader />
+          {/* Main Content */}
+          <main className="flex-1 min-w-0">
+            {/* Mobile Header */}
+            <MobileHeader />
 
-          {/* Page Content */}
-          <div className="p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8">
-            {children}
-          </div>
-        </main>
+            {/* Page Content */}
+            <div className="p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8">
+              {children}
+            </div>
+          </main>
+        </div>
+
+        {/* Mobile Navigation */}
+        <MobileNav />
+
+        {/* Real-time Message Notifications */}
+        <MessageNotifications />
       </div>
-
-      {/* Mobile Navigation */}
-      <MobileNav />
-
-      {/* Real-time Message Notifications */}
-      <MessageNotifications />
-    </div>
+    </TokenRefreshProvider>
   );
 }

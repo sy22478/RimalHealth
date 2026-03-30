@@ -160,13 +160,15 @@ export async function DELETE(
       );
     }
 
-    // Delete file from S3
-    try {
-      await deleteFile(document.s3Key);
-    } catch (s3Error) {
-      console.error('Error deleting file from S3:', s3Error instanceof Error ? s3Error.message : 'Unknown error');
-      // Continue with DB update even if S3 deletion fails
-      // The file will be orphaned but marked as deleted in DB
+    // Delete file from S3 (only for documents with an S3 key)
+    if (document.s3Key) {
+      try {
+        await deleteFile(document.s3Key);
+      } catch (s3Error) {
+        console.error('Error deleting file from S3:', s3Error instanceof Error ? s3Error.message : 'Unknown error');
+        // Continue with DB update even if S3 deletion fails
+        // The file will be orphaned but marked as deleted in DB
+      }
     }
 
     // Soft delete in database

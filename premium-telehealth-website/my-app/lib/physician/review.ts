@@ -225,12 +225,18 @@ export async function getIntakeForReview(
       _providerDecisionSummary: providerSummary,
     } as unknown as IntakeFormData;
 
-    // Prefer intake formData names (filled during intake) over profile names
+    // Prefer intake formData values (filled during intake) over profile values
     // (which may be empty when profile was auto-created by Stripe webhook)
     const formFirstName = typeof formDataRecord.firstName === 'string' ? formDataRecord.firstName : '';
     const formLastName = typeof formDataRecord.lastName === 'string' ? formDataRecord.lastName : '';
     const firstName = formFirstName || (typeof profile?.firstName === 'string' ? profile.firstName : '') || 'Not provided';
     const lastName = formLastName || (typeof profile?.lastName === 'string' ? profile.lastName : '') || '';
+
+    // Prefer formData DOB (patient-entered during intake) over profile DOB
+    const formDob = typeof formDataRecord.dateOfBirth === 'string' ? formDataRecord.dateOfBirth : '';
+    const profileDob = typeof profile?.dateOfBirth === 'string' ? profile.dateOfBirth : '';
+    const dobString = formDob || profileDob;
+    const dateOfBirth = dobString ? new Date(dobString) : new Date();
 
     const data: IntakeWithPatient = {
       id: intake.id,
@@ -246,7 +252,7 @@ export async function getIntakeForReview(
         id: intake.patientId,
         firstName,
         lastName,
-        dateOfBirth: profile?.dateOfBirth ? new Date(profile.dateOfBirth as string) : new Date(),
+        dateOfBirth,
         email: intake.patient?.email || '',
         phone: (typeof profile?.phone === 'string' ? profile.phone : '') || '',
         address: profile ? {

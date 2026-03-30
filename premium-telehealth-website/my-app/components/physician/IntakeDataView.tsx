@@ -450,6 +450,7 @@ export function IntakeDataView({ formData, scores, riskAssessment }: IntakeDataV
                   <DataRow label="Pharmacy Name" value={formData.pharmacyName} />
                   <DataRow label="Pharmacy Address" value={formData.pharmacyAddress} />
                   <DataRow label="Pharmacy City" value={formData.pharmacyCity} />
+                  <DataRow label="Pharmacy State" value={formData.pharmacyState || 'CA'} />
                   <DataRow label="Pharmacy ZIP" value={formData.pharmacyZip} />
                   {formData.pharmacyPhone && (
                     <DataRow label="Pharmacy Phone" value={formData.pharmacyPhone} />

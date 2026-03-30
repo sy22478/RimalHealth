@@ -170,13 +170,14 @@ export function IntakeReview({ intake, physicianId, physicianName }: IntakeRevie
 
       setSubmission({
         status: 'success',
-        reviewId: data.reviewId,
+        reviewId: data.review?.id || data.reviewId,
       });
 
       // Redirect after successful submission
       setTimeout(() => {
-        if (decisionData.decision === 'APPROVE') {
-          router.push(`/physician/prescriptions/${data.prescriptionId}`);
+        const prescriptionId = data.prescription?.id || data.prescriptionId;
+        if (decisionData.decision === 'APPROVE' && prescriptionId) {
+          router.push(`/physician/prescriptions/${prescriptionId}`);
         } else {
           router.push('/physician/dashboard');
         }

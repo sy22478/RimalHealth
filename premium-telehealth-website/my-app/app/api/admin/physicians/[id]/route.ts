@@ -71,7 +71,6 @@ export async function GET(
           select: {
             reviews: true,
             notes: true,
-            messages: true,
           },
         },
       },
@@ -156,7 +155,7 @@ export async function GET(
         completedReviews,
         avgReviewTimeMin,
         noteCount: physician._count.notes,
-        messageCount: physician._count.messages,
+        messageCount: 0,
       },
       recentReviews: physician.reviews.map((review) => ({
         id: review.id,

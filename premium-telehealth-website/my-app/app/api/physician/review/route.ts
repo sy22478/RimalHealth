@@ -65,6 +65,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       alternativeRecommendation,
     } = validation.data!;
 
+    // Look up the physician record (Review FK references Physician.id, not User.id)
+    const physician = await prisma.physician.findFirst({
+      where: { userId },
+      select: { id: true },
+    });
+
+    if (!physician) {
+      return NextResponse.json(
+        { error: 'Physician profile not found', code: 'PHYSICIAN_NOT_FOUND' },
+        { status: 404 }
+      );
+    }
+
+    const physicianId = physician.id;
+
     // Get intake
     const intake = await prisma.intake.findUnique({
       where: { id: intakeId },
@@ -102,7 +117,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const review = await tx.review.create({
         data: {
           intakeId,
-          physicianId: userId,
+          physicianId,
           decision:
             decision === 'APPROVED'
               ? ReviewDecision.APPROVE

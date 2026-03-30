@@ -192,65 +192,70 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
 
     // Build update object — PHI encryption is handled automatically by the Prisma
     // encryption extension on write. Do NOT manually call encryptPHI here.
+    // Empty strings are treated as "not provided" and skipped.
     const dataToUpdate: Record<string, unknown> = {};
     const changedFields: string[] = [];
 
-    if (updateData.firstName) {
+    // Helper: returns true for non-empty, non-undefined string values
+    const hasValue = (val: unknown): val is string =>
+      typeof val === 'string' && val.length > 0;
+
+    if (hasValue(updateData.firstName)) {
       dataToUpdate.firstName = updateData.firstName;
       changedFields.push('firstName');
     }
 
-    if (updateData.lastName) {
+    if (hasValue(updateData.lastName)) {
       dataToUpdate.lastName = updateData.lastName;
       changedFields.push('lastName');
     }
 
-    if (updateData.dateOfBirth) {
+    if (hasValue(updateData.dateOfBirth)) {
       dataToUpdate.dateOfBirth = updateData.dateOfBirth;
       changedFields.push('dateOfBirth');
     }
 
-    if (updateData.phone) {
+    if (hasValue(updateData.phone)) {
       dataToUpdate.phone = updateData.phone;
       changedFields.push('phone');
     }
 
-    if (updateData.addressStreet) {
+    if (hasValue(updateData.addressStreet)) {
       dataToUpdate.addressStreet = updateData.addressStreet;
       changedFields.push('addressStreet');
     }
 
-    if (updateData.addressCity) {
+    if (hasValue(updateData.addressCity)) {
       dataToUpdate.addressCity = updateData.addressCity;
       changedFields.push('addressCity');
     }
 
-    if (updateData.addressZip) {
+    if (hasValue(updateData.addressZip)) {
       dataToUpdate.addressZip = updateData.addressZip;
       changedFields.push('addressZip');
     }
 
-    if (updateData.addressState) {
+    if (hasValue(updateData.addressState)) {
       dataToUpdate.addressState = updateData.addressState;
       changedFields.push('addressState');
     }
 
-    if (updateData.medicalHistory !== undefined) {
+    if (updateData.medicalHistory !== undefined && updateData.medicalHistory !== '') {
       dataToUpdate.medicalHistory = updateData.medicalHistory ? JSON.parse(JSON.stringify(updateData.medicalHistory)) : null;
       changedFields.push('medicalHistory');
     }
 
-    if (updateData.currentMedications !== undefined) {
+    if (updateData.currentMedications !== undefined && updateData.currentMedications !== '') {
       dataToUpdate.currentMedications = updateData.currentMedications ? JSON.parse(JSON.stringify(updateData.currentMedications)) : null;
       changedFields.push('currentMedications');
     }
 
-    if (updateData.allergies !== undefined) {
+    if (updateData.allergies !== undefined && updateData.allergies !== '') {
       dataToUpdate.allergies = updateData.allergies ? JSON.parse(JSON.stringify(updateData.allergies)) : null;
       changedFields.push('allergies');
     }
 
-    if (updateData.preferredPharmacyId) {
+    if (hasValue(updateData.preferredPharmacyId)) {
       dataToUpdate.preferredPharmacyId = updateData.preferredPharmacyId;
       changedFields.push('preferredPharmacyId');
     }

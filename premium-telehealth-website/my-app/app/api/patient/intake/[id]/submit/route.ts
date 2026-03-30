@@ -17,7 +17,7 @@ import { ValidationService } from '@/lib/services/validation-service';
 import { NotificationService } from '@/lib/services/notification-service';
 import { submitIntakeSchema, dsm5IntakeFormDataSchema } from '@/lib/validation/schemas';
 import { calculateIntakeScores, generateProviderDecisionSummary } from '@/lib/intake/scoring';
-import { Role, IntakeStatus, Prisma } from '@prisma/client';
+import { Role, IntakeStatus, DocumentType, DocumentStatus, Prisma } from '@prisma/client';
 import { DataModificationAction } from '@/lib/audit/index';
 
 // ============================================================================
@@ -319,6 +319,30 @@ export async function POST(
       where: { userId },
       data: profileUpdate,
     });
+
+    // Create an INTAKE_FORM document record so the intake appears in the Documents tab.
+    // This is a "virtual" document (no S3 file) that references the intake by ID.
+    const submittedDate = updatedIntake.submittedAt
+      ? new Date(updatedIntake.submittedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      : new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    try {
+      await prisma.document.create({
+        data: {
+          patientId: userId,
+          documentType: DocumentType.INTAKE_FORM,
+          fileName: `Intake Form — Submitted ${submittedDate}`,
+          fileSize: 0,
+          mimeType: 'application/json',
+          s3Key: null,
+          s3Bucket: null,
+          status: DocumentStatus.ACTIVE,
+          intakeId: intakeId,
+        },
+      });
+    } catch (docError) {
+      // Document creation failure should not block the intake submission
+      console.error('Failed to create intake form document record:', docError instanceof Error ? docError.message : 'Unknown error');
+    }
 
     // Log submission
     await AuditService.logDataModification(

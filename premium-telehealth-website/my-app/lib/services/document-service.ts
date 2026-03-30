@@ -48,6 +48,7 @@ export interface DocumentMetadata {
   mimeType: string;
   uploadedAt: Date;
   status: string;
+  intakeId?: string | null;
 }
 
 // ============================================================================
@@ -160,6 +161,11 @@ export async function generatePresignedDownloadUrl(
     throw new DocumentAccessError(`Document ${documentId} is not available for download`);
   }
 
+  // Virtual documents (like INTAKE_FORM) have no S3 key
+  if (!document.s3Key) {
+    throw new DocumentAccessError(`Document ${documentId} does not have a downloadable file`);
+  }
+
   // Generate presigned URL (5 minute expiration for security)
   const downloadUrl = await generateDownloadUrl({
     key: document.s3Key,
@@ -208,7 +214,7 @@ export async function confirmDocumentUpload(
   fileName: string,
   fileSize: number,
   mimeType: string,
-  documentType: 'ID_VERIFICATION' | 'INSURANCE_CARD' | 'MEDICAL_RECORD' | 'CONSENT_FORM' | 'OTHER'
+  documentType: 'ID_VERIFICATION' | 'INSURANCE_CARD' | 'MEDICAL_RECORD' | 'CONSENT_FORM' | 'INTAKE_FORM' | 'OTHER'
 ): Promise<DocumentMetadata> {
   // Verify patient profile exists
   const profile = await prisma.patientProfile.findUnique({
@@ -241,6 +247,7 @@ export async function confirmDocumentUpload(
     mimeType: document.mimeType,
     uploadedAt: document.uploadedAt,
     status: document.status,
+    intakeId: document.intakeId,
   };
 }
 
@@ -274,6 +281,7 @@ export async function listPatientDocuments(
     mimeType: doc.mimeType,
     uploadedAt: doc.uploadedAt,
     status: doc.status,
+    intakeId: doc.intakeId,
   }));
 }
 
@@ -388,7 +396,7 @@ export class DocumentService {
     fileName: string,
     fileSize: number,
     mimeType: string,
-    documentType: 'ID_VERIFICATION' | 'INSURANCE_CARD' | 'MEDICAL_RECORD' | 'CONSENT_FORM' | 'OTHER'
+    documentType: 'ID_VERIFICATION' | 'INSURANCE_CARD' | 'MEDICAL_RECORD' | 'CONSENT_FORM' | 'INTAKE_FORM' | 'OTHER'
   ): Promise<DocumentMetadata> {
     return confirmDocumentUpload(
       patientId,

@@ -18,7 +18,7 @@
  */
 
 import * as React from 'react';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { verifyAccessToken } from '@/lib/auth/jwt';
 import { prisma } from '@/lib/db/prisma';
@@ -44,20 +44,30 @@ export default async function PatientLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Get user from access token cookie
-  const cookieStore = await cookies();
-  const token = cookieStore.get('accessToken')?.value;
-
-  if (!token) {
-    redirect('/login?from=/patient/dashboard');
-  }
+  // Prefer middleware-injected headers (already verified, survives inline refresh)
+  const headerStore = await headers();
+  const middlewareUserId = headerStore.get('x-user-id');
 
   let userId: string;
-  try {
-    const payload = await verifyAccessToken(token);
-    userId = payload.userId;
-  } catch {
-    redirect('/login?from=/patient/dashboard');
+
+  if (middlewareUserId) {
+    // Middleware already verified the token (or refreshed it inline)
+    userId = middlewareUserId;
+  } else {
+    // Fallback: verify access token cookie directly
+    const cookieStore = await cookies();
+    const token = cookieStore.get('accessToken')?.value;
+
+    if (!token) {
+      redirect('/login?from=/patient/dashboard');
+    }
+
+    try {
+      const payload = await verifyAccessToken(token);
+      userId = payload.userId;
+    } catch {
+      redirect('/login?from=/patient/dashboard');
+    }
   }
 
   // Gate 1: Intake gate — check if patient has a completed/submitted intake

@@ -100,6 +100,7 @@ export default function BillingPage(): React.ReactElement {
   const [billingData, setBillingData] = React.useState<BillingData | null>(null);
   const [invoices, setInvoices] = React.useState<Invoice[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [invoiceError, setInvoiceError] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
 
   // UI state
@@ -110,10 +111,11 @@ export default function BillingPage(): React.ReactElement {
 
   // Fetch billing data on mount
   React.useEffect(() => {
-    async function fetchBillingData() {
+    async function fetchBillingData(): Promise<void> {
       try {
         setIsLoading(true);
         setError(null);
+        setInvoiceError(null);
 
         // Fetch subscription and billing info
         const billingResponse = await fetch('/api/patient/billing');
@@ -123,13 +125,19 @@ export default function BillingPage(): React.ReactElement {
         const billingResult = await billingResponse.json();
         setBillingData(billingResult);
 
-        // Fetch invoices
-        const invoicesResponse = await fetch('/api/patient/billing/invoices');
-        if (!invoicesResponse.ok) {
-          throw new Error('Failed to fetch invoices');
+        // Fetch invoices separately — failure is non-blocking
+        try {
+          const invoicesResponse = await fetch('/api/patient/billing/invoices');
+          if (!invoicesResponse.ok) {
+            throw new Error('Failed to fetch invoices');
+          }
+          const invoicesResult = await invoicesResponse.json();
+          setInvoices(invoicesResult.invoices || []);
+        } catch (invoiceErr) {
+          console.error('Error fetching invoices:', invoiceErr);
+          setInvoiceError('Unable to load invoice history. Please try again later.');
+          // Don't set the main error — subscription overview still shows
         }
-        const invoicesResult = await invoicesResponse.json();
-        setInvoices(invoicesResult.invoices || []);
       } catch (err) {
         console.error('Error fetching billing data:', err);
         setError(err instanceof Error ? err.message : 'Failed to load billing information');
@@ -357,12 +365,25 @@ export default function BillingPage(): React.ReactElement {
           )}
 
           {/* Invoice History */}
-          <InvoiceList
-            invoices={invoices as unknown as Parameters<typeof InvoiceList>[0]['invoices']}
-            onDownload={handleDownloadInvoice}
-            downloadingId={downloadingId}
-            onRetry={() => window.location.reload()}
-          />
+          {invoiceError ? (
+            <div className="bg-muted/50 rounded-lg p-6 border text-center">
+              <FileText className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+              <p className="text-muted-foreground mb-3">{invoiceError}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="text-sm text-primary hover:underline"
+              >
+                Retry
+              </button>
+            </div>
+          ) : (
+            <InvoiceList
+              invoices={invoices as unknown as Parameters<typeof InvoiceList>[0]['invoices']}
+              onDownload={handleDownloadInvoice}
+              downloadingId={downloadingId}
+              onRetry={() => window.location.reload()}
+            />
+          )}
         </div>
 
         {/* Right Column - Payment Method */}

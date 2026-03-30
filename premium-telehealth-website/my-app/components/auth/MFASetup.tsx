@@ -91,6 +91,7 @@ export function MFASetup({ redirectUrl, onComplete }: MFASetupProps = {}): React
       const response = await fetch('/api/auth/mfa/setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -120,6 +121,7 @@ export function MFASetup({ redirectUrl, onComplete }: MFASetupProps = {}): React
         const response = await fetch('/api/auth/mfa/verify-setup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({
             token: formData.code,
           }),
