@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { PatientDashboard } from "@/components/patient/PatientDashboard";
 import { DashboardData } from "@/types/dashboard";
 import { prisma } from "@/lib/db/prisma";
-import { SenderType, Role } from "@prisma/client";
+import { IntakeStatus, SenderType, Role } from "@prisma/client";
 import { requireRole } from "@/lib/auth/session-helpers";
 
 interface UserMFAInfo {
@@ -11,7 +11,7 @@ interface UserMFAInfo {
   accountAgeDays: number;
 }
 
-async function getDashboardData(userId: string): Promise<DashboardData> {
+async function getDashboardData(userId: string): Promise<DashboardData & { hasIntakePharmacy: boolean }> {
   const results = await Promise.allSettled([
     prisma.patientProfile.findUnique({
       where: { userId },
@@ -41,6 +41,7 @@ async function getDashboardData(userId: string): Promise<DashboardData> {
         submittedAt: true,
         riskScore: true,
         paymentStatus: true,
+        formData: true,
       },
     }),
     prisma.subscription.findFirst({
@@ -140,13 +141,33 @@ async function getDashboardData(userId: string): Promise<DashboardData> {
     };
   });
 
+  // Check if the patient has pharmacy info from their intake formData.
+  // Some patients entered pharmacy during intake but never set preferredPharmacyId on PatientProfile.
+  let hasIntakePharmacy = false;
+  if (intake?.formData && typeof intake.formData === 'object') {
+    const fd = intake.formData as Record<string, unknown>;
+    if (fd.pharmacyName && typeof fd.pharmacyName === 'string' && fd.pharmacyName.length > 0) {
+      hasIntakePharmacy = true;
+    }
+  }
+
+  // Strip formData from intake before returning (not needed by dashboard UI, and may contain PHI)
+  const intakeForDashboard = intake ? {
+    id: intake.id,
+    status: intake.status,
+    submittedAt: intake.submittedAt,
+    riskScore: intake.riskScore,
+    paymentStatus: intake.paymentStatus,
+  } : null;
+
   return {
     profile,
-    intake,
+    intake: intakeForDashboard,
     subscription,
     prescriptions,
     messages: dashboardMessages,
     unreadCount,
+    hasIntakePharmacy,
   };
 }
 
@@ -186,6 +207,7 @@ export default async function PatientDashboardPage() {
         userId={user.id}
         mfaEnabled={mfaInfo.mfaEnabled}
         accountAgeDays={mfaInfo.accountAgeDays}
+        hasIntakePharmacy={data.hasIntakePharmacy}
       />
     </div>
   );

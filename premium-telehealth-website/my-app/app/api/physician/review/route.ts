@@ -157,7 +157,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             quantity: prescriptionDetails.quantity,
             refills: prescriptionDetails.refills,
             refillsRemaining: prescriptionDetails.refills,
-            instructions: prescriptionDetails.instructions,
+            instructions: prescriptionDetails.instructions || 'As directed by physician',
             pharmacyName: 'Pending', // Will be updated when sent
             pharmacyNcpdpId: 'PENDING',
             status: PrescriptionStatus.PENDING,

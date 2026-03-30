@@ -11,10 +11,21 @@ import { IntakeFormData, IntakeScores, RiskAssessment, CONCERN_TYPE_LABELS, TREA
 import { cn } from '@/lib/utils';
 import type { ProviderDecisionSummary } from '@/lib/intake/scoring';
 
+interface PreferredPharmacyInfo {
+  name: string;
+  phone: string | null;
+  address: string;
+  city: string;
+  state: string;
+  zipCode: string;
+}
+
 interface IntakeDataViewProps {
   formData: IntakeFormData;
   scores?: IntakeScores;
   riskAssessment?: RiskAssessment;
+  /** Preferred pharmacy from patient profile (fallback when form data doesn't include pharmacy) */
+  preferredPharmacy?: PreferredPharmacyInfo;
 }
 
 interface DataRowProps {
@@ -163,7 +174,7 @@ function formatTreatmentType(treatment: string): string {
  *
  * HIPAA: This component displays PHI - ensure proper access controls
  */
-export function IntakeDataView({ formData: rawFormData, scores, riskAssessment }: IntakeDataViewProps) {
+export function IntakeDataView({ formData: rawFormData, scores, riskAssessment, preferredPharmacy }: IntakeDataViewProps) {
   // Defensive: ensure formData is always an object even if null/undefined from DB
   const formData = (rawFormData ?? {}) as IntakeFormData;
 
@@ -448,19 +459,34 @@ export function IntakeDataView({ formData: rawFormData, scores, riskAssessment }
               <DataRow label="State" value={formData.addressState || 'CA'} />
               <DataRow label="ZIP Code" value={formData.addressZip} />
             </dl>
-            {formData.pharmacyName && (
+            {(formData.pharmacyName || preferredPharmacy) && (
               <>
                 <Separator className="my-3" />
                 <p className="text-sm font-medium text-muted-foreground mb-2">Preferred Pharmacy</p>
                 <dl className="space-y-1">
-                  <DataRow label="Pharmacy Name" value={formData.pharmacyName} />
-                  <DataRow label="Pharmacy Address" value={formData.pharmacyAddress} />
-                  <DataRow label="Pharmacy City" value={formData.pharmacyCity} />
-                  <DataRow label="Pharmacy State" value={formData.pharmacyState || 'CA'} />
-                  <DataRow label="Pharmacy ZIP" value={formData.pharmacyZip} />
-                  {formData.pharmacyPhone && (
-                    <DataRow label="Pharmacy Phone" value={formData.pharmacyPhone} />
-                  )}
+                  {formData.pharmacyName ? (
+                    <>
+                      <DataRow label="Pharmacy Name" value={formData.pharmacyName} />
+                      <DataRow label="Pharmacy Address" value={formData.pharmacyAddress} />
+                      <DataRow label="Pharmacy City" value={formData.pharmacyCity} />
+                      <DataRow label="Pharmacy State" value={formData.pharmacyState || 'CA'} />
+                      <DataRow label="Pharmacy ZIP" value={formData.pharmacyZip} />
+                      {formData.pharmacyPhone && (
+                        <DataRow label="Pharmacy Phone" value={formData.pharmacyPhone} />
+                      )}
+                    </>
+                  ) : preferredPharmacy ? (
+                    <>
+                      <DataRow label="Pharmacy Name" value={preferredPharmacy.name} />
+                      <DataRow label="Pharmacy Address" value={preferredPharmacy.address} />
+                      <DataRow label="Pharmacy City" value={preferredPharmacy.city} />
+                      <DataRow label="Pharmacy State" value={preferredPharmacy.state || 'CA'} />
+                      <DataRow label="Pharmacy ZIP" value={preferredPharmacy.zipCode} />
+                      {preferredPharmacy.phone && (
+                        <DataRow label="Pharmacy Phone" value={preferredPharmacy.phone} />
+                      )}
+                    </>
+                  ) : null}
                 </dl>
               </>
             )}

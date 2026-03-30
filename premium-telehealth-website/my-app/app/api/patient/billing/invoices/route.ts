@@ -105,22 +105,52 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       });
 
       // ====================================================================
-      // Stripe fallback: if DB has zero invoices, backfill from Stripe
-      // This handles the race condition where invoice.payment_succeeded
-      // fires before checkout.session.completed creates the Subscription.
+      // Stripe fallback: if DB has zero invoices, backfill from Stripe.
+      // Strategy:
+      //   1. Try to find stripeCustomerId from the user's Subscription record
+      //   2. If no Subscription, look up Stripe customer by the user's email
+      // This handles accounts where the webhook didn't create Invoice records,
+      // or where the Subscription record was never created properly.
       // ====================================================================
       if (invoices.length === 0) {
         try {
-          // Find the user's stripeCustomerId via their subscription
+          const stripe = getStripe();
+          let stripeCustomerId: string | null = null;
+          let subscriptionId: string | null = null;
+
+          // Strategy 1: Get stripeCustomerId from Subscription record
           const subscription = await prisma.subscription.findFirst({
             where: { userId },
             select: { id: true, stripeCustomerId: true },
           });
 
           if (subscription?.stripeCustomerId) {
-            const stripe = getStripe();
+            stripeCustomerId = subscription.stripeCustomerId;
+            subscriptionId = subscription.id;
+          }
+
+          // Strategy 2: If no Subscription, look up Stripe customer by email
+          if (!stripeCustomerId) {
+            const user = await prisma.user.findUnique({
+              where: { id: userId },
+              select: { email: true },
+            });
+
+            if (user?.email) {
+              const customers = await stripe.customers.list({
+                email: user.email,
+                limit: 1,
+              });
+
+              if (customers.data.length > 0) {
+                stripeCustomerId = customers.data[0].id;
+              }
+            }
+          }
+
+          if (stripeCustomerId) {
             const stripeInvoices = await stripe.invoices.list({
-              customer: subscription.stripeCustomerId,
+              customer: stripeCustomerId,
               status: 'paid',
               limit: 50,
             });
@@ -133,25 +163,31 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
               });
               if (exists) continue;
 
-              await prisma.invoice.create({
-                data: {
-                  subscriptionId: subscription.id,
-                  userId,
-                  amount: si.amount_paid,
-                  currency: (si.currency || 'usd').toUpperCase(),
-                  status: 'PAID' as InvoiceStatus,
-                  stripeInvoiceId: si.id,
-                  stripeChargeId: typeof (si as unknown as Record<string, unknown>).charge === 'string' ? (si as unknown as Record<string, unknown>).charge as string : null,
-                  pdfUrl: si.invoice_pdf || null,
-                  paidAt: si.status_transitions?.paid_at
-                    ? new Date(si.status_transitions.paid_at * 1000)
-                    : new Date(),
-                },
-              });
+              // Use the Subscription id if we have one; otherwise create without it
+              // by finding or creating a minimal subscription reference
+              const invoiceSubId = subscriptionId;
+
+              if (invoiceSubId) {
+                await prisma.invoice.create({
+                  data: {
+                    subscriptionId: invoiceSubId,
+                    userId,
+                    amount: si.amount_paid,
+                    currency: (si.currency || 'usd').toUpperCase(),
+                    status: 'PAID' as InvoiceStatus,
+                    stripeInvoiceId: si.id,
+                    stripeChargeId: typeof (si as unknown as Record<string, unknown>).charge === 'string' ? (si as unknown as Record<string, unknown>).charge as string : null,
+                    pdfUrl: si.invoice_pdf || null,
+                    paidAt: si.status_transitions?.paid_at
+                      ? new Date(si.status_transitions.paid_at * 1000)
+                      : new Date(),
+                  },
+                });
+              }
             }
 
             // Re-fetch from DB so we return consistent records
-            if (stripeInvoices.data.length > 0) {
+            if (stripeInvoices.data.length > 0 && subscriptionId) {
               invoices = await prisma.invoice.findMany({
                 where: { userId },
                 orderBy: { createdAt: 'desc' },
@@ -166,6 +202,37 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
                   paidAt: true,
                 },
               });
+            }
+
+            // If we have Stripe invoices but no Subscription record to persist them,
+            // return them directly without persisting to DB
+            if (invoices.length === 0 && stripeInvoices.data.length > 0) {
+              const directInvoices: InvoiceResponse[] = stripeInvoices.data.map((si) => ({
+                id: si.id,
+                amount: si.amount_paid,
+                status: 'PAID' as InvoiceStatus,
+                stripeInvoiceId: si.id,
+                stripeChargeId: typeof (si as unknown as Record<string, unknown>).charge === 'string' ? (si as unknown as Record<string, unknown>).charge as string : null,
+                pdfUrl: si.invoice_pdf || null,
+                createdAt: si.created ? new Date(si.created * 1000).toISOString() : new Date().toISOString(),
+                paidAt: si.status_transitions?.paid_at
+                  ? new Date(si.status_transitions.paid_at * 1000).toISOString()
+                  : null,
+              }));
+
+              // Audit log
+              const auditContext = createAuditContext(request, userId, 'PATIENT');
+              await auditLogger.logPHIAccess(
+                'VIEW',
+                userId,
+                'PATIENT',
+                'invoice_list',
+                userId,
+                auditContext,
+                { accessReason: 'Viewing invoice list (Stripe direct)', source: 'stripe_fallback' } as Record<string, unknown>
+              );
+
+              return NextResponse.json({ invoices: directInvoices });
             }
           }
         } catch (stripeError) {

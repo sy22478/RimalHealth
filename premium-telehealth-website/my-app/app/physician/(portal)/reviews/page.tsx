@@ -79,6 +79,7 @@ function QueueStatsCards({ stats }: { stats: ReviewQueueStats }) {
 
 export default async function ReviewsPage() {
   let queueItems: ReviewQueueItem[] = [];
+  let apiStats: { totalPending?: number; overdueCount?: number; underReviewCount?: number; newlySubmittedCount?: number } | null = null;
 
   try {
     const cookieStore = await cookies();
@@ -109,17 +110,22 @@ export default async function ReviewsPage() {
             riskLevel: (item.riskLevel as string) || getRiskLevelFromScore(item.riskScore as number | undefined),
           } as ReviewQueueItem;
         });
+        // Use server-side stats from the queue API (accurate DB counts)
+        if (data.stats) {
+          apiStats = data.stats;
+        }
       }
     }
   } catch {
     // API unavailable — keep empty array
   }
 
+  // Prefer API-provided stats (DB-backed counts) over client-side derivation from items
   const queueStats: ReviewQueueStats = {
-    totalPending: queueItems.filter((i) => i.status === 'PENDING' || i.status === 'IN_REVIEW').length,
-    overdueCount: queueItems.filter((i) => i.isOverdue).length,
-    inReviewCount: queueItems.filter((i) => i.status === 'IN_REVIEW').length,
-    newlySubmittedCount: queueItems.filter((i) => i.waitTimeHours < 4).length,
+    totalPending: apiStats?.totalPending ?? queueItems.filter((i) => i.status === 'PENDING' || i.status === 'IN_REVIEW').length,
+    overdueCount: apiStats?.overdueCount ?? queueItems.filter((i) => i.isOverdue).length,
+    inReviewCount: apiStats?.underReviewCount ?? queueItems.filter((i) => i.status === 'IN_REVIEW').length,
+    newlySubmittedCount: apiStats?.newlySubmittedCount ?? queueItems.filter((i) => i.waitTimeHours < 4).length,
     highRiskCount: queueItems.filter(
       (i) => i.riskLevel === 'HIGH' || i.riskLevel === 'SEVERE'
     ).length,

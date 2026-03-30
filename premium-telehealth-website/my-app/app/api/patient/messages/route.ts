@@ -16,12 +16,11 @@ import { AuditService } from '@/lib/services/audit-service';
 import { ValidationService } from '@/lib/services/validation-service';
 import { NotificationService } from '@/lib/services/notification-service';
 import { sendMessageSchema, getMessagesQuerySchema } from '@/lib/validation/schemas';
-import { Role, SenderType } from '@prisma/client';
+import { Role } from '@prisma/client';
 import { PHIResourceType } from '@/lib/audit/index';
 import {
   checkRateLimit,
   userKeyGenerator,
-  createRateLimitResponse,
 } from '@/lib/security/rate-limit';
 import {
   getPatientMessagingThreads,
@@ -154,21 +153,55 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const { userId } = auth.user;
   const auditContext = AuditService.createAuditContext(request, userId, 'PATIENT');
 
-  // Two-tier rate limiting: hourly (20/hr) and daily (50/day)
+  // Two-tier rate limiting: hourly (10/hr) and daily (30/day)
   const hourlyKey = userKeyGenerator(userId, 'message:hourly');
   const dailyKey = userKeyGenerator(userId, 'message:daily');
 
   const [hourlyLimit, dailyLimit] = await Promise.all([
-    checkRateLimit(hourlyKey, { maxRequests: 20, interval: 60 * 60 * 1000 }),
-    checkRateLimit(dailyKey, { maxRequests: 50, interval: 24 * 60 * 60 * 1000 }),
+    checkRateLimit(hourlyKey, { maxRequests: 10, interval: 60 * 60 * 1000 }),
+    checkRateLimit(dailyKey, { maxRequests: 30, interval: 24 * 60 * 60 * 1000 }),
   ]);
 
   if (!hourlyLimit.success) {
-    return createRateLimitResponse(hourlyLimit);
+    const retryAfter = Math.ceil((hourlyLimit.reset - Date.now()) / 1000);
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'You have reached the hourly message limit (10 messages per hour). Please try again later.',
+        code: 'RATE_LIMITED',
+        retryAfter,
+      },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': retryAfter.toString(),
+          'X-RateLimit-Limit': hourlyLimit.limit.toString(),
+          'X-RateLimit-Remaining': '0',
+          'X-RateLimit-Reset': hourlyLimit.reset.toString(),
+        },
+      }
+    );
   }
 
   if (!dailyLimit.success) {
-    return createRateLimitResponse(dailyLimit);
+    const retryAfter = Math.ceil((dailyLimit.reset - Date.now()) / 1000);
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'You have reached the daily message limit (30 messages per day). Please try again tomorrow.',
+        code: 'RATE_LIMITED',
+        retryAfter,
+      },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': retryAfter.toString(),
+          'X-RateLimit-Limit': dailyLimit.limit.toString(),
+          'X-RateLimit-Remaining': '0',
+          'X-RateLimit-Reset': dailyLimit.reset.toString(),
+        },
+      }
+    );
   }
 
   try {

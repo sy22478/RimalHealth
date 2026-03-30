@@ -275,11 +275,15 @@ function MessageThread({
   conversation,
   onSendMessage,
   onBack,
+  isLoadingMessages = false,
+  isSending = false,
 }: {
   messages: Message[];
   conversation: Conversation | null;
   onSendMessage: (content: string) => void;
   onBack?: () => void;
+  isLoadingMessages?: boolean;
+  isSending?: boolean;
 }) {
   const [newMessage, setNewMessage] = React.useState('');
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
@@ -363,7 +367,19 @@ function MessageThread({
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.length === 0 ? (
+        {isLoadingMessages ? (
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className={cn('flex gap-3', i % 2 === 0 && 'flex-row-reverse')}>
+                <Skeleton className="h-8 w-8 rounded-full shrink-0" />
+                <div className="space-y-1 max-w-[60%]">
+                  <Skeleton className="h-12 w-48 rounded-2xl" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : messages.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             <p>No messages yet</p>
             <p className="text-sm">Send a message to start the conversation</p>
@@ -403,7 +419,7 @@ function MessageThread({
           <Button
             type="submit"
             size="icon"
-            disabled={!newMessage.trim()}
+            disabled={!newMessage.trim() || isSending}
             className="shrink-0 bg-ocean-500 hover:bg-ocean-600"
           >
             <Send className="h-4 w-4" />
@@ -426,6 +442,8 @@ export default function MessagesPage() {
   const [conversations, setConversations] = React.useState<Conversation[]>([]);
   const [messages, setMessages] = React.useState<Record<string, Message[]>>({});
   const [isLoadingConvs, setIsLoadingConvs] = React.useState(true);
+  const [isLoadingMessages, setIsLoadingMessages] = React.useState(false);
+  const [isSending, setIsSending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   const loadThreads = React.useCallback(async () => {
@@ -446,8 +464,12 @@ export default function MessagesPage() {
           unreadCount: t.unreadCount || 0,
         }));
         setConversations(convs);
-      } else if (res.status !== 401) {
-        // Non-auth errors should show feedback (401 is handled by middleware redirect)
+      } else if (res.status === 401) {
+        // Session expired — redirect to login
+        window.location.href = `/login?from=${encodeURIComponent('/patient/messages')}`;
+        return;
+      } else {
+        // Non-auth errors should show feedback
         const errorData = await res.json().catch(() => null);
         setError(errorData?.error || 'Failed to load messages. Please try again.');
       }
@@ -472,7 +494,10 @@ export default function MessagesPage() {
     : [];
 
   const handleSendMessage = async (content: string) => {
-    if (!selectedConversationId) return;
+    if (!selectedConversationId || isSending) return;
+
+    setIsSending(true);
+    setError(null);
 
     // Save current state for rollback on failure
     const previousMessages = messages[selectedConversationId] || [];
@@ -522,6 +547,10 @@ export default function MessagesPage() {
             )
           );
         }
+        if (res.status === 401) {
+          window.location.href = `/login?from=${encodeURIComponent('/patient/messages')}`;
+          return;
+        }
         const errorData = await res.json().catch(() => null);
         setError(errorData?.error || 'Failed to send message. Please try again.');
         return;
@@ -559,38 +588,52 @@ export default function MessagesPage() {
       }
       const msg = err instanceof Error ? err.message : 'Unknown error';
       setError(`Failed to send message. Please try again. (${msg})`);
+    } finally {
+      setIsSending(false);
     }
   };
 
   const handleSelectConversation = async (id: string) => {
     setSelectedConversationId(id);
+    setError(null);
     setConversations(prev => prev.map(c => c.id === id ? { ...c, unreadCount: 0 } : c));
 
-    if (!messages[id]) {
-      try {
-        const res = await fetch(`/api/patient/messages?threadId=${encodeURIComponent(id)}`, {
-          credentials: 'include',
-        });
-        if (res.ok) {
-          const data = await res.json();
-          // API returns { thread: { messages: [...] } } when threadId is provided
-          const rawMessages = data.thread?.messages || data.messages || [];
-          const msgs: Message[] = (rawMessages).map((m: { id: string; subject?: string; body?: string; senderType?: string; senderName?: string; senderId?: string; sentAt: string; readAt?: string | null }) => ({
-            id: m.id,
-            subject: m.subject || null,
-            body: m.body || '',
-            senderType: (m.senderType || 'SYSTEM') as SenderType,
-            senderName: m.senderName || (m.senderType === 'PHYSICIAN' ? 'Your Doctor' : 'System'),
-            senderId: m.senderId || '',
-            sentAt: new Date(m.sentAt),
-            readAt: m.readAt ? new Date(m.readAt) : null,
-          }));
-          setMessages(prev => ({ ...prev, [id]: msgs }));
-        }
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Unknown error';
-        setError(`Failed to load conversation. Please try again. (${msg})`);
+    // Always fetch fresh messages from the server to ensure persistence.
+    // Previously this was cached (skipped if messages[id] existed), which caused
+    // sent messages to disappear on page refresh because the optimistic cache
+    // was stale or empty after remount.
+    setIsLoadingMessages(true);
+    try {
+      const res = await fetch(`/api/patient/messages?threadId=${encodeURIComponent(id)}`, {
+        credentials: 'include',
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // API returns { thread: { messages: [...] } } when threadId is provided
+        const rawMessages = data.thread?.messages || data.messages || [];
+        const msgs: Message[] = (rawMessages).map((m: { id: string; subject?: string; body?: string; senderType?: string; senderName?: string; senderId?: string; sentAt: string; readAt?: string | null }) => ({
+          id: m.id,
+          subject: m.subject || null,
+          body: m.body || '',
+          senderType: (m.senderType || 'SYSTEM') as SenderType,
+          senderName: m.senderName || (m.senderType === 'PHYSICIAN' ? 'Your Doctor' : 'System'),
+          senderId: m.senderId || '',
+          sentAt: new Date(m.sentAt),
+          readAt: m.readAt ? new Date(m.readAt) : null,
+        }));
+        setMessages(prev => ({ ...prev, [id]: msgs }));
+      } else if (res.status === 401) {
+        window.location.href = `/login?from=${encodeURIComponent('/patient/messages')}`;
+        return;
+      } else {
+        const errorData = await res.json().catch(() => null);
+        setError(errorData?.error || 'Failed to load conversation. Please try again.');
       }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      setError(`Failed to load conversation. Please try again. (${msg})`);
+    } finally {
+      setIsLoadingMessages(false);
     }
   };
 
@@ -632,6 +675,8 @@ export default function MessagesPage() {
             conversation={selectedConversation}
             onSendMessage={handleSendMessage}
             onBack={() => setSelectedConversationId(null)}
+            isLoadingMessages={isLoadingMessages}
+            isSending={isSending}
           />
         </div>
       </div>

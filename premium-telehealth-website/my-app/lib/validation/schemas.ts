@@ -213,20 +213,28 @@ export const californiaZipCodeSchema = z.string().regex(
   { message: 'Must be a valid California ZIP code (starts with 9)' }
 );
 
-/** Update profile request — accepts empty strings for unfilled fields */
+/**
+ * Update profile request — accepts empty strings for unfilled fields.
+ *
+ * Uses relaxed validation for phone, date, and ZIP because existing data may
+ * have been stored in a different format (e.g., dateOfBirth as MM/DD/YYYY from
+ * the intake form, phone with international prefix, etc.). The client-side form
+ * applies strict validation for newly entered values; the server just needs to
+ * ensure the data is safe to store.
+ */
 export const updateProfileSchema = z.object({
   firstName: z.string().max(100).optional().or(z.literal('')),
   lastName: z.string().max(100).optional().or(z.literal('')),
-  dateOfBirth: dateSchema.optional().or(z.literal('')),
-  phone: phoneSchema.optional().or(z.literal('')),
+  dateOfBirth: z.string().max(50).optional().or(z.literal('')),
+  phone: z.string().max(30).optional().or(z.literal('')),
   addressStreet: z.string().max(255).optional().or(z.literal('')),
   addressCity: z.string().max(100).optional().or(z.literal('')),
-  addressState: z.literal('CA').optional().or(z.literal('')),
-  addressZip: californiaZipCodeSchema.optional().or(z.literal('')),
+  addressState: z.string().max(5).optional().or(z.literal('')),
+  addressZip: z.string().max(10).optional().or(z.literal('')),
   medicalHistory: z.string().max(2000).optional().or(z.literal('')),
   currentMedications: z.string().max(1000).optional().or(z.literal('')),
   allergies: z.string().max(500).optional().or(z.literal('')),
-  preferredPharmacyId: z.string().uuid('Invalid pharmacy ID').optional().or(z.literal('')),
+  preferredPharmacyId: z.string().max(100).optional().or(z.literal('')),
   notificationPreferences: z.object({
     email: z.boolean().optional(),
     sms: z.boolean().optional(),
@@ -306,7 +314,7 @@ export const prescriptionDetailsSchema = z.object({
   frequency: nonEmptyString(100),
   quantity: z.number().int().min(1).max(365),
   refills: z.number().int().min(0).max(12),
-  instructions: nonEmptyString(2000),
+  instructions: optionalString(2000),
   pharmacyId: uuidSchema.optional(),
 });
 

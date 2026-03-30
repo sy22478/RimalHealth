@@ -31,11 +31,12 @@ import { cn } from '@/lib/utils';
 
 interface ProfileCompletionPromptProps {
   profile: DashboardData['profile'];
+  hasIntakePharmacy?: boolean;
 }
 
-function ProfileCompletionPrompt({ profile }: ProfileCompletionPromptProps) {
+function ProfileCompletionPrompt({ profile, hasIntakePharmacy = false }: ProfileCompletionPromptProps) {
   const [dismissed, setDismissed] = React.useState(false);
-  const completionStatus = getProfileCompletionStatus(profile);
+  const completionStatus = getProfileCompletionStatus(profile, hasIntakePharmacy);
 
   if (completionStatus.isComplete || dismissed) return null;
 
@@ -205,6 +206,8 @@ interface PatientDashboardProps {
   mfaEnabled?: boolean;
   /** Days since account creation */
   accountAgeDays?: number;
+  /** Whether the patient has pharmacy info from their intake form (even if preferredPharmacyId is not set) */
+  hasIntakePharmacy?: boolean;
   className?: string;
 }
 
@@ -345,7 +348,7 @@ function SubscriptionAlert({ subscription }: SubscriptionAlertProps) {
 // Main Dashboard Component
 // ============================================================================
 
-export function PatientDashboard({ data, userId, mfaEnabled = true, accountAgeDays = 0, className }: PatientDashboardProps) {
+export function PatientDashboard({ data, userId, mfaEnabled = true, accountAgeDays = 0, hasIntakePharmacy = false, className }: PatientDashboardProps) {
   // Determine dashboard status
   const dashboardStatus: DashboardStatus = getDashboardStatus(
     data.intake?.status ?? IntakeStatus.DRAFT,
@@ -388,7 +391,7 @@ export function PatientDashboard({ data, userId, mfaEnabled = true, accountAgeDa
       )}
 
       {/* Profile Completion Prompt - Show if profile is incomplete */}
-      <ProfileCompletionPrompt profile={data.profile} />
+      <ProfileCompletionPrompt profile={data.profile} hasIntakePharmacy={hasIntakePharmacy} />
 
       {/* MFA Setup Prompt - Show if MFA is not enabled */}
       <MFASetupPrompt mfaEnabled={mfaEnabled} accountAgeDays={accountAgeDays} />

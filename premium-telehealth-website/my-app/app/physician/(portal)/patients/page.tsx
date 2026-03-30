@@ -120,6 +120,14 @@ export default async function PatientsPage() {
 
   return (
     <div className="space-y-6">
+      {/* Page Header */}
+      <div>
+        <h1 className="text-2xl font-bold">Patients</h1>
+        <p className="text-muted-foreground">
+          Manage and view all patients
+        </p>
+      </div>
+
       {/* Stats Overview */}
       <PatientStats patients={patients} counts={counts} />
 

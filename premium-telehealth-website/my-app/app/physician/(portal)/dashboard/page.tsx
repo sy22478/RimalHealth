@@ -107,6 +107,7 @@ export default async function PhysicianDashboardPage() {
   let stats: PhysicianDashboardStats = defaultStats;
   let queueItems: ReviewQueueItem[] = [];
   let prescriptions: PhysicianPrescriptionListItem[] = [];
+  let queueApiStats: { totalPending?: number; overdueCount?: number } | null = null;
   let allFetchesFailed = false;
   let queueFetchFailed = false;
   let statsFetchFailed = false;
@@ -138,6 +139,10 @@ export default async function PhysicianDashboardPage() {
         const queueData = await queueRes.value.json();
         const rawItems = Array.isArray(queueData.items) ? queueData.items
           : Array.isArray(queueData.queue) ? queueData.queue : [];
+        // Capture queue API stats (DB-backed counts)
+        if (queueData.stats) {
+          queueApiStats = queueData.stats;
+        }
         // Map queue API items (QueueItem shape) to ReviewQueueItem shape
         queueItems = rawItems.map((item: Record<string, unknown>) => {
           const status = item.status === 'SUBMITTED' ? 'PENDING'
@@ -174,6 +179,14 @@ export default async function PhysicianDashboardPage() {
         }
       } else {
         statsFetchFailed = true;
+        // Fallback: use queue API stats if stats API failed
+        if (queueApiStats) {
+          stats = {
+            ...defaultStats,
+            pendingReviews: queueApiStats.totalPending ?? 0,
+            overdueReviews: queueApiStats.overdueCount ?? 0,
+          };
+        }
       }
 
       if (prescriptionsRes.status === 'fulfilled' && prescriptionsRes.value.ok) {
@@ -195,9 +208,13 @@ export default async function PhysicianDashboardPage() {
     prescriptionsFetchFailed = true;
   }
 
+  // Use the best available pending count: stats API > queue API stats > item count
+  const pendingCount = stats.pendingReviews || queueApiStats?.totalPending || queueItems.length;
+  const overdueCount = stats.overdueReviews || queueApiStats?.overdueCount || queueItems.filter((i) => i.isOverdue).length;
+
   const queueStats = {
-    totalPending: stats.pendingReviews,
-    overdueCount: stats.overdueReviews,
+    totalPending: pendingCount,
+    overdueCount,
     inReviewCount: queueItems.filter((i) => i.status === 'IN_REVIEW').length,
     newlySubmittedCount: queueItems.filter((i) => i.waitTimeHours < 4).length,
     highRiskCount: queueItems.filter((i) => i.riskLevel === 'HIGH' || i.riskLevel === 'SEVERE').length,

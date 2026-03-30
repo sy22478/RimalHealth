@@ -25,10 +25,10 @@ const personalInfoSchema = z.object({
     .max(100, 'Last name must be under 100 characters')
     .optional().or(z.literal('')),
   dateOfBirth: z.string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Please enter a valid date')
+    .max(50, 'Date is too long')
     .optional().or(z.literal('')),
   phone: z.string()
-    .regex(/^\+?1?\s*\(?[0-9]{3}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4}$/, 'Please enter a valid phone number')
+    .max(30, 'Phone number is too long')
     .optional().or(z.literal('')),
   addressStreet: z.string()
     .max(200, 'Address must be under 200 characters')
@@ -38,7 +38,7 @@ const personalInfoSchema = z.object({
     .optional().or(z.literal('')),
   addressState: z.string().optional().or(z.literal('')),
   addressZip: z.string()
-    .regex(/^9\d{4}(-\d{4})?$/, 'Must be a valid California ZIP code (starts with 9)')
+    .max(10, 'ZIP code is too long')
     .optional().or(z.literal('')),
   medicalHistory: z.string()
     .max(2000, 'Medical history must be under 2000 characters')

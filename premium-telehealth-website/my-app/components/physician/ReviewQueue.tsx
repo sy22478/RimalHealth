@@ -442,7 +442,14 @@ export function ReviewQueue({
                       <ReviewStatusBadge status={item.status} />
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleItemClick(item);
+                        }}
+                      >
                         Review
                         <ChevronRight className="w-4 h-4 ml-1" />
                       </Button>

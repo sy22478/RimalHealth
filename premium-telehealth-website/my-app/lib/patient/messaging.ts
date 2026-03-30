@@ -91,26 +91,48 @@ export interface SendPatientMessageInput {
 export async function getPatientMessagingThreads(
   patientId: string
 ): Promise<PatientMessageThread[]> {
-  // Find the physician who has communicated with this patient
-  // In a multi-physician system, this would get the assigned physician
+  // Find the physician who has communicated with this patient.
+  // Exclude SYSTEM messages (senderId: 'system') so we don't accidentally
+  // derive physicianId = 'system' which would create a broken thread ID.
   const existingMessage = await prisma.message.findFirst({
     where: {
       OR: [
         { senderId: patientId },
         { recipientId: patientId },
       ],
+      senderType: { not: 'SYSTEM' },
     },
     orderBy: { sentAt: 'desc' },
   });
 
   // Determine physician ID from existing messages
   let physicianId: string | null = null;
-  
+
   if (existingMessage) {
-    physicianId = existingMessage.senderId === patientId 
-      ? existingMessage.recipientId 
+    physicianId = existingMessage.senderId === patientId
+      ? existingMessage.recipientId
       : existingMessage.senderId;
   } else {
+    // Also check for SYSTEM messages that have a proper threadId format
+    // to extract the physician ID from the thread
+    const systemMessage = await prisma.message.findFirst({
+      where: {
+        recipientId: patientId,
+        senderType: 'SYSTEM',
+        threadId: { startsWith: `thread-${patientId}-` },
+      },
+      orderBy: { sentAt: 'desc' },
+    });
+
+    if (systemMessage) {
+      const extracted = systemMessage.threadId.replace(`thread-${patientId}-`, '');
+      if (extracted && extracted !== systemMessage.threadId) {
+        physicianId = extracted;
+      }
+    }
+  }
+
+  if (!physicianId) {
     // No existing messages yet - get the first available physician
     // In production, this would be the assigned physician
     const firstPhysician = await prisma.physician.findFirst({

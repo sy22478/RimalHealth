@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Eye, EyeOff, Loader2, AlertCircle, Stethoscope } from "lucide-react";
+import { Eye, EyeOff, Loader2, AlertCircle, Stethoscope, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -20,15 +20,19 @@ import { cn } from "@/lib/utils";
 // ============================================
 
 interface LoginResponse {
-  user: {
+  user?: {
     id: string;
     email: string;
     role: string;
   };
-  accessToken: string;
-  refreshToken: string;
-  expiresIn: number;
-  redirectUrl: string;
+  accessToken?: string;
+  refreshToken?: string;
+  expiresIn?: number;
+  redirectUrl?: string;
+  requiresMFA?: boolean;
+  mfaToken?: string;
+  error?: string;
+  code?: string;
 }
 
 // ============================================
@@ -50,6 +54,11 @@ export function PhysicianLoginForm() {
   const [error, setError] = React.useState<string>("");
   const [isLoading, setIsLoading] = React.useState(false);
   const [showPassword, setShowPassword] = React.useState(false);
+  // MFA state
+  const [requiresMFA, setRequiresMFA] = React.useState(false);
+  const [mfaToken, setMfaToken] = React.useState("");
+  const [mfaCode, setMfaCode] = React.useState("");
+  const [isMFALoading, setIsMFALoading] = React.useState(false);
   const router = useRouter();
 
   const {
@@ -80,7 +89,14 @@ export function PhysicianLoginForm() {
 
       if (!response.ok) {
         // Generic error message to prevent email enumeration attacks
-        setError("Invalid email or password. Please try again.");
+        setError(result.error || "Invalid email or password. Please try again.");
+        return;
+      }
+
+      // Handle MFA requirement — show 6-digit code input instead of redirecting
+      if (result.requiresMFA && result.mfaToken) {
+        setRequiresMFA(true);
+        setMfaToken(result.mfaToken);
         return;
       }
 
@@ -100,6 +116,147 @@ export function PhysicianLoginForm() {
       setIsLoading(false);
     }
   };
+
+  // MFA verification handler
+  const handleMFAVerify = async (e: React.FormEvent): Promise<void> => {
+    e.preventDefault();
+    setIsMFALoading(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/auth/mfa/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          mfaToken,
+          code: mfaCode,
+        }),
+      });
+
+      const result: LoginResponse = await response.json();
+
+      if (!response.ok) {
+        if (result.code === "MFA_TOKEN_EXPIRED") {
+          // Token expired — reset to login form
+          setRequiresMFA(false);
+          setMfaToken("");
+          setMfaCode("");
+          setError("MFA session expired. Please sign in again.");
+          return;
+        }
+        if (result.code === "MFA_RATE_LIMITED") {
+          setError(
+            result.error || "Too many failed MFA attempts. Please try again later."
+          );
+          return;
+        }
+        setError(result.error || "Invalid verification code. Please try again.");
+        return;
+      }
+
+      // MFA verified — redirect to physician portal
+      router.push("/physician/queue");
+    } catch (err) {
+      console.error("MFA verify error:", err);
+      setError("An unexpected error occurred. Please try again.");
+    } finally {
+      setIsMFALoading(false);
+    }
+  };
+
+  // MFA verification form
+  if (requiresMFA) {
+    return (
+      <Card className="w-full max-w-md mx-auto border-navy-100">
+        <CardContent className="pt-6">
+          <form onSubmit={handleMFAVerify} className="space-y-5">
+            {/* MFA Header */}
+            <div className="flex flex-col items-center gap-3 pb-2">
+              <div className="p-3 bg-ocean-50 rounded-full">
+                <ShieldCheck className="h-8 w-8 text-ocean-600" />
+              </div>
+              <div className="text-center">
+                <h2 className="text-lg font-semibold text-gray-900">Two-Factor Authentication</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Enter the 6-digit code from your authenticator app to continue.
+                </p>
+              </div>
+            </div>
+
+            {/* Error Alert */}
+            <AnimatePresence mode="wait">
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 flex items-start gap-2"
+                  role="alert"
+                  aria-live="assertive"
+                >
+                  <AlertCircle className="size-4 text-destructive mt-0.5 shrink-0" />
+                  <p className="text-sm text-destructive">{error}</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* MFA Code Input */}
+            <div className="space-y-2">
+              <Label htmlFor="physician-mfa-code">Verification Code</Label>
+              <Input
+                id="physician-mfa-code"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="000000"
+                maxLength={8}
+                value={mfaCode}
+                onChange={(e) => setMfaCode(e.target.value)}
+                disabled={isMFALoading}
+                className="h-11 text-center text-lg tracking-widest font-mono"
+                autoFocus
+              />
+              <p className="text-xs text-muted-foreground">
+                You can also enter an 8-character backup code.
+              </p>
+            </div>
+
+            {/* Submit */}
+            <Button
+              type="submit"
+              disabled={isMFALoading || mfaCode.length < 6}
+              className="w-full h-11 bg-gradient-to-r from-navy-600 to-ocean-600 hover:from-navy-700 hover:to-ocean-700 text-white font-semibold"
+            >
+              {isMFALoading ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  Verifying...
+                </>
+              ) : (
+                "Verify & Sign In"
+              )}
+            </Button>
+
+            {/* Back to login */}
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full text-sm text-muted-foreground"
+              onClick={() => {
+                setRequiresMFA(false);
+                setMfaToken("");
+                setMfaCode("");
+                setError("");
+              }}
+            >
+              Back to sign in
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="w-full max-w-md mx-auto border-navy-100">

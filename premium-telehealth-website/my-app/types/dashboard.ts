@@ -451,8 +451,15 @@ export function formatTreatmentGoal(goal: TreatmentGoal | null): string {
 /**
  * Check if a patient profile is complete enough for optimal care.
  * Returns a list of missing fields that should be filled.
+ *
+ * @param profile - The patient profile data
+ * @param hasIntakePharmacy - Whether the patient has pharmacy info from their intake form
+ *   (some patients entered pharmacy info during intake but don't have a preferredPharmacyId FK set)
  */
-export function getProfileCompletionStatus(profile: DashboardPatientProfile | null): {
+export function getProfileCompletionStatus(
+  profile: DashboardPatientProfile | null,
+  hasIntakePharmacy: boolean = false,
+): {
   isComplete: boolean;
   missingFields: string[];
   completionPercentage: number;
@@ -466,7 +473,7 @@ export function getProfileCompletionStatus(profile: DashboardPatientProfile | nu
     { field: 'addressStreet', label: 'Street address', isFilled: !!profile.addressStreet && profile.addressStreet.length > 0 },
     { field: 'addressCity', label: 'City', isFilled: !!profile.addressCity && profile.addressCity.length > 0 },
     { field: 'addressZip', label: 'ZIP code', isFilled: !!profile.addressZip && profile.addressZip.length > 0 },
-    { field: 'preferredPharmacyId', label: 'Preferred pharmacy', isFilled: !!profile.preferredPharmacyId },
+    { field: 'preferredPharmacyId', label: 'Preferred pharmacy', isFilled: !!profile.preferredPharmacyId || hasIntakePharmacy },
   ];
 
   const missingFields = checks.filter(c => !c.isFilled).map(c => c.label);

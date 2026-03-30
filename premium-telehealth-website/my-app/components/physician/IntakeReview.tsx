@@ -54,7 +54,11 @@ export function IntakeReview({ intake, physicianId, physicianName }: IntakeRevie
     if (!intake.patient.dateOfBirth) return null;
     const dob = new Date(intake.patient.dateOfBirth);
     if (isNaN(dob.getTime())) return null;
+    // Sentinel value: epoch (1970) means DOB is unknown
+    if (dob.getTime() === 0) return null;
+    // Reject clearly invalid dates (before 1900 or in the future)
     const today = new Date();
+    if (dob.getFullYear() < 1900 || dob > today) return null;
     let age = today.getFullYear() - dob.getFullYear();
     const monthDiff = today.getMonth() - dob.getMonth();
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
@@ -167,7 +171,11 @@ export function IntakeReview({ intake, physicianId, physicianName }: IntakeRevie
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to submit review');
+        // Surface validation details if available
+        const details = data.details
+          ? ` (${Array.isArray(data.details) ? data.details.map((d: { message?: string; path?: string[] }) => d.message || d.path?.join('.')).join(', ') : JSON.stringify(data.details)})`
+          : '';
+        throw new Error((data.error || 'Failed to submit review') + details);
       }
 
       setSubmission({
@@ -351,7 +359,7 @@ export function IntakeReview({ intake, physicianId, physicianName }: IntakeRevie
                       <p className="text-sm font-medium">{intake.patient.preferredPharmacy.name}</p>
                       <p className="text-sm">{intake.patient.preferredPharmacy.address}</p>
                       <p className="text-sm">
-                        {intake.patient.preferredPharmacy.city}, {intake.patient.preferredPharmacy.state}{' '}
+                        {intake.patient.preferredPharmacy.city}, {intake.patient.preferredPharmacy.state || 'CA'}{' '}
                         {intake.patient.preferredPharmacy.zipCode}
                       </p>
                       {intake.patient.preferredPharmacy.phone && (
@@ -404,6 +412,7 @@ export function IntakeReview({ intake, physicianId, physicianName }: IntakeRevie
                   formData={intake.formData as IntakeFormData}
                   scores={intake.scores as IntakeScores | undefined}
                   riskAssessment={intake.riskAssessment as RiskAssessment | undefined}
+                  preferredPharmacy={intake.patient.preferredPharmacy ?? undefined}
                 />
               </CardContent>
             </Card>
