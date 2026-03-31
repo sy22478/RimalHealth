@@ -66,6 +66,10 @@ export enum AuditEventType {
   MFA_DISABLED = 'mfa_disabled',
   MFA_FAILED = 'mfa_failed',
 
+  // Account deletion events
+  ACCOUNT_DELETION_REQUESTED = 'account_deletion_requested',
+  ACCOUNT_DELETION_CANCELLED = 'account_deletion_cancelled',
+
   // 42 CFR Part 2 — Disclosure events
   PHI_DISCLOSURE = 'phi_disclosure',
   CONSENT_REVOKED = 'consent_revoked',

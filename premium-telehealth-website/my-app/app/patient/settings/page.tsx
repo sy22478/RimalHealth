@@ -376,25 +376,24 @@ export default function PatientSettingsPage(): React.ReactElement {
               </Button>
             </div>
 
-            {/* Delete account (placeholder) */}
+            {/* Delete account */}
             <div className="flex items-center justify-between p-4 rounded-lg border border-red-100 bg-red-50">
               <div>
                 <h4 className="font-medium text-red-900">Delete Account</h4>
                 <p className="text-sm text-red-700">
-                  Permanently delete your account and all associated data. This action cannot be undone.
+                  Deactivate your account and cancel your subscription. Medical records are
+                  retained for 7 years per federal law.
                 </p>
               </div>
-              <Button
-                variant="outline"
-                className="shrink-0 border-red-300 text-red-700 hover:bg-red-100"
-                onClick={() => {
-                  // Contact support to initiate account deletion per HIPAA data retention policy
-                  window.location.href = '/contact?subject=Account+Deletion+Request';
-                }}
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
-              </Button>
+              <Link href="/patient/delete-account">
+                <Button
+                  variant="outline"
+                  className="shrink-0 border-red-300 text-red-700 hover:bg-red-100"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </Button>
+              </Link>
             </div>
           </CardContent>
         </Card>
