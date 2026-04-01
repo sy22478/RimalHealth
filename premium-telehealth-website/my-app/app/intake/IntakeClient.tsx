@@ -37,7 +37,16 @@ const intakeFormSchema = z.object({
   // SECTION 0: Personal Information
   firstName: z.string().min(1, { message: 'First name is required' }),
   lastName: z.string().min(1, { message: 'Last name is required' }),
-  dateOfBirth: z.string().min(1, { message: 'Date of birth is required' }),
+  dateOfBirth: z.string().min(1, { message: 'Date of birth is required' }).refine((dob) => {
+    const birthDate = new Date(dob);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age >= 18;
+  }, { message: 'You must be at least 18 years old to use our services' }),
   phone: z.string().min(10, { message: 'Valid phone number required' }),
   addressStreet: z.string().min(1, { message: 'Street address is required' }),
   addressCity: z.string().min(1, { message: 'City is required' }),
@@ -93,10 +102,9 @@ const intakeFormSchema = z.object({
   motivationLevel: z.enum(['very', 'somewhat', 'unsure'], { message: 'Please select your motivation level' }),
   supportSystem: z.enum(['strong', 'limited', 'none'], { message: 'Please select your level of support' }),
 
-  // SECTION 7: Demographics (Q33-Q34)
+  // SECTION 7: Demographics (Q33)
   biologicalSex: z.enum(['MALE', 'FEMALE', 'OTHER'], { message: 'Please select your biological sex' }),
   biologicalSexOther: z.string().optional(),
-  age: z.string().min(1, { message: 'Age is required' }),
 });
 
 type IntakeFormData = z.infer<typeof intakeFormSchema>;
@@ -974,7 +982,7 @@ function DemographicsStep(): React.ReactElement {
 
   return (
     <section aria-label="Section 7: Demographics" className="space-y-6">
-      <StepErrorSummary stepFields={['biologicalSex', 'age']} />
+      <StepErrorSummary stepFields={['biologicalSex']} />
 
       {/* Q33: Biological Sex */}
       <div className="space-y-3">
@@ -1021,26 +1029,6 @@ function DemographicsStep(): React.ReactElement {
         </AnimatePresence>
       </div>
 
-      {/* Q34: Age */}
-      <div className="space-y-2">
-        <Label htmlFor="age-input" className="text-base font-medium">
-          Q34. What is your age? <span className="text-red-500" aria-hidden="true">*</span>
-        </Label>
-        <Input
-          id="age-input"
-          type="number"
-          min="18"
-          max="120"
-          {...register('age')}
-          placeholder="e.g., 35"
-          aria-required="true"
-          aria-describedby={errors.age ? 'age-error' : undefined}
-          className={cn('max-w-[200px] min-h-[44px]', errors.age && 'border-red-500')}
-        />
-        {errors.age && (
-          <p id="age-error" className="text-sm text-red-500" role="alert">{errors.age.message}</p>
-        )}
-      </div>
     </section>
   );
 }
@@ -1172,7 +1160,7 @@ function ReviewStep({ onEditSection }: { onEditSection: (index: number) => void 
       index: 7,
       items: [
         `Biological sex: ${formatEnum(values.biologicalSex, sexLabels)}${values.biologicalSex === 'OTHER' && values.biologicalSexOther ? ` (${values.biologicalSexOther})` : ''}`,
-        `Age: ${values.age || 'Not answered'}`,
+        `Date of Birth: ${values.dateOfBirth || 'Not answered'}`,
       ],
     },
   ];
@@ -1397,7 +1385,6 @@ export default function IntakePage(): React.ReactElement {
       supportSystem: undefined,
       biologicalSex: undefined,
       biologicalSexOther: '',
-      age: '',
     },
     mode: 'onBlur',
   });
@@ -1468,7 +1455,7 @@ export default function IntakePage(): React.ReactElement {
       safety: ['liverCondition', 'liverTests', 'pregnancyStatus', 'drugAllergies', 'opioidUse', 'opioidMaintenance'],
       medical: ['medicalHistory', 'previousTreatments', 'currentMedications', 'seeingTherapist'],
       goals: ['primaryGoal', 'motivationLevel', 'supportSystem'],
-      demographics: ['biologicalSex', 'age'],
+      demographics: ['biologicalSex'],
       review: [],
     };
 

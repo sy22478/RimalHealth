@@ -190,10 +190,9 @@ export const dsm5IntakeFormDataSchema = z.object({
   motivationLevel: z.enum(['very', 'somewhat', 'unsure']),
   supportSystem: z.enum(['strong', 'limited', 'none']),
 
-  // Section 7: Demographics (Q33-Q34)
+  // Section 7: Demographics (Q33)
   biologicalSex: z.enum(['MALE', 'FEMALE', 'OTHER']),
   biologicalSexOther: z.string().optional(),
-  age: z.string().check(z.minLength(1)),
 }).passthrough(); // Allow additional fields (e.g., primaryConcern added by submit handler)
 
 /** Submit intake request — validates formData structure server-side */
