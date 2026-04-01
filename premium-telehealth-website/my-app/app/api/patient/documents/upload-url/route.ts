@@ -121,6 +121,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       fileName,
     });
 
+    // Check S3 is configured before attempting upload
+    if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_S3_BUCKET_NAME) {
+      return NextResponse.json(
+        { error: 'Document storage is not yet configured. Please contact support.' },
+        { status: 503 }
+      );
+    }
+
     // Generate presigned upload URL (15 minute expiry)
     const uploadData = await generateUploadUrl({
       key,
