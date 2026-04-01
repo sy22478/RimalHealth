@@ -104,7 +104,7 @@ export async function getPendingIntakes(
   // Apply concern type filter if specified
   if (filters?.concernType && filters.concernType !== 'ALL') {
     where.patient = {
-      profile: {
+      patientProfile: {
         primaryConcern: {
           contains: filters.concernType,
           mode: 'insensitive',
