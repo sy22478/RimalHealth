@@ -217,6 +217,8 @@ export interface PhysicianPatientListItem {
   emailMasked: string;
   /** Phone (masked) */
   phoneMasked: string;
+  /** Whether the patient's account has been deactivated */
+  isDeactivated?: boolean;
 }
 
 /**

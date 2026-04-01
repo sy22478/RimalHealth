@@ -14,6 +14,7 @@ import { verifyAccessToken } from '@/lib/auth/jwt';
 import { getIntakeForReview } from '@/lib/physician/review';
 import { Permission, hasPermission } from '@/lib/auth/rbac';
 import { Role } from '@prisma/client';
+import { prisma } from '@/lib/db/prisma';
 
 interface IntakeReviewPageProps {
   params: Promise<{ id: string }>;
@@ -80,11 +81,19 @@ export default async function IntakeReviewPage({ params }: IntakeReviewPageProps
     redirect('/physician/dashboard');
   }
 
+  // Check if the patient's account is deactivated
+  const patientUser = await prisma.user.findUnique({
+    where: { id: intake.patientId },
+    select: { deactivatedAt: true },
+  });
+  const isDeactivated = !!patientUser?.deactivatedAt;
+
   return (
     <IntakeReview
       intake={intake}
       physicianId={user.userId}
       physicianName={user.email?.split('@')[0] || 'Physician'} // Use email prefix as name placeholder
+      isDeactivated={isDeactivated}
     />
   );
 }

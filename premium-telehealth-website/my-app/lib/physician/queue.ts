@@ -185,6 +185,7 @@ export async function getPendingIntakes(
         waitTimeHours: Math.round(waitTimeHours * 10) / 10,
         isOverdue: waitTimeHours > 24,
         riskScore: intake.riskScore || undefined,
+        isDeactivated: !!intake.patient.deactivatedAt,
       };
     }).filter(Boolean); // Remove any null items
 

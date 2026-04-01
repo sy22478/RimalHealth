@@ -130,11 +130,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         },
       }),
 
-      // New patients in period
+      // New patients in period (exclude deactivated)
       prisma.patientProfile.count({
         where: {
           createdAt: {
             gte: startDate,
+          },
+          user: {
+            deactivatedAt: null,
           },
         },
       }),

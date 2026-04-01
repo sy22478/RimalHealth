@@ -55,7 +55,10 @@ export async function GET(
       where: { id: intakeId },
       include: {
         patient: {
-          include: {
+          select: {
+            id: true,
+            email: true,
+            deactivatedAt: true,
             patientProfile: {
               include: {
                 preferredPharmacy: true,
@@ -154,6 +157,7 @@ export async function GET(
         complexityScore: intake.complexityScore,
         submittedAt: intake.submittedAt?.toISOString(),
         createdAt: intake.createdAt.toISOString(),
+        isDeactivated: !!intake.patient.deactivatedAt,
       },
     });
   } catch (error) {

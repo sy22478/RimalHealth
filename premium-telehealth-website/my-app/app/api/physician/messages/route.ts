@@ -196,14 +196,23 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const threadValues = Array.from(threadsMap.values());
     const uniquePatientIds = [...new Set(threadValues.map(t => t.patientId))];
 
-    const patientProfiles = await prisma.patientProfile.findMany({
-      where: { userId: { in: uniquePatientIds } },
-      select: { userId: true, firstName: true, lastName: true },
-    });
+    const [patientProfiles, deactivatedUsers] = await Promise.all([
+      prisma.patientProfile.findMany({
+        where: { userId: { in: uniquePatientIds } },
+        select: { userId: true, firstName: true, lastName: true },
+      }),
+      prisma.user.findMany({
+        where: { id: { in: uniquePatientIds }, deactivatedAt: { not: null } },
+        select: { id: true, deactivatedAt: true },
+      }),
+    ]);
 
-    // Build lookup map (profiles are auto-decrypted by Prisma encryption extension)
+    // Build lookup maps (profiles are auto-decrypted by Prisma encryption extension)
     const profileMap = new Map(
       patientProfiles.map(p => [p.userId, p])
+    );
+    const deactivatedSet = new Set(
+      deactivatedUsers.map(u => u.id)
     );
 
     // Build thread responses using the lookup map
@@ -215,6 +224,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         patientName: profile
           ? `${profile.firstName} ${profile.lastName}`
           : 'Unknown Patient',
+        isDeactivated: deactivatedSet.has(thread.patientId),
       };
     });
 

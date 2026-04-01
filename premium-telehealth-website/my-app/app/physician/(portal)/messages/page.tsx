@@ -67,6 +67,7 @@ interface Thread {
     timestamp: string;
   };
   unreadCount: number;
+  isDeactivated?: boolean;
 }
 
 interface Message {
@@ -241,9 +242,16 @@ function ThreadList({
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <h4 className="font-medium truncate">
-                      {thread.participant.firstName} {thread.participant.lastName}
-                    </h4>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <h4 className="font-medium truncate">
+                        {thread.participant.firstName} {thread.participant.lastName}
+                      </h4>
+                      {thread.isDeactivated && (
+                        <Badge variant="secondary" className="bg-gray-100 text-gray-600 text-xs shrink-0">
+                          Deactivated
+                        </Badge>
+                      )}
+                    </div>
                     <span className="text-xs text-muted-foreground shrink-0">
                       {formatMessageTime(thread.lastMessage.timestamp)}
                     </span>
@@ -280,6 +288,7 @@ interface MessageThreadProps {
   onSendMessage: (body: string) => Promise<void>;
   isLoading?: boolean;
   currentUserId: string;
+  isDeactivated?: boolean;
 }
 
 function MessageThread({
@@ -288,6 +297,7 @@ function MessageThread({
   onSendMessage,
   isLoading,
   currentUserId,
+  isDeactivated = false,
 }: MessageThreadProps) {
   const [isSending, setIsSending] = useState(false);
   const [messageBody, setMessageBody] = useState('');
@@ -322,14 +332,23 @@ function MessageThread({
     <div className="flex flex-col h-full bg-white">
       <div className="flex items-center gap-4 p-4 border-b">
         <Avatar className="h-10 w-10">
-          <AvatarFallback className="bg-green-100 text-green-700">
+          <AvatarFallback className={cn(
+            isDeactivated ? "bg-gray-100 text-gray-400" : "bg-green-100 text-green-700"
+          )}>
             {getInitials(thread.participant.firstName, thread.participant.lastName)}
           </AvatarFallback>
         </Avatar>
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold">
-            {thread.participant.firstName} {thread.participant.lastName}
-          </h3>
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold">
+              {thread.participant.firstName} {thread.participant.lastName}
+            </h3>
+            {isDeactivated && (
+              <Badge variant="secondary" className="bg-gray-100 text-gray-600 text-xs">
+                Deactivated
+              </Badge>
+            )}
+          </div>
           <p className="text-sm text-muted-foreground truncate">
             Patient
           </p>
@@ -338,6 +357,12 @@ function MessageThread({
           <MoreVertical className="w-4 h-4" />
         </Button>
       </div>
+
+      {isDeactivated && (
+        <div className="mx-4 mt-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800">
+          This patient&apos;s account has been deactivated. You can view message history but cannot send new messages.
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
         {isLoading ? (
@@ -442,19 +467,19 @@ function MessageThread({
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="p-4 border-t bg-muted/50">
+      <div className={cn("p-4 border-t bg-muted/50", isDeactivated && "opacity-50 pointer-events-none")}>
         <div className="flex items-end gap-2">
           <Textarea
             value={messageBody}
             onChange={(e) => setMessageBody(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Type your message..."
+            placeholder={isDeactivated ? "Messaging disabled — patient account deactivated" : "Type your message..."}
             className="min-h-[80px] resize-none"
-            disabled={isSending}
+            disabled={isSending || isDeactivated}
           />
           <Button
             onClick={handleSend}
-            disabled={isSending || !messageBody.trim()}
+            disabled={isSending || !messageBody.trim() || isDeactivated}
             className="h-11 w-11 shrink-0"
             size="icon"
           >
@@ -465,9 +490,11 @@ function MessageThread({
             )}
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground mt-2">
-          Press Enter to send, Shift+Enter for new line
-        </p>
+        {!isDeactivated && (
+          <p className="text-xs text-muted-foreground mt-2">
+            Press Enter to send, Shift+Enter for new line
+          </p>
+        )}
       </div>
     </div>
   );
@@ -668,6 +695,7 @@ export default function PhysicianMessagingPage() {
               participantLastName?: string;
               lastMessage: { body: string; sentAt: string; subject?: string };
               unreadCount: number;
+              isDeactivated?: boolean;
             }) => {
               // The API returns patientName as "FirstName LastName"
               // Parse it into firstName/lastName for the participant
@@ -695,6 +723,7 @@ export default function PhysicianMessagingPage() {
                   timestamp: t.lastMessage.sentAt,
                 },
                 unreadCount: t.unreadCount,
+                isDeactivated: !!t.isDeactivated,
               };
             }
           );
@@ -1046,6 +1075,7 @@ export default function PhysicianMessagingPage() {
                 onSendMessage={handleSendMessage}
                 isLoading={isLoadingMessages}
                 currentUserId={currentUserId}
+                isDeactivated={selectedThread.thread.isDeactivated}
               />
             ) : (
               <NoThreadSelected onComposeClick={handleComposeClick} />
@@ -1075,6 +1105,7 @@ export default function PhysicianMessagingPage() {
                 onSendMessage={handleSendMessage}
                 isLoading={isLoadingMessages}
                 currentUserId={currentUserId}
+                isDeactivated={selectedThread.thread.isDeactivated}
               />
             </div>
           )}

@@ -20,6 +20,7 @@ interface IntakeReviewProps {
   intake: IntakeWithPatient;
   physicianId: string;
   physicianName: string;
+  isDeactivated?: boolean;
 }
 
 interface SubmissionState {
@@ -36,7 +37,7 @@ interface SubmissionState {
  * 
  * HIPAA: All PHI handling follows strict access controls
  */
-export function IntakeReview({ intake, physicianId, physicianName }: IntakeReviewProps) {
+export function IntakeReview({ intake, physicianId, physicianName, isDeactivated = false }: IntakeReviewProps) {
   const router = useRouter();
   const [submission, setSubmission] = React.useState<SubmissionState>({ status: 'idle' });
   const [decisionData, setDecisionData] = React.useState<DecisionFormData>({
@@ -260,6 +261,21 @@ export function IntakeReview({ intake, physicianId, physicianName }: IntakeRevie
               {slaStatus.hoursRemaining} hours remaining to meet 24-hour review SLA.
             </AlertDescription>
           </Alert>
+        )}
+
+        {isDeactivated && (
+          <div className="mb-6 bg-amber-50 border border-amber-200 rounded-lg p-4 text-amber-800">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-amber-600 shrink-0" />
+              <div>
+                <p className="font-medium">Account Deactivated</p>
+                <p className="text-sm mt-1">
+                  This patient&apos;s account has been deactivated. You can still complete this review
+                  if it was in progress before deactivation.
+                </p>
+              </div>
+            </div>
+          </div>
         )}
 
         {submission.status === 'success' && (

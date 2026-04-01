@@ -107,6 +107,7 @@ export default async function PatientsPage() {
             riskLevel: (p.riskLevel as string) || 'LOW',
             emailMasked: maskEmail(p.email as string | null),
             phoneMasked: (p.phoneMasked as string) || 'No phone',
+            isDeactivated: !!(p.isDeactivated as boolean),
           }));
         }
         if (data.counts) {

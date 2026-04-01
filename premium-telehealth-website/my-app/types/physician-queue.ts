@@ -48,6 +48,8 @@ export interface QueueItem {
   isOverdue: boolean;
   /** Risk assessment score (0-100) */
   riskScore?: number;
+  /** Whether the patient's account has been deactivated */
+  isDeactivated?: boolean;
 }
 
 /**

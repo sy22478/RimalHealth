@@ -125,9 +125,19 @@ export function PatientCard({
               </AvatarFallback>
             </Avatar>
             <div>
-              <h3 className="font-semibold text-foreground group-hover:text-ocean-600 transition-colors">
-                {patient.name}
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className={cn(
+                  "font-semibold group-hover:text-ocean-600 transition-colors",
+                  patient.isDeactivated ? "text-muted-foreground" : "text-foreground"
+                )}>
+                  {patient.name}
+                </h3>
+                {patient.isDeactivated && (
+                  <Badge variant="secondary" className="bg-gray-100 text-gray-600 text-xs">
+                    Deactivated
+                  </Badge>
+                )}
+              </div>
               <p className="text-sm text-muted-foreground">
                 {patient.age} years • {patient.gender || 'Unknown'}
               </p>

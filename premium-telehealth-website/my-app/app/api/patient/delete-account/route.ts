@@ -164,10 +164,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       });
 
       // Increment token version to invalidate all existing sessions
+      // and mark the account as deactivated
       await tx.user.update({
         where: { id: userId },
         data: {
           tokenVersion: { increment: 1 },
+          deactivatedAt: new Date(),
         },
       });
 

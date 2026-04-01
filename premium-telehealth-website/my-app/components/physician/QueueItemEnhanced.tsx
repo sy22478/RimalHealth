@@ -246,19 +246,33 @@ export function QueueItemEnhanced({
         </div>
       </CardHeader>
 
+      {/* Deactivated Patient Warning */}
+      {item.isDeactivated && (
+        <div className="mx-4 mt-1 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-sm text-amber-800">
+          This patient&apos;s account has been deactivated.
+        </div>
+      )}
+
       {/* Content: Patient Info & Scores */}
       <CardContent className="pb-3 px-4 space-y-4">
         {/* Patient Info */}
         <div className="flex items-center gap-3">
-          <Avatar className="size-12 border-2 border-background shadow-sm">
-            <AvatarFallback className="bg-navy-100 text-navy-700 text-sm font-semibold">
+          <Avatar className={cn('size-12 border-2 shadow-sm', item.isDeactivated ? 'border-gray-300' : 'border-background')}>
+            <AvatarFallback className={cn('text-sm font-semibold', item.isDeactivated ? 'bg-gray-100 text-gray-400' : 'bg-navy-100 text-navy-700')}>
               {initials}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-foreground truncate">
-              {item.patientName}
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className={cn('font-semibold truncate', item.isDeactivated ? 'text-muted-foreground' : 'text-foreground')}>
+                {item.patientName}
+              </h3>
+              {item.isDeactivated && (
+                <Badge variant="secondary" className="bg-gray-100 text-gray-600 text-xs shrink-0">
+                  Deactivated
+                </Badge>
+              )}
+            </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <User className="size-3.5" />
               <span>{item.patientAge} years old</span>

@@ -76,6 +76,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           user: {
             select: {
               email: true,
+              deactivatedAt: true,
               intakes: {
                 select: {
                   id: true,
@@ -153,6 +154,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         createdAt: patient.createdAt.toISOString(),
         status,
         intakeStatus: latestIntake?.status || null,
+        isDeactivated: !!patient.user.deactivatedAt,
       };
     });
 

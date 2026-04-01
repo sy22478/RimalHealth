@@ -23,6 +23,7 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   lastLoginAt   DateTime?
+  deactivatedAt DateTime? // Set when patient requests account deletion
 
   // MFA
   mfaEnabled     Boolean @default(false)

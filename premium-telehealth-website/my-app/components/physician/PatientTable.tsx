@@ -222,7 +222,11 @@ export function PatientTable({
 
     // Apply status filter
     if (statusFilter && statusFilter !== 'ALL') {
-      result = result.filter((p) => p.status === statusFilter);
+      if (statusFilter === 'DEACTIVATED') {
+        result = result.filter((p) => p.isDeactivated);
+      } else {
+        result = result.filter((p) => p.status === statusFilter && !p.isDeactivated);
+      }
     }
 
     // Apply sorting
@@ -305,6 +309,7 @@ export function PatientTable({
                 <SelectItem value="PENDING">Pending</SelectItem>
                 <SelectItem value="COMPLETED">Completed</SelectItem>
                 <SelectItem value="INACTIVE">Inactive</SelectItem>
+                <SelectItem value="DEACTIVATED">Deactivated</SelectItem>
               </SelectContent>
             </Select>
 
@@ -372,11 +377,25 @@ export function PatientTable({
                   >
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-full bg-ocean-100 flex items-center justify-center text-sm font-medium text-ocean-700">
+                        <div className={cn(
+                          "h-8 w-8 rounded-full flex items-center justify-center text-sm font-medium",
+                          patient.isDeactivated
+                            ? "bg-gray-100 text-gray-400"
+                            : "bg-ocean-100 text-ocean-700"
+                        )}>
                           {getInitials(patient.name)}
                         </div>
                         <div>
-                          <p className="font-medium">{patient.name || 'Unknown'}</p>
+                          <div className="flex items-center gap-2">
+                            <p className={cn("font-medium", patient.isDeactivated && "text-muted-foreground")}>
+                              {patient.name || 'Unknown'}
+                            </p>
+                            {patient.isDeactivated && (
+                              <Badge variant="secondary" className="bg-gray-100 text-gray-600 text-xs">
+                                Deactivated
+                              </Badge>
+                            )}
+                          </div>
                           <p className="text-xs text-muted-foreground">{patient.gender || 'Not specified'}</p>
                         </div>
                       </div>
