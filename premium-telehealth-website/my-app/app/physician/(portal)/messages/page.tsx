@@ -816,9 +816,9 @@ export default function PhysicianMessagingPage() {
   // -----------------------------------------------------------------------
   const markAsRead = useCallback(async (threadId: string) => {
     try {
-      await fetch(`/api/physician/messages/${threadId}/read`, { method: 'PATCH' });
-    } catch {
-      // best-effort
+      await fetch(`/api/physician/messages/${threadId}/read`, { method: 'POST' });
+    } catch (error) {
+      console.error('Mark as read error:', error instanceof Error ? error.message : 'Unknown error');
     }
     setThreads((prev) =>
       prev.map((t) => (t.id === threadId ? { ...t, unreadCount: 0 } : t))

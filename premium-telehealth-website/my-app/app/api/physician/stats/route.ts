@@ -55,10 +55,25 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const { period } = validation.data!;
 
+    // Look up the physician record (Review FK references Physician.id, not User.id)
+    const physician = await prisma.physician.findFirst({
+      where: { userId },
+      select: { id: true },
+    });
+
+    if (!physician) {
+      return NextResponse.json(
+        { error: 'Physician profile not found', code: 'PHYSICIAN_NOT_FOUND' },
+        { status: 404 }
+      );
+    }
+
+    const physicianId = physician.id;
+
     // Calculate date range
     const now = new Date();
     let startDate: Date;
-    
+
     switch (period) {
       case 'today':
         startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -107,7 +122,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       // Reviews completed in period
       prisma.review.count({
         where: {
-          physicianId: userId,
+          physicianId,
           completedAt: {
             gte: startDate,
           },
@@ -151,38 +166,26 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }),
     ]);
 
-    // Get average review time (if physician has reviews)
-    const reviewStats = await prisma.review.aggregate({
-      where: {
-        physicianId: userId,
-        completedAt: {
-          gte: startDate,
+    // Get review stats and approval rate in parallel
+    const [reviewStats, reviewDecisions] = await Promise.all([
+      prisma.review.aggregate({
+        where: {
+          physicianId,
+          completedAt: { gte: startDate },
+          reviewDurationSec: { not: null },
         },
-        reviewDurationSec: {
-          not: null,
+        _avg: { reviewDurationSec: true },
+        _count: { id: true },
+      }),
+      prisma.review.groupBy({
+        by: ['decision'],
+        where: {
+          physicianId,
+          completedAt: { gte: startDate },
         },
-      },
-      _avg: {
-        reviewDurationSec: true,
-      },
-      _count: {
-        id: true,
-      },
-    });
-
-    // Calculate approval rate
-    const reviewDecisions = await prisma.review.groupBy({
-      by: ['decision'],
-      where: {
-        physicianId: userId,
-        completedAt: {
-          gte: startDate,
-        },
-      },
-      _count: {
-        id: true,
-      },
-    });
+        _count: { id: true },
+      }),
+    ]);
 
     const totalDecisions = reviewDecisions.reduce((sum, r) => sum + (r._count?.id ?? 0), 0);
     const approvedCount =

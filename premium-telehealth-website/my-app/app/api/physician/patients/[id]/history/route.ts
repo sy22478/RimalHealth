@@ -1,20 +1,21 @@
 /**
  * Physician Patient History API
  * GET /api/physician/patients/[id]/history
- * 
+ *
  * Returns comprehensive patient history for timeline view
- * 
+ *
  * HIPAA Compliance:
- * - PHYSICIAN role required
+ * - PHYSICIAN role required (via requireRole)
  * - All access is audit logged
  * - PHI encrypted at rest via Prisma extension
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAccessToken } from '@/lib/auth/jwt';
+import { requireRole } from '@/lib/auth/require-auth';
 import { prisma } from '@/lib/db/prisma';
 import { auditLogger, PHIResourceType, AuditEventType } from '@/lib/audit/index';
 import { getClientIP } from '@/lib/audit/utils';
+import { Role } from '@prisma/client';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -29,36 +30,8 @@ interface HistoryEvent {
 }
 
 /**
- * Verify physician access
- */
-async function verifyPhysicianAccess(
-  request: NextRequest
-): Promise<{ authorized: boolean; userId?: string }> {
-  const authHeader = request.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
-    return { authorized: false };
-  }
-
-  const token = authHeader.substring(7);
-  
-  try {
-    const payload = await verifyAccessToken(token);
-    
-    if (payload.role !== 'PHYSICIAN' && payload.role !== 'ADMIN') {
-      return { authorized: false };
-    }
-
-    return {
-      authorized: true,
-      userId: payload.userId,
-    };
-  } catch {
-    return { authorized: false };
-  }
-}
-
-/**
- * Build comprehensive patient history
+ * Build comprehensive patient history using Prisma queries
+ * (not $queryRaw, to ensure encryption extension decrypts PHI fields)
  */
 async function buildPatientHistory(patientId: string): Promise<HistoryEvent[]> {
   const events: HistoryEvent[] = [];
@@ -67,7 +40,7 @@ async function buildPatientHistory(patientId: string): Promise<HistoryEvent[]> {
   const [intakes, prescriptions, messages, notes, refillRequests] = await Promise.all([
     // Get intakes with review (singular relation)
     prisma.intake.findMany({
-      where: { patientId: patientId },
+      where: { patientId },
       take: 50,
       orderBy: { createdAt: 'desc' },
       include: {
@@ -76,7 +49,7 @@ async function buildPatientHistory(patientId: string): Promise<HistoryEvent[]> {
     }),
     // Get prescriptions
     prisma.prescription.findMany({
-      where: { patientId: patientId },
+      where: { patientId },
       take: 50,
       orderBy: { createdAt: 'desc' },
     }),
@@ -91,43 +64,41 @@ async function buildPatientHistory(patientId: string): Promise<HistoryEvent[]> {
       take: 50,
       orderBy: { sentAt: 'desc' },
     }),
-    // Get clinical notes (using raw query to handle model extension issues)
-    prisma.$queryRaw<Array<{
-      id: string;
-      patientId: string;
-      physicianId: string;
-      content: string;
-      createdAt: Date;
-      physicianFirstName: string;
-      physicianLastName: string;
-    }>>`
-      SELECT 
-        pn.id,
-        pn.patient_id as "patientId",
-        pn.physician_id as "physicianId",
-        pn.content,
-        pn.created_at as "createdAt",
-        p.first_name as "physicianFirstName",
-        p.last_name as "physicianLastName"
-      FROM physician_notes pn
-      JOIN physicians p ON p.id = pn.physician_id
-      WHERE pn.patient_id = ${patientId}
-      ORDER BY pn.created_at DESC
-      LIMIT 50
-    `.catch(() => []),
-    // Get refill requests (if model exists)
-    prisma.$queryRaw<Array<{
-      id: string;
-      prescriptionId: string;
-      status: string;
-      createdAt: Date;
-    }>>`
-      SELECT id, prescription_id as "prescriptionId", status, created_at as "createdAt"
-      FROM refill_requests
-      WHERE patient_id = ${patientId}
-      ORDER BY created_at DESC
-      LIMIT 50
-    `.catch(() => []), // Gracefully handle if table doesn't exist yet
+    // Get clinical notes via Prisma (not raw SQL) so encryption extension decrypts content
+    prisma.physicianNote.findMany({
+      where: { patientId },
+      take: 50,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        physicianId: true,
+        createdAt: true,
+        physician: {
+          select: {
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    }).catch((error) => {
+      console.error('Physician notes query error:', error instanceof Error ? error.message : 'Unknown error');
+      return [];
+    }),
+    // Get refill requests
+    prisma.refillRequest.findMany({
+      where: { patientId },
+      take: 50,
+      orderBy: { requestedAt: 'desc' },
+      select: {
+        id: true,
+        prescriptionId: true,
+        status: true,
+        requestedAt: true,
+      },
+    }).catch((error) => {
+      console.error('Refill requests query error:', error instanceof Error ? error.message : 'Unknown error');
+      return [];
+    }),
   ]);
 
   // Add intake events
@@ -201,12 +172,11 @@ async function buildPatientHistory(patientId: string): Promise<HistoryEvent[]> {
       type: 'note',
       date: note.createdAt.toISOString(),
       title: 'Clinical Note Added',
-      description: `By Dr. ${note.physicianLastName}`,
+      description: `By Dr. ${note.physician.lastName}`,
       metadata: {
         noteId: note.id,
         physicianId: note.physicianId,
-        physicianName: `${note.physicianFirstName} ${note.physicianLastName}`,
-        contentLength: note.content.length,
+        physicianName: `${note.physician.firstName} ${note.physician.lastName}`,
       },
     });
   }
@@ -215,7 +185,7 @@ async function buildPatientHistory(patientId: string): Promise<HistoryEvent[]> {
   for (const refill of refillRequests) {
     events.push({
       type: 'refill',
-      date: refill.createdAt.toISOString(),
+      date: refill.requestedAt.toISOString(),
       title: 'Refill Request',
       description: `Status: ${refill.status}`,
       metadata: {
@@ -238,6 +208,10 @@ export async function GET(
   request: NextRequest,
   context: RouteContext
 ): Promise<NextResponse> {
+  const auth = await requireRole(request, [Role.PHYSICIAN, Role.ADMIN]);
+  if (auth instanceof NextResponse) return auth;
+
+  const { userId } = auth.user;
   const requestId = crypto.randomUUID();
   const ipAddress = getClientIP(request);
   const userAgent = request.headers.get('user-agent') || '';
@@ -245,33 +219,11 @@ export async function GET(
   try {
     const { id: patientId } = await context.params;
 
-    // Verify physician access
-    const access = await verifyPhysicianAccess(request);
-    
-    if (!access.authorized || !access.userId) {
-      await auditLogger.log({
-        eventType: AuditEventType.UNAUTHORIZED_ACCESS_ATTEMPT,
-        userId: access.userId || 'anonymous',
-        action: 'Attempted to access patient history without authorization',
-        ipAddress,
-        userAgent,
-        resourceType: 'PatientHistory',
-        resourceId: patientId,
-        success: false,
-        metadata: { requestId },
-      });
-
-      return NextResponse.json(
-        { error: 'Unauthorized. Physician access required.' },
-        { status: 403 }
-      );
-    }
-
     // Audit log the access
     await auditLogger.logPHIAccess(
       'VIEW',
-      access.userId,
-      'PHYSICIAN',
+      userId,
+      auth.user.role,
       PHIResourceType.PATIENT_PROFILE,
       patientId,
       { ipAddress, userAgent, requestId },

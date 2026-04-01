@@ -112,7 +112,7 @@ export function MedicationSelector({
           Select Medication
           <span className="text-destructive ml-1">*</span>
         </Label>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3">
           {availableMedications.map((med) => (
             <button
               key={med.name}
@@ -184,10 +184,10 @@ export function MedicationSelector({
                   id="quantity"
                   type="number"
                   min={1}
-                  max={180}
+                  max={365}
                   value={value.quantity}
                   onChange={(e) =>
-                    handleFieldChange('quantity', parseInt(e.target.value) || 0)
+                    handleFieldChange('quantity', Math.min(Math.max(parseInt(e.target.value) || 0, 1), 365))
                   }
                   disabled={disabled}
                 />
@@ -198,10 +198,10 @@ export function MedicationSelector({
                   id="refills"
                   type="number"
                   min={0}
-                  max={11}
+                  max={12}
                   value={value.refills}
                   onChange={(e) =>
-                    handleFieldChange('refills', parseInt(e.target.value) || 0)
+                    handleFieldChange('refills', Math.min(Math.max(parseInt(e.target.value) || 0, 0), 12))
                   }
                   disabled={disabled}
                 />

@@ -346,7 +346,7 @@ export function IntakeReview({ intake, physicianId, physicianName, isDeactivated
 
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground">Contact</p>
-                  <p className="text-sm font-medium">{intake.patient.email}</p>
+                  <p className="text-sm font-medium break-all">{intake.patient.email}</p>
                   <p className="text-sm font-medium">{intake.patient.phone}</p>
                 </div>
 

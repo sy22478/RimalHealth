@@ -562,6 +562,23 @@ export async function deleteClinicalNote(
 // Helper Functions (re-exported from patient-utils for backward compatibility)
 // ============================================================================
 
+/**
+ * Get physician display name from userId.
+ * Returns "Dr. FirstName LastName" or the provided fallback.
+ */
+export async function getPhysicianDisplayName(
+  userId: string,
+  fallback = 'Physician'
+): Promise<string> {
+  const physician = await prisma.physician.findFirst({
+    where: { userId },
+    select: { firstName: true, lastName: true },
+  });
+  return physician
+    ? `Dr. ${physician.firstName} ${physician.lastName}`
+    : fallback;
+}
+
 export {
   calculateAge,
   formatDate,

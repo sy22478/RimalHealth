@@ -10,13 +10,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/auth/require-auth';
 import { prisma } from '@/lib/db/prisma';
+import { AuditService } from '@/lib/services/audit-service';
 import { Role } from '@prisma/client';
+import { PHIResourceType } from '@/lib/audit/index';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const auth = await requireRole(request, [Role.PHYSICIAN, Role.ADMIN]);
   if (auth instanceof NextResponse) return auth;
 
   const { userId } = auth.user;
+  const auditContext = AuditService.createAuditContext(request, userId, auth.user.role);
 
   try {
     const physician = await prisma.physician.findUnique({
@@ -49,6 +52,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         { status: 404 }
       );
     }
+
+    // Log PHI access (NPI, DEA, license numbers)
+    await AuditService.logPHIAccess(
+      'VIEW',
+      userId,
+      auth.user.role,
+      PHIResourceType.PATIENT_PROFILE,
+      physician.id,
+      auditContext,
+      { accessReason: 'View own physician profile' }
+    );
 
     // Destructure to exclude nested `user` object from response
     const { user, ...physicianData } = physician;

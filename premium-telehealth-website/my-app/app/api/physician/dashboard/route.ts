@@ -69,7 +69,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       select: { id: true },
     });
 
-    const physicianId = physician?.id || userId;
+    if (!physician) {
+      return NextResponse.json(
+        { error: 'Physician profile not found', code: 'PHYSICIAN_NOT_FOUND' },
+        { status: 404 }
+      );
+    }
+
+    const physicianId = physician.id;
 
     // Fetch all dashboard statistics in parallel
     const [

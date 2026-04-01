@@ -14,6 +14,8 @@ import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { PatientDetailView } from '@/components/physician/PatientDetailView';
+import { verifyAccessToken } from '@/lib/auth/jwt';
+import { getPhysicianDisplayName } from '@/lib/physician/patients';
 import type { PhysicianPatientDetail } from '@/types/physician-dashboard';
 
 // ============================================================================
@@ -189,6 +191,7 @@ export default async function PatientDetailPage({
   const { id } = await params;
 
   let patient: PhysicianPatientDetail | null = null;
+  let physicianName = 'Current Physician';
 
   try {
     const cookieStore = await cookies();
@@ -196,21 +199,31 @@ export default async function PatientDetailPage({
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
     if (token) {
-      const res = await fetch(`${appUrl}/api/physician/patients/${encodeURIComponent(id)}`, {
-        headers: { Cookie: `accessToken=${token}` },
-        cache: 'no-store',
-      });
+      // Verify token first (needed for userId), then run physician lookup and API fetch in parallel
+      try {
+        const payload = await verifyAccessToken(token);
 
-      if (res.status === 404) {
-        notFound();
-      }
+        const [, res] = await Promise.all([
+          getPhysicianDisplayName(payload.userId).then(name => { physicianName = name; }),
+          fetch(`${appUrl}/api/physician/patients/${encodeURIComponent(id)}`, {
+            headers: { Cookie: `accessToken=${token}` },
+            cache: 'no-store',
+          }),
+        ]);
 
-      if (res.ok) {
-        const data = await res.json();
-        const rawPatient = data.patient ?? data ?? null;
-        if (rawPatient) {
-          patient = mapApiResponseToPatientDetail(rawPatient);
+        if (res.status === 404) {
+          notFound();
         }
+
+        if (res.ok) {
+          const data = await res.json();
+          const rawPatient = data.patient ?? data ?? null;
+          if (rawPatient) {
+            patient = mapApiResponseToPatientDetail(rawPatient);
+          }
+        }
+      } catch (error) {
+        console.error('Patient detail fetch error:', error instanceof Error ? error.message : 'Unknown error');
       }
     }
   } catch {
@@ -246,7 +259,7 @@ export default async function PatientDetailPage({
       </Link>
 
       {/* Patient Detail View with Tabs */}
-      <PatientDetailView patient={patient} />
+      <PatientDetailView patient={patient} physicianName={physicianName} />
     </div>
   );
 }

@@ -107,7 +107,7 @@ export function DecisionForm({
           Review Decision
           <span className="text-destructive ml-1">*</span>
         </Label>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-2">
           {DECISION_OPTIONS.map((option) => (
             <button
               key={option.value}
@@ -115,7 +115,7 @@ export function DecisionForm({
               onClick={() => handleDecisionChange(option.value)}
               disabled={disabled}
               className={cn(
-                'relative flex flex-col items-center p-4 rounded-lg border-2 transition-all text-center overflow-hidden',
+                'relative flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left',
                 value.decision === option.value
                   ? option.variant === 'default'
                     ? 'border-success bg-success/5'
@@ -128,7 +128,7 @@ export function DecisionForm({
             >
               <div
                 className={cn(
-                  'mb-2 shrink-0',
+                  'shrink-0',
                   option.variant === 'default' && 'text-success',
                   option.variant === 'destructive' && 'text-destructive',
                   option.variant === 'secondary' && 'text-muted-foreground'
@@ -136,14 +136,16 @@ export function DecisionForm({
               >
                 {option.icon}
               </div>
-              <span className="font-medium text-sm">{option.label}</span>
-              <span className="text-xs text-muted-foreground mt-1 break-words leading-tight w-full">
-                {option.description}
-              </span>
+              <div className="min-w-0 flex-1">
+                <span className="font-medium text-sm block">{option.label}</span>
+                <span className="text-xs text-muted-foreground leading-tight">
+                  {option.description}
+                </span>
+              </div>
               {value.decision === option.value && (
                 <Badge
                   variant={option.variant === 'default' ? 'default' : 'secondary'}
-                  className="absolute top-2 right-2"
+                  className="shrink-0"
                 >
                   Selected
                 </Badge>

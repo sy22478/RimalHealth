@@ -6,7 +6,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/auth/require-auth';
 import { prisma } from '@/lib/db/prisma';
+import { AuditService } from '@/lib/services/audit-service';
 import { Role } from '@prisma/client';
+import { PHIResourceType } from '@/lib/audit/index';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const auth = await requireRole(request, [Role.PHYSICIAN, Role.ADMIN]);
@@ -16,6 +18,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   const { userId } = auth.user;
+  const auditContext = AuditService.createAuditContext(request, userId, auth.user.role);
 
   try {
     const physicians = await prisma.physician.findMany({
@@ -30,6 +33,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         specialty: true,
       },
     });
+
+    // Log access
+    await AuditService.logPHIAccess(
+      'VIEW',
+      userId,
+      auth.user.role,
+      PHIResourceType.PATIENT_PROFILE,
+      'colleagues-list',
+      auditContext,
+      { accessReason: 'View colleague list for messaging' }
+    );
 
     return NextResponse.json({
       physicians: physicians.map((p) => ({

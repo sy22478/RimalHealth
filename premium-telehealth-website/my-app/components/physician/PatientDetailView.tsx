@@ -48,6 +48,7 @@ import { TREATMENT_TYPE_LABELS } from '@/types/physician-dashboard';
 
 interface PatientDetailViewProps {
   patient: PhysicianPatientDetail;
+  physicianName?: string;
 }
 
 // ============================================================================
@@ -737,7 +738,7 @@ function MessagesTab({ messages }: { messages: PhysicianPatientDetail['recentMes
  * - Notes: Physician notes with add functionality
  * - Documents: Uploaded documents
  */
-export function PatientDetailView({ patient }: PatientDetailViewProps): React.ReactElement {
+export function PatientDetailView({ patient, physicianName }: PatientDetailViewProps): React.ReactElement {
   return (
     <div className="space-y-6">
       {/* Patient Header */}
@@ -781,7 +782,7 @@ export function PatientDetailView({ patient }: PatientDetailViewProps): React.Re
           <PatientNotes
             patientId={patient.id}
             initialNotes={patient.notes || []}
-            currentPhysicianName="Dr. Smith"
+            currentPhysicianName={physicianName || 'Current Physician'}
           />
         </TabsContent>
 
