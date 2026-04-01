@@ -102,9 +102,8 @@ export default async function IntakeReviewPage({ params }: IntakeReviewPageProps
   );
 }
 
-/**
- * Metadata for the page
- */
+export const dynamic = 'force-dynamic';
+
 export const metadata = {
   title: 'Review Intake | Rimal Health Physician Portal',
   description: 'Review patient intake form and make clinical decisions',
