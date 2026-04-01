@@ -388,9 +388,40 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
       await auditLogin(user.id, false, auditContext, authMetadata);
 
+      // Auto-send verification email so the user doesn't have to manually request it.
+      // Best-effort — don't block the response if this fails.
+      try {
+        const { sendEmail } = await import('@/lib/integrations/sendgrid');
+        const { EmailTemplate } = await import('@/lib/notifications/templates');
+
+        // Generate a verification token
+        const verifyToken = `verify-${crypto.randomUUID()}`;
+        await prisma.passwordReset.create({
+          data: {
+            userId: user.id,
+            token: verifyToken,
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+          },
+        });
+
+        const verificationUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/verify-email?token=${verifyToken}`;
+
+        await sendEmail({
+          to: user.email,
+          template: EmailTemplate.EMAIL_VERIFICATION,
+          data: {
+            firstName: 'there',
+            verificationUrl,
+          },
+        });
+      } catch (emailError) {
+        // Non-fatal: don't block login response if verification email fails
+        console.error('Failed to auto-send verification email:', emailError instanceof Error ? emailError.message : 'Unknown error');
+      }
+
       return NextResponse.json(
         {
-          error: 'Email not verified. Please check your email to verify your account.',
+          error: 'Email not verified. A verification email has been sent — please check your inbox.',
           code: 'EMAIL_NOT_VERIFIED',
         },
         { status: 403 }

@@ -170,7 +170,7 @@ jobs:
           BASE_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
 
       - name: Notify Slack - Success
-        if: success() && secrets.SLACK_WEBHOOK_URL != ''
+        if: success() && vars.SLACK_WEBHOOK_URL != ''
         uses: slackapi/slack-github-action@v1.24.0
         with:
           payload: |
@@ -219,7 +219,7 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
       - name: Notify Slack - Failure
-        if: failure() && secrets.SLACK_WEBHOOK_URL != ''
+        if: failure() && vars.SLACK_WEBHOOK_URL != ''
         uses: slackapi/slack-github-action@v1.24.0
         with:
           payload: |

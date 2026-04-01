@@ -137,11 +137,11 @@ export function LoginForm() {
           return;
         }
 
-        // Handle email not verified
+        // Handle email not verified — server auto-sends a verification email
         if (result.code === "EMAIL_NOT_VERIFIED") {
           setNeedsVerification(true);
           setError(
-            "Please verify your email address before signing in. Check your inbox for the verification link."
+            result.error || "A verification email has been sent. Please check your inbox and spam folder, then click the link to verify your account."
           );
           return;
         }
