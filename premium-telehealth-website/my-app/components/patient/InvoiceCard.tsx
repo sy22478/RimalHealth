@@ -15,7 +15,7 @@ import * as React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Download, FileText } from 'lucide-react';
+import { Download, ExternalLink, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Invoice, InvoiceStatus } from '@prisma/client';
 
@@ -130,24 +130,43 @@ export function InvoiceCard({
             <span className="font-semibold text-foreground text-right">
               {formatAmount(invoice.amount)}
             </span>
-            
-            <Button
-              onClick={handleDownload}
-              disabled={!isDownloadable || isDownloading}
-              variant="ghost"
-              size="sm"
-              className="flex-shrink-0"
-              aria-label={`Download invoice ${formatInvoiceNumber(invoice.id, invoice.createdAt)}`}
-            >
-              {isDownloading ? (
-                <span className="sr-only">Downloading...</span>
-              ) : (
-                <>
-                  <Download className="h-4 w-4" />
-                  <span className="sr-only sm:not-sr-only sm:ml-2">Download</span>
-                </>
+
+            <div className="flex items-center gap-1">
+              {invoice.stripeInvoiceId && (
+                <Button
+                  onClick={() => window.open(
+                    `https://invoice.stripe.com/i/${invoice.stripeInvoiceId}`,
+                    '_blank',
+                    'noopener,noreferrer'
+                  )}
+                  variant="ghost"
+                  size="sm"
+                  className="flex-shrink-0"
+                  aria-label={`View invoice ${formatInvoiceNumber(invoice.id, invoice.createdAt)}`}
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  <span className="sr-only sm:not-sr-only sm:ml-2">View</span>
+                </Button>
               )}
-            </Button>
+
+              <Button
+                onClick={handleDownload}
+                disabled={!isDownloadable || isDownloading}
+                variant="ghost"
+                size="sm"
+                className="flex-shrink-0"
+                aria-label={`Download invoice ${formatInvoiceNumber(invoice.id, invoice.createdAt)}`}
+              >
+                {isDownloading ? (
+                  <span className="sr-only">Downloading...</span>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4" />
+                    <span className="sr-only sm:not-sr-only sm:ml-2">Download</span>
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
 

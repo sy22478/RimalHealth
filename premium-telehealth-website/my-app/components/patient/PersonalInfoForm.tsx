@@ -347,7 +347,7 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
               <Input
                 id="dateOfBirth"
                 type="date"
-                autoComplete="bday"
+                autoComplete="off"
                 className="mt-1.5"
                 aria-invalid={!!errors.dateOfBirth}
                 aria-describedby={errors.dateOfBirth ? 'dateOfBirth-error' : undefined}
@@ -485,7 +485,7 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
                   readOnly
                   className="mt-1.5 bg-gray-100 cursor-not-allowed"
                 />
-                <input type="hidden" value="CA" {...register('addressState')} />
+                <input type="hidden" value="CA" aria-hidden="true" {...register('addressState')} />
               </div>
 
               <div>
@@ -641,7 +641,7 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
             )}
 
             {/* Hidden field for form submission */}
-            <input type="hidden" {...register('preferredPharmacyId')} />
+            <input type="hidden" aria-hidden="true" {...register('preferredPharmacyId')} />
           </CardContent>
         </Card>
 
