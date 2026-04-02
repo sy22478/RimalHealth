@@ -381,6 +381,8 @@ export interface PhysicianPrescriptionListItem {
   sentAt?: Date;
   /** Pharmacy name */
   pharmacyName: string;
+  /** Pharmacy address */
+  pharmacyAddress?: string | null;
 }
 
 /**

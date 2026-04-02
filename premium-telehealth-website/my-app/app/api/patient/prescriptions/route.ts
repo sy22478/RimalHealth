@@ -1,7 +1,7 @@
 /**
  * GET /api/patient/prescriptions
- * List patient's prescriptions
- * 
+ * List patient's prescriptions with intake status context
+ *
  * HIPAA Compliance:
  * - Returns only own prescriptions
  * - Logs prescription access
@@ -21,7 +21,7 @@ import { getPatientPrescriptions } from '@/lib/patient/prescriptions';
 export async function GET(request: NextRequest): Promise<NextResponse> {
   // Require patient role
   const auth = await requireRole(request, [Role.PATIENT]);
-  
+
   if (auth instanceof NextResponse) {
     return auth;
   }
@@ -30,8 +30,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const auditContext = AuditService.createAuditContext(request, userId, 'PATIENT');
 
   try {
-    // Get prescriptions
-    const prescriptions = await getPatientPrescriptions(userId);
+    // Get prescriptions and intake status in parallel
+    const [prescriptions, intake] = await Promise.all([
+      getPatientPrescriptions(userId),
+      prisma.intake.findFirst({
+        where: { patientId: userId },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          status: true,
+          submittedAt: true,
+        },
+      }),
+    ]);
 
     // Log access
     await AuditService.logPrescriptionAccess(
@@ -42,10 +53,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       auditContext
     );
 
-    return NextResponse.json({ prescriptions });
+    return NextResponse.json({
+      prescriptions,
+      intakeStatus: intake?.status ?? null,
+      intakeSubmittedAt: intake?.submittedAt?.toISOString() ?? null,
+    });
   } catch (error) {
     console.error('List prescriptions error:', error instanceof Error ? error.message : 'Unknown error');
-    
+
     await AuditService.logApiError(
       error instanceof Error ? error : new Error('Unknown error'),
       '/api/patient/prescriptions',

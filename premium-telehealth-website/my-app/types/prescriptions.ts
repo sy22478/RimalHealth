@@ -47,7 +47,9 @@ export interface PrescriptionSummary {
   refills: number;
   refillsRemaining: number;
   pharmacyName: string;
+  pharmacyAddress?: string | null;
   status: PrescriptionStatus;
+  sentAt?: Date | null;
   lastRefillDate: Date | null;
   nextRefillAvailable: Date | null;
 }
@@ -117,7 +119,10 @@ export const prescriptionStatusVariants: Record<PrescriptionStatus, string> = {
   FILLED: 'bg-indigo-100 text-indigo-800 border-indigo-200',
   READY_FOR_PICKUP: 'bg-emerald-100 text-emerald-800 border-emerald-200',
   PICKED_UP: 'bg-green-100 text-green-800 border-green-200',
+  ACTIVE: 'bg-green-100 text-green-800 border-green-200',
+  COMPLETED: 'bg-gray-100 text-gray-800 border-gray-200',
   CANCELLED: 'bg-red-100 text-red-800 border-red-200',
+  DENIED: 'bg-red-100 text-red-800 border-red-200',
   EXPIRED: 'bg-gray-100 text-gray-800 border-gray-200',
 };
 
@@ -147,7 +152,10 @@ export function formatPrescriptionStatusText(status: PrescriptionStatus): string
     FILLED: 'Being Filled',
     READY_FOR_PICKUP: 'Ready for Pickup',
     PICKED_UP: 'Picked Up',
+    ACTIVE: 'Active',
+    COMPLETED: 'Completed',
     CANCELLED: 'Cancelled',
+    DENIED: 'Denied',
     EXPIRED: 'Expired',
   };
   return statusMap[status] || status;
@@ -164,6 +172,75 @@ export function formatRefillStatus(status: RefillStatus): string {
     SENT: 'Sent to Pharmacy',
   };
   return statusMap[status] || status;
+}
+
+/**
+ * Shared prescription status display for patient-facing UI.
+ * Used by both the dashboard and prescriptions page for consistency.
+ */
+export function getPrescriptionStatusDisplay(status: PrescriptionStatus): {
+  label: string;
+  color: string;
+  description: string;
+} {
+  const map: Record<PrescriptionStatus, { label: string; color: string; description: string }> = {
+    PENDING: {
+      label: 'Prescription Pending',
+      color: 'text-amber-700 bg-amber-50 border-amber-200',
+      description: 'Your physician has approved your treatment. Your prescription will be sent to your pharmacy shortly.',
+    },
+    SENT: {
+      label: 'Sent to Pharmacy',
+      color: 'text-blue-700 bg-blue-50 border-blue-200',
+      description: 'Your prescription has been sent to your pharmacy. Please allow 1-2 business days for processing.',
+    },
+    RECEIVED_BY_PHARMACY: {
+      label: 'At Pharmacy',
+      color: 'text-purple-700 bg-purple-50 border-purple-200',
+      description: 'Your pharmacy has received your prescription and is processing it.',
+    },
+    FILLED: {
+      label: 'Being Filled',
+      color: 'text-indigo-700 bg-indigo-50 border-indigo-200',
+      description: 'Your prescription is being filled by the pharmacy.',
+    },
+    READY_FOR_PICKUP: {
+      label: 'Ready for Pickup',
+      color: 'text-emerald-700 bg-emerald-50 border-emerald-200',
+      description: 'Your prescription is ready. Please visit your pharmacy to pick it up.',
+    },
+    PICKED_UP: {
+      label: 'Picked Up',
+      color: 'text-green-700 bg-green-50 border-green-200',
+      description: 'You have picked up your medication. Take it as directed by your physician.',
+    },
+    ACTIVE: {
+      label: 'Active',
+      color: 'text-green-700 bg-green-50 border-green-200',
+      description: 'Your prescription is active. Continue taking your medication as prescribed.',
+    },
+    COMPLETED: {
+      label: 'Completed',
+      color: 'text-gray-700 bg-gray-50 border-gray-200',
+      description: 'Your treatment course is complete.',
+    },
+    CANCELLED: {
+      label: 'Cancelled',
+      color: 'text-red-700 bg-red-50 border-red-200',
+      description: 'Your prescription has been cancelled. Please message your physician if you have questions.',
+    },
+    DENIED: {
+      label: 'Denied by Pharmacy',
+      color: 'text-red-700 bg-red-50 border-red-200',
+      description: 'The pharmacy was unable to fill your prescription. Your physician has been notified.',
+    },
+    EXPIRED: {
+      label: 'Expired',
+      color: 'text-gray-700 bg-gray-50 border-gray-200',
+      description: 'This prescription has expired. Contact your physician for a new prescription.',
+    },
+  };
+  return map[status] || { label: status, color: 'text-gray-700 bg-gray-50 border-gray-200', description: '' };
 }
 
 /**
@@ -204,8 +281,8 @@ export function canRequestRefill(prescription: {
   // Check if prescription has refills remaining
   if (prescription.refillsRemaining <= 0) return false;
   
-  // Check if prescription is active
-  if (prescription.status === 'CANCELLED' || prescription.status === 'EXPIRED') return false;
+  // Check if prescription is in an active state
+  if (['CANCELLED', 'EXPIRED', 'COMPLETED', 'DENIED'].includes(prescription.status)) return false;
   
   // Check refill availability date
   if (!prescription.nextRefillAvailable) return false;
@@ -232,7 +309,15 @@ export function getRefillEligibilityMessage(prescription: {
   if (prescription.status === 'CANCELLED') {
     return 'This prescription has been cancelled.';
   }
-  
+
+  if (prescription.status === 'COMPLETED') {
+    return 'This treatment course is complete.';
+  }
+
+  if (prescription.status === 'DENIED') {
+    return 'This prescription was denied by the pharmacy.';
+  }
+
   if (prescription.status === 'EXPIRED') {
     return 'This prescription has expired. Contact your doctor for a new prescription.';
   }

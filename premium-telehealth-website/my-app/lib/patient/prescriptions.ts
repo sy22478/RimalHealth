@@ -40,7 +40,9 @@ export async function getPatientPrescriptions(patientId: string): Promise<Prescr
       refills: true,
       refillsRemaining: true,
       pharmacyName: true,
+      pharmacyAddress: true,
       status: true,
+      sentAt: true,
       lastRefillDate: true,
       nextRefillAvailable: true,
     },
@@ -359,9 +361,11 @@ export function getMockPrescriptions(): PrescriptionSummary[] {
       refills: 3,
       refillsRemaining: 2,
       pharmacyName: 'CVS Pharmacy - San Francisco',
-      status: PrescriptionStatus.SENT,
-      lastRefillDate: new Date(now.getTime() - 23 * 24 * 60 * 60 * 1000), // 23 days ago
-      nextRefillAvailable: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
+      pharmacyAddress: '123 Main St, San Francisco, CA 94102',
+      status: PrescriptionStatus.ACTIVE,
+      sentAt: new Date(now.getTime() - 25 * 24 * 60 * 60 * 1000),
+      lastRefillDate: new Date(now.getTime() - 23 * 24 * 60 * 60 * 1000),
+      nextRefillAvailable: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
     },
     {
       id: 'mock-prescription-2',
@@ -372,9 +376,11 @@ export function getMockPrescriptions(): PrescriptionSummary[] {
       refills: 2,
       refillsRemaining: 2,
       pharmacyName: 'Walgreens - Los Angeles',
-      status: PrescriptionStatus.READY_FOR_PICKUP,
+      pharmacyAddress: '456 Sunset Blvd, Los Angeles, CA 90028',
+      status: PrescriptionStatus.SENT,
+      sentAt: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000),
       lastRefillDate: null,
-      nextRefillAvailable: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000), // 2 days ago (eligible now)
+      nextRefillAvailable: null,
     },
     {
       id: 'mock-prescription-3',
@@ -385,9 +391,11 @@ export function getMockPrescriptions(): PrescriptionSummary[] {
       refills: 5,
       refillsRemaining: 0,
       pharmacyName: 'CVS Pharmacy - San Francisco',
-      status: PrescriptionStatus.PICKED_UP,
-      lastRefillDate: new Date(now.getTime() - 45 * 24 * 60 * 60 * 1000), // 45 days ago
-      nextRefillAvailable: new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000), // 15 days ago
+      pharmacyAddress: '123 Main St, San Francisco, CA 94102',
+      status: PrescriptionStatus.COMPLETED,
+      sentAt: new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000),
+      lastRefillDate: new Date(now.getTime() - 45 * 24 * 60 * 60 * 1000),
+      nextRefillAvailable: new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000),
     },
   ];
 }
@@ -411,10 +419,10 @@ export function getMockPrescriptionDetails(id: string): Prescription | null {
       pharmacyNcpdpId: '0564987',
       pharmacyPhone: '(415) 555-0123',
       pharmacyAddress: '123 Main St, San Francisco, CA 94102',
-      status: PrescriptionStatus.SENT,
+      status: PrescriptionStatus.ACTIVE,
       lastRefillDate: new Date(now.getTime() - 23 * 24 * 60 * 60 * 1000),
       nextRefillAvailable: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
-      sentAt: new Date(now.getTime() - 23 * 24 * 60 * 60 * 1000),
+      sentAt: new Date(now.getTime() - 25 * 24 * 60 * 60 * 1000),
       createdAt: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
     },
     'mock-prescription-2': {
@@ -430,9 +438,9 @@ export function getMockPrescriptionDetails(id: string): Prescription | null {
       pharmacyNcpdpId: '0123456',
       pharmacyPhone: '(213) 555-0456',
       pharmacyAddress: '456 Sunset Blvd, Los Angeles, CA 90028',
-      status: PrescriptionStatus.READY_FOR_PICKUP,
+      status: PrescriptionStatus.SENT,
       lastRefillDate: null,
-      nextRefillAvailable: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000),
+      nextRefillAvailable: null,
       sentAt: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000),
       createdAt: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000),
     },
@@ -449,7 +457,7 @@ export function getMockPrescriptionDetails(id: string): Prescription | null {
       pharmacyNcpdpId: '0564987',
       pharmacyPhone: '(415) 555-0123',
       pharmacyAddress: '123 Main St, San Francisco, CA 94102',
-      status: PrescriptionStatus.PICKED_UP,
+      status: PrescriptionStatus.COMPLETED,
       lastRefillDate: new Date(now.getTime() - 45 * 24 * 60 * 60 * 1000),
       nextRefillAvailable: new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000),
       sentAt: new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000),

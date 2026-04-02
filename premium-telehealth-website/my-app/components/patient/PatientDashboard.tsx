@@ -373,7 +373,7 @@ export function PatientDashboard({ data, userId, mfaEnabled = true, accountAgeDa
 
   // Get active prescription
   const activePrescription = data.prescriptions.find(
-    p => p.status !== PrescriptionStatus.CANCELLED && p.status !== PrescriptionStatus.EXPIRED
+    p => !([PrescriptionStatus.CANCELLED, PrescriptionStatus.EXPIRED, PrescriptionStatus.COMPLETED, PrescriptionStatus.DENIED] as PrescriptionStatus[]).includes(p.status)
   ) || null;
 
   return (

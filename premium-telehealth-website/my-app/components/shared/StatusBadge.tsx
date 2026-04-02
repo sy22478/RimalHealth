@@ -105,8 +105,23 @@ const PRESCRIPTION_STATUS_CONFIG: Record<string, StatusConfig> = {
     variant: 'success',
     dotColor: 'bg-green-500',
   },
+  ACTIVE: {
+    label: 'Active',
+    variant: 'success',
+    dotColor: 'bg-green-500',
+  },
+  COMPLETED: {
+    label: 'Completed',
+    variant: 'secondary',
+    dotColor: 'bg-gray-400',
+  },
   CANCELLED: {
     label: 'Cancelled',
+    variant: 'error',
+    dotColor: 'bg-red-500',
+  },
+  DENIED: {
+    label: 'Denied',
     variant: 'error',
     dotColor: 'bg-red-500',
   },

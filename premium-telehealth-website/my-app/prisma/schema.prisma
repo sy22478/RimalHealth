@@ -400,7 +400,10 @@ enum PrescriptionStatus {
   FILLED
   READY_FOR_PICKUP
   PICKED_UP
+  ACTIVE
+  COMPLETED
   CANCELLED
+  DENIED
   EXPIRED
 }
 

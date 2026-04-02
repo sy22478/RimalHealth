@@ -40,7 +40,9 @@ export function getDashboardStatus(
   if (intakeStatus === 'REJECTED') return 'intake_rejected';
   if (intakeStatus === 'NEEDS_INFO') return 'intake_needs_info';
   if (intakeStatus === 'APPROVED' && !prescriptionStatus) return 'approved_awaiting_rx';
-  if (prescriptionStatus === 'SENT') return 'rx_sent';
+  if (prescriptionStatus === 'ACTIVE' || prescriptionStatus === 'PICKED_UP') return 'active_treatment';
+  if (prescriptionStatus === 'SENT' || prescriptionStatus === 'RECEIVED_BY_PHARMACY' || prescriptionStatus === 'FILLED' || prescriptionStatus === 'READY_FOR_PICKUP') return 'rx_sent';
+  if (prescriptionStatus === 'PENDING') return 'approved_awaiting_rx';
   if (subscriptionStatus === 'ACTIVE') return 'active_treatment';
   return 'unknown';
 }
@@ -385,7 +387,10 @@ export function formatPrescriptionStatus(status: PrescriptionStatus): string {
     FILLED: 'Being Filled',
     READY_FOR_PICKUP: 'Ready for Pickup',
     PICKED_UP: 'Picked Up',
+    ACTIVE: 'Active',
+    COMPLETED: 'Completed',
     CANCELLED: 'Cancelled',
+    DENIED: 'Denied',
     EXPIRED: 'Expired',
   };
   return statusMap[status] || status;

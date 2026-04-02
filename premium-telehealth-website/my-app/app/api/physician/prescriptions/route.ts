@@ -62,7 +62,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [
+        { status: 'asc' },
+        { createdAt: 'desc' },
+      ],
       take: limit,
     });
 
@@ -99,6 +102,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         prescribedAt: rx.createdAt.toISOString(),
         sentAt: rx.sentAt?.toISOString() ?? null,
         pharmacyName: rx.pharmacyName,
+        pharmacyAddress: rx.pharmacyAddress,
       };
     });
 

@@ -3,116 +3,114 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { 
-  Pill, 
-  Clock, 
-  Calendar, 
-  MapPin, 
+import {
+  Pill,
+  Clock,
+  Calendar,
+  MapPin,
   RefreshCw,
   AlertCircle,
-  ChevronRight,
   Phone,
   Plus,
-  FileText
+  FileText,
+  CheckCircle,
+  Send,
+  ClipboardList,
+  MessageSquare,
+  XCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { PrescriptionStatus } from '@prisma/client';
+import { IntakeStatus } from '@prisma/client';
+import { PrescriptionSummary, getPrescriptionStatusDisplay, canRequestRefill } from '@/types/prescriptions';
 
 // ============================================================================
 // Types
 // ============================================================================
 
-interface Prescription {
-  id: string;
-  medicationName: string;
-  genericName: string;
-  dosage: string;
-  quantity: number;
-  refills: number;
-  refillsRemaining: number;
-  pharmacyName: string;
-  status: PrescriptionStatus;
-  lastRefillDate: Date | null;
-  nextRefillAvailable: Date | null;
+interface PrescriptionsApiResponse {
+  prescriptions: PrescriptionSummary[];
+  intakeStatus: IntakeStatus | null;
+  intakeSubmittedAt: string | null;
 }
 
 // ============================================================================
-// Utility Functions
+// Status-Dependent Content Components
 // ============================================================================
 
-function getDaysRemaining(prescription: {
-  quantity: number;
-  lastRefillDate: Date | null;
-  nextRefillAvailable?: Date | null;
-}): number {
-  // Prefer nextRefillAvailable as the authoritative source
-  if (prescription.nextRefillAvailable) {
-    const days = Math.ceil(
-      (new Date(prescription.nextRefillAvailable).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-    );
-    return Math.max(0, days);
-  }
-  // Fallback: use quantity as approximate days supply
-  const daysSupply = prescription.quantity;
-  const daysSinceLastFill = prescription.lastRefillDate
-    ? Math.floor((Date.now() - new Date(prescription.lastRefillDate).getTime()) / (1000 * 60 * 60 * 24))
-    : 0;
-  return Math.max(0, daysSupply - daysSinceLastFill);
+function NoIntakeState() {
+  return (
+    <Card className="border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50">
+      <CardContent className="p-8 text-center">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 mb-4">
+          <ClipboardList className="h-8 w-8 text-amber-600" />
+        </div>
+        <h3 className="text-xl font-semibold text-gray-900 mb-2">
+          Your intake form has not been submitted yet
+        </h3>
+        <p className="text-gray-600 max-w-md mx-auto mb-6">
+          Please complete your intake form so our medical team can review your case.
+        </p>
+        <Link href="/intake">
+          <Button className="bg-amber-600 hover:bg-amber-700 text-white">
+            <ClipboardList className="h-4 w-4 mr-2" />
+            Complete Intake Form
+          </Button>
+        </Link>
+      </CardContent>
+    </Card>
+  );
 }
 
-function formatPrescriptionStatus(status: PrescriptionStatus): string {
-  const statusMap: Record<PrescriptionStatus, string> = {
-    PENDING: 'Pending',
-    SENT: 'Sent to Pharmacy',
-    RECEIVED_BY_PHARMACY: 'At Pharmacy',
-    FILLED: 'Being Filled',
-    READY_FOR_PICKUP: 'Ready for Pickup',
-    PICKED_UP: 'Picked Up',
-    CANCELLED: 'Cancelled',
-    EXPIRED: 'Expired',
-  };
-  return statusMap[status] || status;
+function UnderReviewState() {
+  return (
+    <Card className="border-blue-200 bg-gradient-to-r from-blue-50 to-ocean-50">
+      <CardContent className="p-8 text-center">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 mb-4">
+          <Clock className="h-8 w-8 text-blue-600" />
+        </div>
+        <h3 className="text-xl font-semibold text-gray-900 mb-2">
+          Your intake is under review
+        </h3>
+        <p className="text-gray-600 max-w-md mx-auto">
+          Our medical team is reviewing your intake form. You&apos;ll be notified once a decision is made.
+          This typically takes less than 24 hours.
+        </p>
+      </CardContent>
+    </Card>
+  );
 }
 
-function getStatusColor(status: PrescriptionStatus): string {
-  const colorMap: Record<PrescriptionStatus, string> = {
-    PENDING: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    SENT: 'bg-blue-100 text-blue-800 border-blue-200',
-    RECEIVED_BY_PHARMACY: 'bg-purple-100 text-purple-800 border-purple-200',
-    FILLED: 'bg-indigo-100 text-indigo-800 border-indigo-200',
-    READY_FOR_PICKUP: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-    PICKED_UP: 'bg-green-100 text-green-800 border-green-200',
-    CANCELLED: 'bg-red-100 text-red-800 border-red-200',
-    EXPIRED: 'bg-gray-100 text-gray-800 border-gray-200',
-  };
-  return colorMap[status];
+function RejectedState() {
+  return (
+    <Card className="border-red-200 bg-gradient-to-r from-red-50 to-orange-50">
+      <CardContent className="p-8 text-center">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-100 mb-4">
+          <XCircle className="h-8 w-8 text-red-600" />
+        </div>
+        <h3 className="text-xl font-semibold text-gray-900 mb-2">
+          Your intake was not approved
+        </h3>
+        <p className="text-gray-600 max-w-md mx-auto mb-6">
+          Your physician has reviewed your intake and determined that this treatment is not appropriate
+          at this time. Please check your messages for details from your physician.
+        </p>
+        <Link href="/patient/messages">
+          <Button className="bg-ocean-500 hover:bg-ocean-600 text-white">
+            <MessageSquare className="h-4 w-4 mr-2" />
+            Message Your Doctor
+          </Button>
+        </Link>
+      </CardContent>
+    </Card>
+  );
 }
 
-// ============================================================================
-// Components
-// ============================================================================
-
-function PrescriptionCard({ 
-  prescription, 
-  onRequestRefill 
-}: { 
-  prescription: Prescription;
-  onRequestRefill: (id: string) => void;
-}) {
-  const daysRemaining = getDaysRemaining(prescription);
-  // Calculate total supply days for progress bar
-  const totalSupplyDays = prescription.nextRefillAvailable && prescription.lastRefillDate
-    ? Math.ceil((new Date(prescription.nextRefillAvailable).getTime() - new Date(prescription.lastRefillDate).getTime()) / (1000 * 60 * 60 * 24))
-    : prescription.quantity;
-  const percentage = (daysRemaining / totalSupplyDays) * 100;
-
-  const canRefill = prescription.refillsRemaining > 0 && 
-    prescription.status !== 'CANCELLED' && 
-    prescription.status !== 'EXPIRED' &&
-    daysRemaining <= 7;
+function PrescriptionStatusCard({ prescription }: { prescription: PrescriptionSummary }) {
+  const statusDisplay = getPrescriptionStatusDisplay(prescription.status);
+  const isRefillEligible = canRequestRefill(prescription);
 
   return (
     <motion.div
@@ -120,125 +118,115 @@ function PrescriptionCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <Card className="hover:shadow-md transition-shadow">
+      <Card className={cn('border', statusDisplay.color)}>
         <CardHeader className="pb-4">
           <div className="flex items-start justify-between">
             <div className="flex items-start gap-3">
-              <div className="p-2 bg-ocean-50 rounded-lg">
-                <Pill className="h-5 w-5 text-ocean-600" />
+              <div className="p-2 bg-white rounded-lg shadow-sm">
+                {prescription.status === 'PENDING' && <Clock className="h-5 w-5 text-amber-600" />}
+                {prescription.status === 'SENT' && <Send className="h-5 w-5 text-blue-600" />}
+                {(prescription.status === 'ACTIVE' || prescription.status === 'PICKED_UP') && <Pill className="h-5 w-5 text-green-600" />}
+                {prescription.status === 'COMPLETED' && <CheckCircle className="h-5 w-5 text-gray-600" />}
+                {(prescription.status === 'CANCELLED' || prescription.status === 'DENIED') && <XCircle className="h-5 w-5 text-red-600" />}
+                {!['PENDING', 'SENT', 'ACTIVE', 'PICKED_UP', 'COMPLETED', 'CANCELLED', 'DENIED'].includes(prescription.status) && (
+                  <Pill className="h-5 w-5 text-blue-600" />
+                )}
               </div>
               <div>
-                <CardTitle className="text-lg">{prescription.medicationName}</CardTitle>
-                <CardDescription>{prescription.genericName}</CardDescription>
-                <p className="text-sm font-medium text-gray-700 mt-1">
-                  {prescription.dosage}
-                </p>
+                <CardTitle className="text-lg">{statusDisplay.label}</CardTitle>
+                <CardDescription className="mt-1">{statusDisplay.description}</CardDescription>
               </div>
             </div>
-            <Badge variant="outline" className={cn('shrink-0', getStatusColor(prescription.status))}>
-              {formatPrescriptionStatus(prescription.status)}
-            </Badge>
           </div>
         </CardHeader>
 
         <CardContent className="space-y-4">
-          {prescription.lastRefillDate && (
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-600">{daysRemaining} days remaining</span>
-                <span className="text-sm text-gray-500">
-                  {prescription.nextRefillAvailable
-                    ? `${Math.ceil((new Date(prescription.nextRefillAvailable).getTime() - new Date(prescription.lastRefillDate!).getTime()) / (1000 * 60 * 60 * 24))} day supply`
-                    : `${prescription.quantity} day supply`}
-                </span>
-              </div>
-              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className={cn(
-                    'h-full transition-all duration-500',
-                    percentage <= 20 ? 'bg-red-500' : percentage <= 40 ? 'bg-amber-500' : 'bg-ocean-500'
-                  )}
-                  style={{ width: `${percentage}%` }}
-                />
+          {/* Medication Info — safe to show (Naltrexone is on the public marketing site) */}
+          {prescription.status === 'ACTIVE' && (
+            <div className="bg-white rounded-lg p-4 border border-gray-100">
+              <p className="text-sm text-gray-500">Medication</p>
+              <p className="font-semibold text-gray-900">Naltrexone 50mg</p>
+            </div>
+          )}
+
+          {/* Pharmacy Info */}
+          {prescription.pharmacyName && prescription.pharmacyName !== 'Pending' && (
+            <div className="flex items-start gap-2">
+              <MapPin className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-gray-900">{prescription.pharmacyName}</p>
+                {prescription.pharmacyAddress && (
+                  <p className="text-sm text-gray-500">{prescription.pharmacyAddress}</p>
+                )}
               </div>
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4 text-sm">
+          {prescription.pharmacyName === 'Pending' && prescription.status === 'PENDING' && (
+            <div className="flex items-start gap-2">
+              <MapPin className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+              <p className="text-sm text-amber-700">Pharmacy not yet assigned</p>
+            </div>
+          )}
+
+          {/* Sent date */}
+          {prescription.sentAt && (
             <div className="flex items-center gap-2">
-              <RefreshCw className="h-4 w-4 text-gray-400" />
-              <span className="text-gray-600">
-                {prescription.refillsRemaining} of {prescription.refills} refills left
+              <Calendar className="h-4 w-4 text-gray-400" />
+              <span className="text-sm text-gray-600">
+                Sent on {new Date(prescription.sentAt).toLocaleDateString('en-US', {
+                  month: 'long',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
               </span>
             </div>
-            <div className="flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-gray-400" />
-              <span className="text-gray-600 truncate">{prescription.pharmacyName}</span>
-            </div>
-            {prescription.lastRefillDate && (
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-gray-400" />
-                <span className="text-gray-600">
-                  Filled {new Date(prescription.lastRefillDate).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                  })}
-                </span>
-              </div>
-            )}
-            {prescription.nextRefillAvailable && (
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-gray-400" />
-                <span className={cn(
-                  'text-gray-600',
-                  daysRemaining <= 7 && 'text-amber-600 font-medium'
-                )}>
-                  Refill {new Date(prescription.nextRefillAvailable).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                  })}
-                </span>
-              </div>
-            )}
-          </div>
+          )}
 
-          <div className="flex gap-3 pt-2">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => onRequestRefill(prescription.id)}
-              disabled={!canRefill}
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Request Refill
-            </Button>
-          </div>
+          {/* Refill info for ACTIVE prescriptions */}
+          {prescription.status === 'ACTIVE' && (
+            <>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-500">Refills remaining</span>
+                <span className="font-medium text-gray-900">
+                  {prescription.refillsRemaining} of {prescription.refills}
+                </span>
+              </div>
+
+              {prescription.nextRefillAvailable && (
+                <div className="flex items-center gap-2">
+                  <RefreshCw className="h-4 w-4 text-gray-400" />
+                  <span className="text-sm text-gray-600">
+                    Next refill available:{' '}
+                    {new Date(prescription.nextRefillAvailable).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                    })}
+                  </span>
+                </div>
+              )}
+
+              {isRefillEligible && (
+                <Button className="w-full bg-ocean-500 hover:bg-ocean-600 text-white">
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Request Refill
+                </Button>
+              )}
+            </>
+          )}
+
+          {/* CTA for completed/cancelled */}
+          {(prescription.status === 'COMPLETED' || prescription.status === 'CANCELLED' || prescription.status === 'DENIED') && (
+            <Link href="/patient/messages">
+              <Button variant="outline" className="w-full">
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Message Your Doctor
+              </Button>
+            </Link>
+          )}
         </CardContent>
       </Card>
     </motion.div>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div className="border-dashed border-2 border-gray-200 rounded-xl text-center py-16 px-6">
-      <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-ocean-50 mb-6">
-        <Pill className="h-10 w-10 text-ocean-400" />
-      </div>
-      <h3 className="text-xl font-semibold text-gray-900 mb-2">
-        Your prescription is on the way
-      </h3>
-      <p className="text-gray-500 max-w-md mx-auto mb-8">
-        Once your physician reviews your intake and prescribes medication,
-        it will appear here. In the meantime, feel free to reach out with any questions.
-      </p>
-      <Link href="/patient/messages">
-        <Button className="bg-ocean-500 hover:bg-ocean-600 text-white">
-          <Plus className="h-4 w-4 mr-2" />
-          Message Your Doctor
-        </Button>
-      </Link>
-    </div>
   );
 }
 
@@ -247,7 +235,8 @@ function EmptyState() {
 // ============================================================================
 
 export default function PrescriptionsPage() {
-  const [prescriptions, setPrescriptions] = React.useState<Prescription[]>([]);
+  const [prescriptions, setPrescriptions] = React.useState<PrescriptionSummary[]>([]);
+  const [intakeStatus, setIntakeStatus] = React.useState<IntakeStatus | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -256,8 +245,9 @@ export default function PrescriptionsPage() {
       try {
         const res = await fetch('/api/patient/prescriptions', { credentials: 'include' });
         if (!res.ok) throw new Error('Failed to load prescriptions');
-        const data = await res.json();
-        setPrescriptions(data.prescriptions || []);
+        const data: PrescriptionsApiResponse = await res.json();
+        setPrescriptions(Array.isArray(data.prescriptions) ? data.prescriptions : []);
+        setIntakeStatus(data.intakeStatus);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load prescriptions');
       } finally {
@@ -266,36 +256,6 @@ export default function PrescriptionsPage() {
     }
     loadPrescriptions();
   }, []);
-
-  const handleRequestRefill = async (prescriptionId: string) => {
-    try {
-      const res = await fetch(`/api/patient/prescriptions/${prescriptionId}/refill`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to request refill');
-      }
-      setError(null);
-      // Reload prescriptions to show updated state
-      const updated = await fetch('/api/patient/prescriptions', { credentials: 'include' });
-      if (updated.ok) {
-        const data = await updated.json();
-        setPrescriptions(data.prescriptions || []);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to request refill');
-    }
-  };
-
-  const activePrescriptions = prescriptions.filter(
-    (p) => p.status !== 'CANCELLED' && p.status !== 'EXPIRED'
-  );
-  
-  const pastPrescriptions = prescriptions.filter(
-    (p) => p.status === 'CANCELLED' || p.status === 'EXPIRED'
-  );
 
   if (isLoading) {
     return (
@@ -307,6 +267,18 @@ export default function PrescriptionsPage() {
       </div>
     );
   }
+
+  // Determine what to show based on intake/prescription state
+  const hasIntake = intakeStatus !== null;
+  const intakeSubmitted = intakeStatus === 'SUBMITTED' || intakeStatus === 'UNDER_REVIEW';
+  const intakeRejected = intakeStatus === 'REJECTED';
+  const intakeNeedsInfo = intakeStatus === 'NEEDS_INFO';
+  const activePrescriptions = prescriptions.filter(
+    (p) => !['CANCELLED', 'EXPIRED', 'COMPLETED', 'DENIED'].includes(p.status)
+  );
+  const pastPrescriptions = prescriptions.filter(
+    (p) => ['CANCELLED', 'EXPIRED', 'COMPLETED', 'DENIED'].includes(p.status)
+  );
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -329,9 +301,46 @@ export default function PrescriptionsPage() {
         </div>
       )}
 
-      {prescriptions.length === 0 ? (
-        <EmptyState />
-      ) : (
+      {/* No intake submitted yet */}
+      {(!hasIntake || intakeStatus === 'DRAFT') && prescriptions.length === 0 && (
+        <NoIntakeState />
+      )}
+
+      {/* Intake submitted but not reviewed */}
+      {intakeSubmitted && prescriptions.length === 0 && (
+        <UnderReviewState />
+      )}
+
+      {/* Intake rejected */}
+      {intakeRejected && prescriptions.length === 0 && (
+        <RejectedState />
+      )}
+
+      {/* Intake needs info */}
+      {intakeNeedsInfo && prescriptions.length === 0 && (
+        <Card className="border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50">
+          <CardContent className="p-8 text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 mb-4">
+              <AlertCircle className="h-8 w-8 text-amber-600" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              Additional information needed
+            </h3>
+            <p className="text-gray-600 max-w-md mx-auto mb-6">
+              Your physician needs more information to complete your review. Please check your messages.
+            </p>
+            <Link href="/patient/messages">
+              <Button className="bg-ocean-500 hover:bg-ocean-600 text-white">
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Check Messages
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Prescriptions exist — show status cards */}
+      {prescriptions.length > 0 && (
         <div className="space-y-8">
           {activePrescriptions.length > 0 && (
             <div>
@@ -342,13 +351,9 @@ export default function PrescriptionsPage() {
                   {activePrescriptions.length}
                 </Badge>
               </h2>
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4">
                 {activePrescriptions.map((prescription) => (
-                  <PrescriptionCard
-                    key={prescription.id}
-                    prescription={prescription}
-                    onRequestRefill={handleRequestRefill}
-                  />
+                  <PrescriptionStatusCard key={prescription.id} prescription={prescription} />
                 ))}
               </div>
             </div>
@@ -363,13 +368,9 @@ export default function PrescriptionsPage() {
                   {pastPrescriptions.length}
                 </Badge>
               </h2>
-              <div className="grid gap-4 md:grid-cols-2 opacity-75">
+              <div className="grid gap-4 opacity-75">
                 {pastPrescriptions.map((prescription) => (
-                  <PrescriptionCard
-                    key={prescription.id}
-                    prescription={prescription}
-                    onRequestRefill={handleRequestRefill}
-                  />
+                  <PrescriptionStatusCard key={prescription.id} prescription={prescription} />
                 ))}
               </div>
             </div>
@@ -377,6 +378,7 @@ export default function PrescriptionsPage() {
         </div>
       )}
 
+      {/* Help Card */}
       <Card className="mt-8 bg-blue-50 border-blue-200">
         <CardContent className="p-6">
           <div className="flex items-start gap-4">
@@ -388,7 +390,7 @@ export default function PrescriptionsPage() {
                 Need help with your prescriptions?
               </h3>
               <p className="text-sm text-blue-700 mb-4">
-                If you have questions about your medications, side effects, or need 
+                If you have questions about your medications, side effects, or need
                 to request a new prescription, message your physician.
               </p>
               <Link href="/patient/messages">

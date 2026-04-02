@@ -387,6 +387,8 @@ export function PrescriptionList({
                   <SelectItem value="FILLED">Filled</SelectItem>
                   <SelectItem value="READY_FOR_PICKUP">Ready</SelectItem>
                   <SelectItem value="PICKED_UP">Picked Up</SelectItem>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="COMPLETED">Completed</SelectItem>
                   <SelectItem value="CANCELLED">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
