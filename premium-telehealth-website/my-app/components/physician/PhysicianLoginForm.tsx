@@ -158,7 +158,7 @@ export function PhysicianLoginForm() {
       // MFA verified — redirect to physician portal
       router.push("/physician/queue");
     } catch (err) {
-      console.error("MFA verify error:", err);
+      console.error('MFA verify error:', err instanceof Error ? err.message : 'Unknown error');
       setError("An unexpected error occurred. Please try again.");
     } finally {
       setIsMFALoading(false);

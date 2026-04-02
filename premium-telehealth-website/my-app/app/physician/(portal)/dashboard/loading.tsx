@@ -21,9 +21,9 @@ export default function DashboardLoading() {
         </div>
       </div>
 
-      {/* Stats grid skeleton — mirrors DashboardStats (6 stat cards in 3x2 grid) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {Array.from({ length: 6 }).map((_, i) => (
+      {/* Stats grid skeleton — mirrors DashboardStats (4 stat cards in 4-col grid) */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
           <Card key={i}>
             <CardHeader className="pb-2">
               <Skeleton className="h-4 w-24" />

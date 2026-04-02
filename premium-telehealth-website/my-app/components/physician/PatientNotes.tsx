@@ -558,6 +558,7 @@ export function PatientNotes(props: PatientNotesProps): React.ReactElement {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [addNoteError, setAddNoteError] = useState<string | null>(null);
 
   // Use external notes if in legacy mode
   const displayNotes = isLegacyMode 
@@ -596,33 +597,38 @@ export function PatientNotes(props: PatientNotesProps): React.ReactElement {
     // Optimistically add note to UI
     setModernNotes((prev) => [optimisticNote, ...prev]);
     setIsDialogOpen(false);
+    setAddNoteError(null);
 
     try {
-      // In production, POST to API:
-      // const response = await fetch(`/api/physician/patients/${patientId}/notes`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(formData),
-      // });
-      
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      
+      const response = await fetch(`/api/physician/patients/${patientId}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save note');
+      }
+
+      const data = await response.json();
+
       // Replace optimistic note with server response
       const savedNote: PhysicianNote = {
         ...optimisticNote,
-        id: `note-${Date.now()}`,
+        id: data.note?.id || optimisticNote.id,
+        createdAt: data.note?.createdAt ? new Date(data.note.createdAt) : optimisticNote.createdAt,
       };
-      
+
       setModernNotes((prev) =>
         prev.map((note) =>
           note.id === optimisticNote.id ? savedNote : note
         )
       );
     } catch (error) {
+      console.error('Failed to save note:', error instanceof Error ? error.message : 'Unknown error');
       // Remove optimistic note on error
       setModernNotes((prev) => prev.filter((note) => note.id !== optimisticNote.id));
-      alert('Failed to save note. Please try again.');
+      setAddNoteError('Failed to save note. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -678,6 +684,19 @@ export function PatientNotes(props: PatientNotesProps): React.ReactElement {
           </div>
         </CardHeader>
         <CardContent>
+          {addNoteError && (
+            <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex items-center gap-2 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              {addNoteError}
+              <button
+                className="ml-auto text-destructive/60 hover:text-destructive"
+                onClick={() => setAddNoteError(null)}
+                aria-label="Dismiss error"
+              >
+                &times;
+              </button>
+            </div>
+          )}
           {displayNotes.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground border rounded-lg bg-muted/30">
               <StickyNote className="h-12 w-12 mx-auto mb-3 opacity-50" />
