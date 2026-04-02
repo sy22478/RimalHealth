@@ -35,7 +35,7 @@ export default function DisclosuresPage() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`/api/patient/disclosures?page=${page}&limit=20`);
+        const res = await fetch(`/api/patient/disclosures?page=${page}&limit=20`, { credentials: 'include' });
         if (!res.ok) {
           throw new Error('Failed to fetch disclosures');
         }

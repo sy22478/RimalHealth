@@ -213,5 +213,4 @@ export default async function PatientDashboardPage() {
   );
 }
 
-export const revalidate = 60;
 export const dynamic = "force-dynamic";

@@ -134,12 +134,12 @@ export default function BillingPage(): React.ReactElement {
           const invoicesResult = await invoicesResponse.json();
           setInvoices(invoicesResult.invoices || []);
         } catch (invoiceErr) {
-          console.error('Error fetching invoices:', invoiceErr);
+          console.error('Error fetching invoices:', invoiceErr instanceof Error ? invoiceErr.message : 'Unknown error');
           setInvoiceError('Unable to load invoice history. Please try again later.');
           // Don't set the main error — subscription overview still shows
         }
       } catch (err) {
-        console.error('Error fetching billing data:', err);
+        console.error('Error fetching billing data:', err instanceof Error ? err.message : 'Unknown error');
         setError(err instanceof Error ? err.message : 'Failed to load billing information');
       } finally {
         setIsLoading(false);
@@ -170,7 +170,7 @@ export default function BillingPage(): React.ReactElement {
       // Redirect to Stripe Customer Portal
       window.location.href = portalUrl;
     } catch (err) {
-      console.error('Error opening portal:', err);
+      console.error('Error opening portal:', err instanceof Error ? err.message : 'Unknown error');
       setError(err instanceof Error ? err.message : 'Failed to open payment portal');
       setIsPortalLoading(false);
     }
@@ -216,7 +216,7 @@ export default function BillingPage(): React.ReactElement {
 
       setIsCancelModalOpen(false);
     } catch (err) {
-      console.error('Error cancelling subscription:', err);
+      console.error('Error cancelling subscription:', err instanceof Error ? err.message : 'Unknown error');
       setError(err instanceof Error ? err.message : 'Failed to cancel subscription');
     } finally {
       setIsCancelling(false);
@@ -251,7 +251,7 @@ export default function BillingPage(): React.ReactElement {
       link.click();
       document.body.removeChild(link);
     } catch (err) {
-      console.error('Error downloading invoice:', err);
+      console.error('Error downloading invoice:', err instanceof Error ? err.message : 'Unknown error');
       setError(err instanceof Error ? err.message : 'Failed to download invoice');
     } finally {
       setDownloadingId(null);
