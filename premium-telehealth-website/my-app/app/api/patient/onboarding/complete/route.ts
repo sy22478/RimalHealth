@@ -16,7 +16,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAccessToken } from '@/lib/auth/jwt';
+import { requireRole } from '@/lib/auth/require-auth';
 import { auditLogger, PHIResourceType } from '@/lib/audit/index';
 import { getClientIP } from '@/lib/audit/utils';
 import { notificationQueue, EmailTemplate } from '@/lib/notifications';
@@ -25,6 +25,7 @@ import {
   updateOnboardingStatus,
 } from '@/lib/patient/onboarding';
 import { getPatientProfileByUserId } from '@/lib/patient/profile';
+import { Role } from '@prisma/client';
 
 /**
  * POST handler for completing onboarding
@@ -32,28 +33,14 @@ import { getPatientProfileByUserId } from '@/lib/patient/profile';
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     // ========================================================================
-    // 1. Verify authentication
+    // 1. Verify authentication — require PATIENT role
     // ========================================================================
-    const authHeader = request.headers.get('authorization');
-    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
-    const cookieToken = request.cookies.get('accessToken')?.value ?? null;
-    const token = bearerToken ?? cookieToken;
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
-    const payload = await verifyAccessToken(token);
-    
-    if (!payload) {
-      return NextResponse.json(
-        { error: 'Invalid or expired token' },
-        { status: 401 }
-      );
+    const auth = await requireRole(request, [Role.PATIENT]);
+    if (auth instanceof NextResponse) {
+      return auth;
     }
 
-    const userId = payload.userId;
+    const userId = auth.user.userId;
 
     // ========================================================================
     // 2. Verify patient profile exists
@@ -84,7 +71,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       type: 'email',
       priority: 'normal',
       payload: {
-        to: payload.email,
+        to: auth.user.email,
         template: EmailTemplate.INTAKE_SUBMITTED,
         data: {
           firstName: profile.firstName,
@@ -99,7 +86,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     await auditLogger.logPHIAccess(
       'UPDATE',
       userId,
-      payload.role,
+      auth.user.role,
       PHIResourceType.PATIENT_PROFILE,
       profile.id,
       {

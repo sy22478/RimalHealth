@@ -14,8 +14,9 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
 import { auditLogger, AuditEventType } from '@/lib/audit/index';
 import { getClientIP } from '@/lib/audit/utils';
-import { verifyAccessToken } from '@/lib/auth/jwt';
+import { requireRole } from '@/lib/auth/require-auth';
 import { verifyPassword, hashPassword } from '@/lib/auth/password';
+import { Role } from '@prisma/client';
 
 // ============================================================================
 // Validation Schema
@@ -40,31 +41,6 @@ const changePasswordSchema = z.object({
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 
 // ============================================================================
-// Authentication Helper
-// ============================================================================
-
-async function authenticatePatient(request: NextRequest): Promise<{ userId: string; role: string } | null> {
-  try {
-    const authHeader = request.headers.get('authorization');
-    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
-    const cookieToken = request.cookies.get('accessToken')?.value ?? null;
-    const token = bearerToken ?? cookieToken;
-    if (!token) {
-      return null;
-    }
-    const payload = await verifyAccessToken(token);
-    
-    if (!payload || payload.role !== 'PATIENT') {
-      return null;
-    }
-
-    return { userId: payload.userId, role: payload.role };
-  } catch {
-    return null;
-  }
-}
-
-// ============================================================================
 // POST Handler - Change Password
 // ============================================================================
 
@@ -73,17 +49,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const userAgent = request.headers.get('user-agent') || '';
 
   try {
-    // Authenticate and verify PATIENT role
-    const auth = await authenticatePatient(request);
-    
-    if (!auth) {
-      return NextResponse.json(
-        { error: 'Authentication required', code: 'UNAUTHORIZED' },
-        { status: 401 }
-      );
+    // Require PATIENT role
+    const auth = await requireRole(request, [Role.PATIENT]);
+    if (auth instanceof NextResponse) {
+      return auth;
     }
 
-    const { userId } = auth;
+    const { userId } = auth.user;
 
     // Parse and validate request body
     const body = await request.json();

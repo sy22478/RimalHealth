@@ -17,7 +17,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import { getStripe } from '@/lib/stripe/stripe-server';
 import { auditLogger, createAuditContext } from '@/lib/audit/index';
-import { verifyAccessToken } from '@/lib/auth/jwt';
+import { requireRole } from '@/lib/auth/require-auth';
+import { Role } from '@prisma/client';
 
 // ============================================================================
 // Types
@@ -32,55 +33,26 @@ interface PortalResponse {
 // Helper Functions
 // ============================================================================
 
-/**
- * Authenticate request and get user ID
- * Accepts Bearer token from Authorization header or accessToken cookie.
- */
-async function authenticateRequest(request: NextRequest): Promise<{ userId: string; role: string } | null> {
-  const authHeader = request.headers.get('Authorization');
-  const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
-  const cookieToken = request.cookies.get('accessToken')?.value ?? null;
-  const token = bearerToken ?? cookieToken;
-  if (!token) {
-    return null;
-  }
-  const payload = await verifyAccessToken(token);
-  if (!payload) {
-    return null;
-  }
-  return { userId: payload.userId, role: payload.role };
-}
-
 // ============================================================================
 // Route Handler
 // ============================================================================
 
 /**
  * POST handler - Create Stripe Customer Portal session
- * 
+ *
  * Returns:
  * - Stripe Customer Portal URL
  * - Expiration timestamp
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    // Authenticate request
-    const auth = await authenticateRequest(request);
-    if (!auth) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+    // Require PATIENT role
+    const auth = await requireRole(request, [Role.PATIENT]);
+    if (auth instanceof NextResponse) {
+      return auth;
     }
 
-    if (auth.role !== 'PATIENT') {
-      return NextResponse.json(
-        { error: 'Forbidden - Patient access only' },
-        { status: 403 }
-      );
-    }
-
-    const userId = auth.userId;
+    const userId = auth.user.userId;
 
     try {
       // Fetch subscription to get Stripe customer ID
