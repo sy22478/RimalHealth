@@ -21,7 +21,9 @@ import {
   ConcernType,
   QueueIntakeStatus,
 } from '@/types/physician-queue';
-import { decryptPHI } from '@/lib/encryption/phi';
+// PHI decryption is handled automatically by the Prisma encryption extension.
+// Do NOT manually call decryptPHI on nested included relations — they are auto-decrypted
+// via RELATION_TO_MODEL in lib/db/encryption-extension.ts.
 
 /**
  * Calculate age from date of birth
@@ -135,37 +137,26 @@ export async function getPendingIntakes(
       const submittedAt = intake.submittedAt || new Date();
       const waitTimeHours = calculateWaitTime(submittedAt);
 
-      // Decrypt PHI fields
-      // NOTE: Manual decryption is required here because the Prisma encryption
-      // extension only auto-decrypts fields on the top-level queried model (Intake).
-      // Nested included relations (patient.patientProfile) are not auto-decrypted.
+      // PHI fields on nested included relations (patient.patientProfile) are
+      // auto-decrypted by the Prisma encryption extension via RELATION_TO_MODEL.
+      // Do NOT manually call decryptPHI here — it would double-decrypt and fail.
       let patientName = 'Unknown';
       let patientAge = 0;
       let concernType: ConcernType = 'ALCOHOL';
 
-      try {
-        if (profile) {
-          const firstName = profile.firstName
-            ? decryptPHI(profile.firstName)
-            : '';
-          const lastName = profile.lastName
-            ? decryptPHI(profile.lastName)
-            : '';
-          patientName = `${firstName} ${lastName}`.trim() || 'Unknown';
+      if (profile) {
+        const firstName = typeof profile.firstName === 'string' ? profile.firstName : '';
+        const lastName = typeof profile.lastName === 'string' ? profile.lastName : '';
+        patientName = `${firstName} ${lastName}`.trim() || 'Unknown';
 
-          if (profile.dateOfBirth) {
-            const dob = decryptPHI(profile.dateOfBirth);
-            patientAge = calculateAge(dob);
-          }
-
-          // primaryConcern is a ConcernType enum, not an encrypted string
-          if (profile.primaryConcern) {
-            concernType = mapConcernType(profile.primaryConcern);
-          }
+        if (profile.dateOfBirth && typeof profile.dateOfBirth === 'string') {
+          patientAge = calculateAge(profile.dateOfBirth);
         }
-      } catch (decryptError) {
-        // Log decryption failure but continue with placeholder
-        console.error('Failed to decrypt PHI for intake:', intake.id);
+
+        // primaryConcern is a ConcernType enum, not an encrypted string
+        if (profile.primaryConcern) {
+          concernType = mapConcernType(profile.primaryConcern);
+        }
       }
 
       const queueStatus = mapQueueStatus(intake.status);

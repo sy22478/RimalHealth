@@ -14,6 +14,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireRole } from '@/lib/auth/require-auth';
+import { prisma } from '@/lib/db/prisma';
 import {
   updateClinicalNote,
   deleteClinicalNote,
@@ -50,6 +51,19 @@ export async function PUT(
   try {
     const { id: patientId, noteId } = await context.params;
 
+    // Look up the physician record (PhysicianNote FK references Physician.id, not User.id)
+    const physician = await prisma.physician.findFirst({
+      where: { userId },
+      select: { id: true },
+    });
+
+    if (!physician) {
+      return NextResponse.json(
+        { error: 'Physician profile not found' },
+        { status: 404 }
+      );
+    }
+
     // Validate request body
     let body: unknown;
     try {
@@ -72,10 +86,10 @@ export async function PUT(
       );
     }
 
-    // Update note
+    // Update note — pass Physician.id (not User.id) since PhysicianNote.physicianId references Physician.id
     const note = await updateClinicalNote(
       noteId,
-      userId,
+      physician.id,
       validation.data.content,
       { ipAddress, userAgent, requestId }
     );
@@ -132,10 +146,23 @@ export async function DELETE(
   try {
     const { id: patientId, noteId } = await context.params;
 
-    // Delete note
+    // Look up the physician record (PhysicianNote FK references Physician.id, not User.id)
+    const physician = await prisma.physician.findFirst({
+      where: { userId },
+      select: { id: true },
+    });
+
+    if (!physician) {
+      return NextResponse.json(
+        { error: 'Physician profile not found' },
+        { status: 404 }
+      );
+    }
+
+    // Delete note — pass Physician.id (not User.id)
     const deleted = await deleteClinicalNote(
       noteId,
-      userId,
+      physician.id,
       { ipAddress, userAgent, requestId }
     );
 

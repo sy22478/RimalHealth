@@ -89,9 +89,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       recentMessages,
       recentNotes,
     ] = await Promise.all([
-      // Pending reviews (intakes waiting for review)
+      // Pending reviews (intakes waiting for or currently under review)
       prisma.intake.count({
-        where: { status: IntakeStatus.SUBMITTED },
+        where: {
+          status: {
+            in: [IntakeStatus.SUBMITTED, IntakeStatus.UNDER_REVIEW],
+          },
+        },
       }),
 
       // Reviews completed today by this physician
@@ -105,10 +109,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         },
       }),
 
-      // Unread messages for this physician
+      // Unread physician-to-physician messages (PhysicianMessage FK references Physician.id)
       prisma.physicianMessage.count({
         where: {
-          recipientId: userId,
+          recipientId: physicianId,
           isRead: false,
         },
       }),
@@ -157,10 +161,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         },
       }),
 
-      // Recent messages activity (last 5)
+      // Recent physician-to-physician messages (PhysicianMessage FK references Physician.id)
       prisma.physicianMessage.findMany({
         where: {
-          OR: [{ senderId: userId }, { recipientId: userId }],
+          OR: [{ senderId: physicianId }, { recipientId: physicianId }],
         },
         take: 5,
         orderBy: { createdAt: 'desc' },
@@ -210,7 +214,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // Add message activities
     recentMessages.forEach((message) => {
-      const isOutgoing = message.senderId === userId;
+      const isOutgoing = message.senderId === physicianId;
       recentActivity.push({
         id: message.id,
         type: 'MESSAGE',

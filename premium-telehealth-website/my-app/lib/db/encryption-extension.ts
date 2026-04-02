@@ -276,8 +276,10 @@ const RELATION_TO_MODEL: Record<string, string> = {
   documents: 'Document',
   // Intake relations
   patient: 'User',
-  reviews: 'Review',
-  prescriptions: 'Prescription',
+  review: 'Review',        // Singular (Intake has one Review — 1:1)
+  reviews: 'Review',       // Plural (kept for backward compatibility)
+  prescription: 'Prescription', // Singular (Intake has one Prescription — 1:1)
+  prescriptions: 'Prescription', // Plural (kept for backward compatibility)
   // Review relations
   intake: 'Intake',
   // Prescription relations
