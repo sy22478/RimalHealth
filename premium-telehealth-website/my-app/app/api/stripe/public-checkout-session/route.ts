@@ -97,7 +97,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       billing_address_collection: 'required',
       payment_method_collection: 'always',
       metadata: sessionMetadata,
-      subscription_data: { metadata: { planType } },
+      subscription_data: {
+        metadata: { planType },
+        trial_period_days: 7,
+      },
     });
 
     return NextResponse.json({

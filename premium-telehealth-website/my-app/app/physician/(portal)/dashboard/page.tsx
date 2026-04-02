@@ -166,16 +166,6 @@ export default async function PhysicianDashboardPage() {
         const statsData = await statsRes.value.json();
         if (statsData.stats) {
           stats = statsData.stats;
-        } else if (statsData.queue) {
-          // Map the stats API response shape to PhysicianDashboardStats
-          stats = {
-            pendingReviews: statsData.queue?.pendingIntakes ?? 0,
-            patientsToday: statsData.patients?.new ?? 0,
-            unreadMessages: statsData.messages?.unread ?? 0,
-            prescriptionsThisMonth: statsData.prescriptions?.sent ?? 0,
-            overdueReviews: statsData.queue?.overdueIntakes ?? 0,
-            averageReviewTime: statsData.queue?.averageWaitHours ?? 0,
-          };
         }
       } else {
         statsFetchFailed = true;

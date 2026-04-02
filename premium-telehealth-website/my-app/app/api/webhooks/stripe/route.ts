@@ -289,12 +289,16 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
       });
     }
 
+    // Determine initial status: TRIALING if Stripe sub has a trial, ACTIVE otherwise
+    const isTrial = stripeSubscription?.status === 'trialing';
+    const initialStatus = isTrial ? SubscriptionStatus.TRIALING : SubscriptionStatus.ACTIVE;
+
     // Create Subscription record
     await tx.subscription.create({
       data: {
         userId,
         planType,
-        status: SubscriptionStatus.ACTIVE,
+        status: initialStatus,
         amount: session.amount_total || 5000,
         currency: session.currency?.toUpperCase() || 'USD',
         interval: 'month',
@@ -659,6 +663,9 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription): Pro
   switch (subscription.status) {
     case 'active':
       status = SubscriptionStatus.ACTIVE;
+      break;
+    case 'trialing':
+      status = SubscriptionStatus.TRIALING;
       break;
     case 'canceled':
       status = SubscriptionStatus.CANCELLED;

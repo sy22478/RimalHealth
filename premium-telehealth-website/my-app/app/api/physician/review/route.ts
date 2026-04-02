@@ -16,8 +16,9 @@ import { AuditService } from '@/lib/services/audit-service';
 import { ValidationService } from '@/lib/services/validation-service';
 import { NotificationService } from '@/lib/services/notification-service';
 import { submitReviewSchema } from '@/lib/validation/schemas';
-import { Role, IntakeStatus, ReviewDecision, PrescriptionStatus } from '@prisma/client';
+import { Role, IntakeStatus, ReviewDecision, PrescriptionStatus, SubscriptionStatus } from '@prisma/client';
 import { DataModificationAction } from '@/lib/audit/index';
+import { getStripe } from '@/lib/stripe/stripe-server';
 
 // ============================================================================
 // POST - Submit Review
@@ -80,13 +81,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const physicianId = physician.id;
 
-    // Get intake
+    // Get intake with patient's preferred pharmacy
     const intake = await prisma.intake.findUnique({
       where: { id: intakeId },
       include: {
         patient: {
           include: {
-            patientProfile: true,
+            patientProfile: {
+              include: {
+                preferredPharmacy: true,
+              },
+            },
           },
         },
       },
@@ -147,10 +152,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       // Create prescription if approved
       let prescription = null;
       if (decision === 'APPROVED' && prescriptionDetails) {
+        const pharmacy = intake.patient?.patientProfile?.preferredPharmacy;
         prescription = await tx.prescription.create({
           data: {
             intakeId,
             patientId: intake.patientId,
+            pharmacyId: pharmacy?.id || undefined,
             medicationName: prescriptionDetails.medicationName,
             genericName: prescriptionDetails.genericName,
             dosage: prescriptionDetails.dosage,
@@ -158,8 +165,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             refills: prescriptionDetails.refills,
             refillsRemaining: prescriptionDetails.refills,
             instructions: prescriptionDetails.instructions || 'As directed by physician',
-            pharmacyName: 'Pending', // Will be updated when sent
-            pharmacyNcpdpId: 'PENDING',
+            pharmacyName: pharmacy?.name || 'Pending',
+            pharmacyNcpdpId: pharmacy?.ncpdpId || 'PENDING',
+            pharmacyPhone: pharmacy?.phone || null,
+            pharmacyAddress: pharmacy ? `${pharmacy.address}, ${pharmacy.city}, ${pharmacy.state} ${pharmacy.zipCode}` : null,
             status: PrescriptionStatus.PENDING,
           },
         });
@@ -167,6 +176,38 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
       return { review, prescription };
     });
+
+    // Activate or cancel the patient's Stripe subscription based on decision
+    try {
+      const subscription = await prisma.subscription.findFirst({
+        where: { userId: intake.patientId },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (subscription?.stripeSubscriptionId) {
+        const stripe = getStripe();
+        if (decision === 'APPROVED' && subscription.status === SubscriptionStatus.TRIALING) {
+          // End trial immediately — first charge happens now
+          await stripe.subscriptions.update(subscription.stripeSubscriptionId, {
+            trial_end: 'now',
+          });
+          await prisma.subscription.update({
+            where: { id: subscription.id },
+            data: { status: SubscriptionStatus.ACTIVE },
+          });
+        } else if (decision === 'DECLINED') {
+          // Cancel subscription — no charge
+          await stripe.subscriptions.cancel(subscription.stripeSubscriptionId);
+          await prisma.subscription.update({
+            where: { id: subscription.id },
+            data: { status: SubscriptionStatus.CANCELLED, cancelledAt: new Date() },
+          });
+        }
+      }
+    } catch (stripeError) {
+      // Log but don't fail the review — subscription can be fixed manually
+      console.error('Subscription update error:', stripeError instanceof Error ? stripeError.message : 'Unknown error');
+    }
 
     // Log review submission
     await AuditService.logDataModification(

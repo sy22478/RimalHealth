@@ -91,7 +91,13 @@ function mapApiResponseToPatientDetail(raw: Record<string, unknown>): PhysicianP
         : [],
       allergies: Array.isArray(raw.allergies) ? raw.allergies as string[] : [],
     } : undefined,
-    treatmentPreferences: undefined,
+    treatmentPreferences: {
+      preferredPharmacy: raw.prescriptions && Array.isArray(raw.prescriptions) && (raw.prescriptions as Record<string, unknown>[]).length > 0
+        ? ((raw.prescriptions as Record<string, unknown>[])[0].pharmacyName as string) || undefined
+        : undefined,
+      communicationPreference: (raw.notificationPreferences as Record<string, string> | undefined)?.communicationPreference || undefined,
+      languagePreference: undefined,
+    },
     intakes: Array.isArray(raw.intakes)
       ? (raw.intakes as Record<string, unknown>[]).map((i) => ({
           id: (i.id as string) || '',

@@ -299,6 +299,9 @@ export default function BillingPage(): React.ReactElement {
     );
   }
 
+  // Trialing / Pending Review state
+  const isTrialing = billingData?.subscription?.status === 'TRIALING';
+
   // No subscription state
   if (!billingData?.subscription && !isLoading) {
     return (
@@ -342,6 +345,17 @@ export default function BillingPage(): React.ReactElement {
           Manage your subscription, payment methods, and view your billing history
         </p>
       </div>
+
+      {/* Pending Review Banner */}
+      {isTrialing && (
+        <Alert className="mb-6 border-blue-200 bg-blue-50">
+          <AlertCircle className="h-4 w-4 text-blue-600" />
+          <AlertDescription className="text-blue-800">
+            <strong>Pending Review</strong> — Your subscription will activate once your intake is
+            approved by a physician. You will not be charged until approval.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Error Alert */}
       {error && (

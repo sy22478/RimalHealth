@@ -413,6 +413,7 @@ export function formatIntakeStatus(status: IntakeStatus): string {
 export function formatSubscriptionStatus(status: SubscriptionStatus): string {
   const statusMap: Record<SubscriptionStatus, string> = {
     ACTIVE: 'Active',
+    TRIALING: 'Pending Review',
     CANCELLED: 'Cancelled',
     PAST_DUE: 'Past Due',
     UNPAID: 'Unpaid',

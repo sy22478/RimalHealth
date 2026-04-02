@@ -585,6 +585,7 @@ enum PlanType {
 
 enum SubscriptionStatus {
   ACTIVE
+  TRIALING
   CANCELLED
   PAST_DUE
   UNPAID

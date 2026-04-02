@@ -15,7 +15,7 @@ import { prisma } from '@/lib/db/prisma';
 import { AuditService } from '@/lib/services/audit-service';
 import { ValidationService } from '@/lib/services/validation-service';
 import { patientsQuerySchema } from '@/lib/validation/schemas';
-import { Role } from '@prisma/client';
+import { Role, PrescriptionStatus } from '@prisma/client';
 import { PHIResourceType } from '@/lib/audit/index';
 
 // ============================================================================
@@ -99,11 +99,36 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       prisma.patientProfile.count({ where: whereClause }),
     ]);
 
-    // Get aggregate intake status counts for the stats header
-    const intakeStatusCounts = await prisma.intake.groupBy({
-      by: ['status'],
-      _count: { id: true },
-    });
+    // Get aggregate intake status counts scoped to these patients only
+    const patientUserIds = patients.map((p) => p.userId);
+    const [intakeStatusCounts, prescriptionCounts, unreadMessageCounts] = await Promise.all([
+      prisma.intake.groupBy({
+        by: ['status'],
+        where: { patientId: { in: patientUserIds } },
+        _count: true,
+      }),
+      prisma.prescription.groupBy({
+        by: ['patientId'],
+        where: {
+          patientId: { in: patientUserIds },
+          status: { in: [PrescriptionStatus.PENDING, PrescriptionStatus.SENT] },
+        },
+        _count: true,
+      }),
+      prisma.message.groupBy({
+        by: ['senderId'],
+        where: {
+          senderId: { in: patientUserIds },
+          senderType: 'PATIENT',
+          readAt: null,
+        },
+        _count: true,
+      }),
+    ]);
+
+    // Build lookup maps for per-patient counts
+    const rxCountMap = new Map(prescriptionCounts.map((r) => [r.patientId, r._count]));
+    const unreadMap = new Map(unreadMessageCounts.map((m) => [m.senderId, m._count]));
 
     // Log access
     await AuditService.logPHIAccess(
@@ -155,13 +180,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         status,
         intakeStatus: latestIntake?.status || null,
         isDeactivated: !!patient.user.deactivatedAt,
+        activePrescriptions: rxCountMap.get(patient.userId) || 0,
+        unreadMessages: unreadMap.get(patient.userId) || 0,
       };
     });
 
     // Build status counts from intake aggregate
     const statusCountMap: Record<string, number> = {};
     for (const entry of intakeStatusCounts) {
-      statusCountMap[entry.status] = entry._count.id;
+      statusCountMap[entry.status] = entry._count;
     }
 
     return NextResponse.json({

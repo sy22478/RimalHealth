@@ -226,28 +226,22 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     );
 
     return NextResponse.json({
-      period,
-      queue: {
-        pendingIntakes,
-        overdueIntakes,
-        averageWaitHours: Math.round(avgWaitHours * 10) / 10,
+      stats: {
+        pendingReviews: pendingIntakes,
+        patientsToday: newPatients,
+        unreadMessages: messagesUnread,
+        prescriptionsThisMonth: prescriptionsSent,
+        overdueReviews: overdueIntakes,
+        averageReviewTime: Math.round(avgWaitHours * 10) / 10,
       },
-      reviews: {
-        completed: reviewsCompleted,
-        averageTimeMinutes: reviewStats._avg.reviewDurationSec
+      period,
+      detail: {
+        reviewsCompleted,
+        averageReviewMinutes: reviewStats._avg.reviewDurationSec
           ? Math.round(reviewStats._avg.reviewDurationSec / 60)
           : 0,
         approvalRate: Math.round(approvalRate),
-      },
-      prescriptions: {
-        sent: prescriptionsSent,
         pendingRefills,
-      },
-      patients: {
-        new: newPatients,
-      },
-      messages: {
-        unread: messagesUnread,
       },
     });
   } catch (error) {

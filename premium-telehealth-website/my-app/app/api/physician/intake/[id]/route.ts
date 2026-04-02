@@ -77,6 +77,24 @@ export async function GET(
       );
     }
 
+    // Fetch patient documents (Gov ID, etc.)
+    const documents = await prisma.document.findMany({
+      where: { patientId: intake.patientId, status: 'ACTIVE' },
+      orderBy: { uploadedAt: 'desc' },
+      select: {
+        id: true,
+        documentType: true,
+        fileName: true,
+        fileSize: true,
+        mimeType: true,
+        uploadedAt: true,
+      },
+    });
+
+    const hasGovernmentId = documents.some(
+      (doc) => doc.documentType === 'ID_VERIFICATION'
+    );
+
     // Check if intake is available for review
     if (
       intake.status !== IntakeStatus.SUBMITTED &&
@@ -158,6 +176,15 @@ export async function GET(
         submittedAt: intake.submittedAt?.toISOString(),
         createdAt: intake.createdAt.toISOString(),
         isDeactivated: !!intake.patient.deactivatedAt,
+        hasGovernmentId,
+        documents: documents.map((doc) => ({
+          id: doc.id,
+          documentType: doc.documentType,
+          fileName: doc.fileName,
+          fileSize: doc.fileSize,
+          mimeType: doc.mimeType,
+          uploadedAt: doc.uploadedAt.toISOString(),
+        })),
       },
     });
   } catch (error) {

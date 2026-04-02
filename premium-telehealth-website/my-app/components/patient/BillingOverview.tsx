@@ -98,12 +98,21 @@ function formatDate(date: Date | string | null): string {
 function getStatusVariant(status: string): 'default' | 'secondary' | 'destructive' | 'outline' {
   const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
     ACTIVE: 'default',
+    TRIALING: 'outline',
     PAST_DUE: 'destructive',
     CANCELLED: 'secondary',
     EXPIRED: 'destructive',
     UNPAID: 'outline',
   };
   return variants[status] || 'default';
+}
+
+/**
+ * Get human-readable status label
+ */
+function getStatusLabel(status: string): string {
+  if (status === 'TRIALING') return 'Pending Review';
+  return status.replace(/_/g, ' ');
 }
 
 // ============================================================================
@@ -163,7 +172,7 @@ export function BillingOverview({
             variant={getStatusVariant(subscription.status)}
             className="capitalize"
           >
-            {isCancelling ? 'Cancelling' : subscription.status.toLowerCase()}
+            {isCancelling ? 'Cancelling' : getStatusLabel(subscription.status)}
           </Badge>
         </div>
       </CardHeader>
