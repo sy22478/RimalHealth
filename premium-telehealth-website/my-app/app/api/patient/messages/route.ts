@@ -120,7 +120,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       { recordCount: threads.length }
     );
 
-    return NextResponse.json({ threads, limit, offset });
+    return NextResponse.json({ threads, limit: limit ?? 50, offset: offset ?? 0 });
   } catch (error) {
     console.error('Get messages error:', error instanceof Error ? error.message : 'Unknown error');
     
@@ -153,13 +153,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const { userId } = auth.user;
   const auditContext = AuditService.createAuditContext(request, userId, 'PATIENT');
 
-  // Two-tier rate limiting: hourly (10/hr) and daily (30/day)
+  // Two-tier rate limiting: hourly (20/hr) and daily (50/day)
   const hourlyKey = userKeyGenerator(userId, 'message:hourly');
   const dailyKey = userKeyGenerator(userId, 'message:daily');
 
   const [hourlyLimit, dailyLimit] = await Promise.all([
-    checkRateLimit(hourlyKey, { maxRequests: 10, interval: 60 * 60 * 1000 }),
-    checkRateLimit(dailyKey, { maxRequests: 30, interval: 24 * 60 * 60 * 1000 }),
+    checkRateLimit(hourlyKey, { maxRequests: 20, interval: 60 * 60 * 1000 }),
+    checkRateLimit(dailyKey, { maxRequests: 50, interval: 24 * 60 * 60 * 1000 }),
   ]);
 
   if (!hourlyLimit.success) {
@@ -167,7 +167,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json(
       {
         success: false,
-        error: 'You have reached the hourly message limit (10 messages per hour). Please try again later.',
+        error: 'You have reached the hourly message limit (20 messages per hour). Please try again later.',
         code: 'RATE_LIMITED',
         retryAfter,
       },
@@ -188,7 +188,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json(
       {
         success: false,
-        error: 'You have reached the daily message limit (30 messages per day). Please try again tomorrow.',
+        error: 'You have reached the daily message limit (50 messages per day). Please try again tomorrow.',
         code: 'RATE_LIMITED',
         retryAfter,
       },

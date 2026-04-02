@@ -50,6 +50,8 @@ export interface QueueItem {
   riskScore?: number;
   /** Whether the patient's account has been deactivated */
   isDeactivated?: boolean;
+  /** Whether the patient has uploaded a government-issued ID */
+  hasGovernmentId: boolean;
 }
 
 /**

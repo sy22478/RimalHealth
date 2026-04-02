@@ -17,6 +17,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { Role } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
@@ -226,7 +227,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       },
     });
 
-    // 8. Return success response
+    // 8. Clear auth cookies to sign out the user immediately
+    const cookieStore = await cookies();
+    cookieStore.delete('accessToken');
+    cookieStore.delete('refreshToken');
+
+    // 9. Return success response
     return NextResponse.json({
       success: true,
       message: 'Your account deletion request has been submitted.',

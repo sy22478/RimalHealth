@@ -111,6 +111,24 @@ function GovernmentIdUpload() {
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
+  // Check if user already has a government ID document on mount
+  React.useEffect(() => {
+    fetch('/api/patient/documents', { credentials: 'include' })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data?.documents) {
+          const hasIdDoc = data.documents.some(
+            (doc: { documentType?: string; status?: string }) =>
+              doc.documentType === 'ID_VERIFICATION' && doc.status !== 'DELETED'
+          );
+          if (hasIdDoc) {
+            setUploadState('success');
+          }
+        }
+      })
+      .catch(() => { /* non-critical check, ignore errors */ });
+  }, []);
+
   const handleFileSelect = (files: FileList | null) => {
     if (!files || files.length === 0) return;
 

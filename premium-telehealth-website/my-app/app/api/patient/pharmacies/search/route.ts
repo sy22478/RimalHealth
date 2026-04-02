@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/auth/require-auth';
 import { prisma } from '@/lib/db/prisma';
 import { Role } from '@prisma/client';
+import { auditLogger, createAuditContext } from '@/lib/audit/index';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const auth = await requireRole(request, [Role.PATIENT]);
@@ -51,6 +52,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       take: limit,
       orderBy: { name: 'asc' },
     });
+
+    // Audit log the pharmacy search
+    const auditContext = createAuditContext(request, auth.user.userId, 'PATIENT');
+    await auditLogger.logPHIAccess(
+      'VIEW',
+      auth.user.userId,
+      'PATIENT',
+      'pharmacy_search',
+      'search',
+      auditContext,
+      { query, zipCode, resultCount: pharmacies.length } as Record<string, unknown>
+    );
 
     return NextResponse.json({ pharmacies });
   } catch (error) {

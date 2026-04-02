@@ -37,24 +37,11 @@ export async function GET(
     const { id } = await params;
     const userId = auth.user.userId;
 
-    // Get patient profile
-    const patientProfile = await prisma.patientProfile.findUnique({
-      where: { userId },
-      select: { id: true },
-    });
-
-    if (!patientProfile) {
-      return NextResponse.json(
-        { error: 'Patient profile not found' },
-        { status: 404 }
-      );
-    }
-
-    // Fetch document
+    // Fetch document — Document.patientId FK references PatientProfile.userId
     const document = await prisma.document.findFirst({
       where: {
         id,
-        patientId: patientProfile.id,
+        patientId: userId,
         status: { not: DocumentStatus.DELETED },
       },
       select: {
@@ -125,24 +112,11 @@ export async function DELETE(
     const { id } = await params;
     const userId = auth.user.userId;
 
-    // Get patient profile
-    const patientProfile = await prisma.patientProfile.findUnique({
-      where: { userId },
-      select: { id: true },
-    });
-
-    if (!patientProfile) {
-      return NextResponse.json(
-        { error: 'Patient profile not found' },
-        { status: 404 }
-      );
-    }
-
-    // Find document
+    // Find document — Document.patientId FK references PatientProfile.userId
     const document = await prisma.document.findFirst({
       where: {
         id,
-        patientId: patientProfile.id,
+        patientId: userId,
         status: { not: DocumentStatus.DELETED },
       },
       select: {

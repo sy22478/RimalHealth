@@ -92,17 +92,70 @@ export async function GET(
     const userId = auth.user.userId;
 
     try {
-      // Fetch invoice from database
-      const invoice = await prisma.invoice.findUnique({
-        where: { id: invoiceId },
-        select: {
-          id: true,
-          userId: true,
-          stripeInvoiceId: true,
-          pdfUrl: true,
-          createdAt: true,
-        },
-      });
+      // Handle both DB UUIDs and Stripe invoice IDs (in_xxx)
+      const isStripeId = invoiceId.startsWith('in_');
+
+      let invoice: {
+        id: string;
+        userId: string;
+        stripeInvoiceId: string;
+        pdfUrl: string | null;
+        createdAt: Date;
+      } | null = null;
+
+      if (isStripeId) {
+        // Look up by stripeInvoiceId
+        invoice = await prisma.invoice.findFirst({
+          where: { stripeInvoiceId: invoiceId },
+          select: {
+            id: true,
+            userId: true,
+            stripeInvoiceId: true,
+            pdfUrl: true,
+            createdAt: true,
+          },
+        });
+
+        // If not in DB, fetch directly from Stripe
+        if (!invoice) {
+          const pdfUrl = await getStripeInvoicePdfUrl(invoiceId);
+          if (pdfUrl) {
+            // Audit log the download request
+            const auditContext = createAuditContext(request, userId, 'PATIENT');
+            await auditLogger.logPHIAccess(
+              'VIEW',
+              userId,
+              'PATIENT',
+              'invoice_pdf',
+              invoiceId,
+              auditContext,
+              { accessReason: 'Downloading invoice PDF (Stripe direct)' } as Record<string, unknown>
+            );
+
+            return NextResponse.json({
+              downloadUrl: pdfUrl,
+              filename: `invoice-${invoiceId}.pdf`,
+              expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+            } satisfies DownloadResponse);
+          }
+
+          return NextResponse.json(
+            { error: 'Invoice not found' },
+            { status: 404 }
+          );
+        }
+      } else {
+        invoice = await prisma.invoice.findUnique({
+          where: { id: invoiceId },
+          select: {
+            id: true,
+            userId: true,
+            stripeInvoiceId: true,
+            pdfUrl: true,
+            createdAt: true,
+          },
+        });
+      }
 
       if (!invoice) {
         return NextResponse.json(

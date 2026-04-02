@@ -30,7 +30,7 @@ import { cn } from '@/lib/utils';
 import { LoadingButton } from '@/components/ui/LoadingButton';
 
 // ============================================================================
-// Validation Schema -- 8 Sections, 34 Questions + Personal Info (no consent)
+// Validation Schema -- 8 Sections, 33 Questions + Personal Info (no consent)
 // ============================================================================
 
 const intakeFormSchema = z.object({

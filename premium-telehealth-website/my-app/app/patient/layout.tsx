@@ -82,8 +82,8 @@ export default async function PatientLayout({
     });
   } catch (err) {
     console.error('[PatientLayout] Failed to check intake status:', err instanceof Error ? err.message : 'Unknown error');
-    // On DB failure, allow access rather than permanently blocking the portal.
-    // The dashboard page has its own intake check and will redirect if needed.
+    // On DB failure, redirect to an error page rather than silently allowing access
+    redirect('/error?reason=intake-check-failed');
   }
 
   // If no completed intake, redirect to intake form

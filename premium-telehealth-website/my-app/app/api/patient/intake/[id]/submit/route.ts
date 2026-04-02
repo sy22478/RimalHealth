@@ -16,7 +16,7 @@ import { AuditService } from '@/lib/services/audit-service';
 import { ValidationService } from '@/lib/services/validation-service';
 import { NotificationService } from '@/lib/services/notification-service';
 import { submitIntakeSchema, dsm5IntakeFormDataSchema } from '@/lib/validation/schemas';
-import { calculateIntakeScores, generateProviderDecisionSummary } from '@/lib/intake/scoring';
+import { generateProviderDecisionSummary } from '@/lib/intake/scoring';
 import { Role, IntakeStatus, DocumentType, DocumentStatus, Prisma } from '@prisma/client';
 import { DataModificationAction } from '@/lib/audit/index';
 
@@ -98,6 +98,23 @@ export async function POST(
       }
     }
 
+    // Server-side age validation: patient must be 18+
+    if (fd_raw.dateOfBirth && typeof fd_raw.dateOfBirth === 'string') {
+      const dob = new Date(fd_raw.dateOfBirth);
+      const today = new Date();
+      let age = today.getFullYear() - dob.getFullYear();
+      const monthDiff = today.getMonth() - dob.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+        age--;
+      }
+      if (age < 18) {
+        return NextResponse.json(
+          { error: 'You must be at least 18 years old to use this service', code: 'AGE_REQUIREMENT' },
+          { status: 400 }
+        );
+      }
+    }
+
     // Get intake
     const intake = await prisma.intake.findUnique({
       where: { id: intakeId },
@@ -169,12 +186,12 @@ export async function POST(
       }
     }
 
-    // Calculate scores (handles both DSM-5 and AUDIT-C format)
     const fd = formData as Record<string, unknown>;
-    const scores = calculateIntakeScores(fd);
 
-    // Generate provider decision summary (DSM-5 scoring + contraindications + withdrawal risk)
+    // Generate provider decision summary (includes DSM-5 scoring + contraindications + withdrawal risk + scores)
     const providerSummary = generateProviderDecisionSummary(fd);
+    // Use scores from the provider summary to avoid computing them twice
+    const scores = { riskScore: providerSummary.riskScore, complexityScore: providerSummary.complexityScore };
 
     // Store formData with provider decision summary appended
     const enrichedFormData = {

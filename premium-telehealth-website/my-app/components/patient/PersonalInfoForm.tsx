@@ -5,13 +5,69 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle, AlertCircle, User, MapPin, FileText, Pill, AlertTriangle, Building2, Search, Loader2 } from 'lucide-react';
+import {
+  CheckCircle,
+  AlertCircle,
+  User,
+  MapPin,
+  FileText,
+  Pill,
+  AlertTriangle,
+  Building2,
+  Search,
+  Loader2,
+  X,
+  ChevronDown,
+  Lock,
+} from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { LoadingButton } from '@/components/ui/LoadingButton';
+import { Button } from '@/components/ui/button';
+
+// ============================================================================
+// Preset Options
+// ============================================================================
+
+const MEDICAL_CONDITIONS_PRESETS = [
+  'Hypertension',
+  'Diabetes Type 2',
+  'Asthma',
+  'Depression',
+  'Anxiety',
+  'Heart Disease',
+  'Liver Disease',
+  'Kidney Disease',
+  'Seizure Disorder',
+  'Thyroid Disorder',
+];
+
+const MEDICATIONS_PRESETS = [
+  'Lisinopril',
+  'Metformin',
+  'Amlodipine',
+  'Omeprazole',
+  'Sertraline',
+  'Escitalopram',
+  'Gabapentin',
+  'Ibuprofen',
+  'Acetaminophen',
+  'Aspirin',
+];
+
+const ALLERGIES_PRESETS = [
+  'Penicillin',
+  'Sulfa',
+  'Aspirin',
+  'NSAIDs',
+  'Codeine',
+  'Latex',
+  'Shellfish',
+  'Peanuts',
+  'None',
+];
 
 // ============================================================================
 // Validation Schema
@@ -104,6 +160,260 @@ interface PharmacyResult {
 }
 
 // ============================================================================
+// Multi-Select Combobox Component
+// ============================================================================
+
+interface MultiSelectComboboxProps {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  presets: string[];
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  error?: string;
+}
+
+function MultiSelectCombobox({
+  id,
+  label,
+  icon,
+  presets,
+  value,
+  onChange,
+  placeholder,
+  error,
+}: MultiSelectComboboxProps): React.ReactElement {
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [isOpen, setIsOpen] = React.useState(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  // Parse comma-separated string into array of items
+  const selectedItems = React.useMemo((): string[] => {
+    if (!value || value.trim() === '') return [];
+    return value.split(',').map((item) => item.trim()).filter(Boolean);
+  }, [value]);
+
+  // Filter presets based on search query, excluding already-selected items
+  const filteredPresets = React.useMemo((): string[] => {
+    const lowerQuery = searchQuery.toLowerCase();
+    return presets.filter(
+      (preset) =>
+        !selectedItems.some((s) => s.toLowerCase() === preset.toLowerCase()) &&
+        (lowerQuery === '' || preset.toLowerCase().includes(lowerQuery))
+    );
+  }, [presets, selectedItems, searchQuery]);
+
+  // Check if search query is a new custom value (not matching any preset or existing selection)
+  const canAddCustom = React.useMemo((): boolean => {
+    const trimmed = searchQuery.trim();
+    if (trimmed.length === 0) return false;
+    const lowerTrimmed = trimmed.toLowerCase();
+    // Not already selected
+    if (selectedItems.some((s) => s.toLowerCase() === lowerTrimmed)) return false;
+    // Not matching an existing preset exactly
+    if (presets.some((p) => p.toLowerCase() === lowerTrimmed)) return false;
+    return true;
+  }, [searchQuery, selectedItems, presets]);
+
+  // Add an item
+  const addItem = React.useCallback(
+    (item: string): void => {
+      const trimmed = item.trim();
+      if (!trimmed) return;
+      // Prevent duplicates (case-insensitive)
+      if (selectedItems.some((s) => s.toLowerCase() === trimmed.toLowerCase())) return;
+      const newItems = [...selectedItems, trimmed];
+      onChange(newItems.join(', '));
+      setSearchQuery('');
+      inputRef.current?.focus();
+    },
+    [selectedItems, onChange]
+  );
+
+  // Remove an item
+  const removeItem = React.useCallback(
+    (item: string): void => {
+      const newItems = selectedItems.filter(
+        (s) => s.toLowerCase() !== item.toLowerCase()
+      );
+      onChange(newItems.join(', '));
+    },
+    [selectedItems, onChange]
+  );
+
+  // Handle keyboard events
+  const handleKeyDown = React.useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>): void => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const trimmed = searchQuery.trim();
+        if (trimmed) {
+          // If the search query matches a filtered preset, add that
+          const matchingPreset = filteredPresets.find(
+            (p) => p.toLowerCase() === trimmed.toLowerCase()
+          );
+          addItem(matchingPreset || trimmed);
+        }
+      } else if (e.key === 'Escape') {
+        setIsOpen(false);
+        setSearchQuery('');
+      } else if (
+        e.key === 'Backspace' &&
+        searchQuery === '' &&
+        selectedItems.length > 0
+      ) {
+        // Remove last item on backspace when input is empty
+        removeItem(selectedItems[selectedItems.length - 1]);
+      }
+    },
+    [searchQuery, filteredPresets, addItem, removeItem, selectedItems]
+  );
+
+  // Close dropdown on outside click
+  React.useEffect(() => {
+    function handleClickOutside(e: MouseEvent): void {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
+        setIsOpen(false);
+        setSearchQuery('');
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div ref={containerRef} className="relative">
+      <Label htmlFor={id} className="flex items-center gap-2">
+        {icon}
+        {label}
+      </Label>
+
+      {/* Selected tags + input area */}
+      <div
+        className={`mt-1.5 flex flex-wrap items-center gap-1.5 min-h-[42px] rounded-md border px-3 py-2 cursor-text transition-colors ${
+          isOpen
+            ? 'border-ocean-400 ring-2 ring-ocean-100'
+            : error
+              ? 'border-red-300'
+              : 'border-input hover:border-ocean-300'
+        } bg-background`}
+        onClick={() => {
+          setIsOpen(true);
+          inputRef.current?.focus();
+        }}
+      >
+        {selectedItems.map((item) => (
+          <span
+            key={item}
+            className="inline-flex items-center gap-1 bg-ocean-50 text-ocean-700 text-sm px-2 py-0.5 rounded-md border border-ocean-200"
+          >
+            {item}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                removeItem(item);
+              }}
+              className="text-ocean-400 hover:text-ocean-700 transition-colors"
+              aria-label={`Remove ${item}`}
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </span>
+        ))}
+        <div className="flex-1 min-w-[120px] flex items-center gap-1">
+          <input
+            ref={inputRef}
+            id={id}
+            type="text"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setIsOpen(true);
+            }}
+            onFocus={() => setIsOpen(true)}
+            onKeyDown={handleKeyDown}
+            placeholder={selectedItems.length === 0 ? placeholder : 'Type to add...'}
+            className="flex-1 outline-none bg-transparent text-sm placeholder:text-muted-foreground"
+            autoComplete="off"
+            aria-expanded={isOpen}
+            aria-haspopup="listbox"
+            aria-invalid={!!error}
+            aria-describedby={error ? `${id}-error` : undefined}
+          />
+          <ChevronDown
+            className={`h-4 w-4 text-gray-400 shrink-0 transition-transform ${
+              isOpen ? 'rotate-180' : ''
+            }`}
+          />
+        </div>
+      </div>
+
+      {/* Dropdown */}
+      <AnimatePresence>
+        {isOpen && (filteredPresets.length > 0 || canAddCustom) && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.15 }}
+            className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"
+            role="listbox"
+            aria-label={`${label} options`}
+          >
+            {filteredPresets.map((preset) => (
+              <button
+                key={preset}
+                type="button"
+                role="option"
+                aria-selected={false}
+                onClick={() => addItem(preset)}
+                className="w-full text-left px-3 py-2 text-sm hover:bg-ocean-50 hover:text-ocean-700 transition-colors"
+              >
+                {preset}
+              </button>
+            ))}
+            {canAddCustom && (
+              <button
+                type="button"
+                role="option"
+                aria-selected={false}
+                onClick={() => addItem(searchQuery.trim())}
+                className="w-full text-left px-3 py-2 text-sm hover:bg-ocean-50 hover:text-ocean-700 transition-colors border-t border-gray-100"
+              >
+                <span className="text-gray-500">Add custom:</span>{' '}
+                <span className="font-medium">{searchQuery.trim()}</span>
+              </button>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Error message */}
+      <AnimatePresence>
+        {error && (
+          <motion.p
+            id={`${id}-error`}
+            role="alert"
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="text-sm text-red-500 mt-1.5"
+          >
+            {error}
+          </motion.p>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ============================================================================
 // Main Component
 // ============================================================================
 
@@ -117,6 +427,7 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
   const [pharmacySearching, setPharmacySearching] = React.useState(false);
   const [pharmacySearchError, setPharmacySearchError] = React.useState<string | null>(null);
   const [selectedPharmacy, setSelectedPharmacy] = React.useState<PharmacyResult | null>(null);
+  const [showPharmacySearch, setShowPharmacySearch] = React.useState(!profile.pharmacy);
   const pharmacySearchTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const {
@@ -125,6 +436,7 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
     formState: { errors, isSubmitting },
     reset,
     setValue,
+    watch,
   } = useForm<PersonalInfoFormValues>({
     resolver: zodResolver(personalInfoSchema),
     defaultValues: {
@@ -143,6 +455,11 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
     },
   });
 
+  // Watch medical fields for the combobox components
+  const medicalHistoryValue = watch('medicalHistory') || '';
+  const currentMedicationsValue = watch('currentMedications') || '';
+  const allergiesValue = watch('allergies') || '';
+
   // Reset form when profile changes
   React.useEffect(() => {
     reset({
@@ -159,6 +476,8 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
       allergies: profile.allergies || '',
       preferredPharmacyId: '',
     });
+    setSelectedPharmacy(null);
+    setShowPharmacySearch(!profile.pharmacy);
   }, [profile, reset]);
 
   // Pharmacy search handler with debounce
@@ -235,11 +554,17 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
       }
 
       const result = await res.json();
-      
+
       // Update parent component
       onUpdate(result.profile);
       setSubmitSuccess(true);
-      
+
+      // If a new pharmacy was selected, update the display
+      if (selectedPharmacy) {
+        setShowPharmacySearch(false);
+        setSelectedPharmacy(null);
+      }
+
       // Clear success message after 3 seconds
       setTimeout(() => setSubmitSuccess(false), 3000);
     } catch (err) {
@@ -272,12 +597,28 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
                 )}
               </div>
               <div>
-                <Label className="text-muted-foreground">Treatment</Label>
+                <Label className="text-muted-foreground flex items-center gap-1.5">
+                  <Lock className="h-3.5 w-3.5" />
+                  Treatment Type
+                </Label>
                 <p className="font-medium text-gray-900 capitalize">
                   {profile.primaryConcern?.toLowerCase().replace('_', ' ') || 'Not specified'}
                 </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Treatment type cannot be changed.
+                </p>
               </div>
             </div>
+
+            {/* Treatment Goal (read-only) */}
+            {profile.treatmentGoal && (
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <Label className="text-muted-foreground">Treatment Goal</Label>
+                <p className="font-medium text-gray-900 capitalize">
+                  {profile.treatmentGoal.toLowerCase().replace('_', ' ')}
+                </p>
+              </div>
+            )}
 
             {/* Editable: First Name and Last Name */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -533,13 +874,28 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Current pharmacy display */}
-            {(selectedPharmacy || profile.pharmacy) && (
+            {(selectedPharmacy || profile.pharmacy) && !showPharmacySearch && (
               <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  <span className="text-sm font-medium text-green-800">
-                    {selectedPharmacy ? 'New selection (save to apply)' : 'Current pharmacy'}
-                  </span>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <span className="text-sm font-medium text-green-800">
+                      {selectedPharmacy ? 'New selection (save to apply)' : 'Current pharmacy'}
+                    </span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setShowPharmacySearch(true);
+                      setPharmacyQuery('');
+                      setPharmacyResults([]);
+                    }}
+                    className="text-ocean-600 border-ocean-200 hover:bg-ocean-50 hover:text-ocean-700"
+                  >
+                    Change
+                  </Button>
                 </div>
                 <p className="font-medium text-gray-900">
                   {selectedPharmacy?.name ?? profile.pharmacy?.name}
@@ -557,87 +913,114 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
               </div>
             )}
 
-            {/* Search input */}
-            <div>
-              <Label htmlFor="pharmacySearch" className="flex items-center gap-1">
-                <Search className="h-4 w-4" />
-                Search Pharmacies
-              </Label>
-              <div className="relative mt-1.5">
-                <Input
-                  id="pharmacySearch"
-                  type="text"
-                  placeholder="Enter pharmacy name or ZIP code..."
-                  value={pharmacyQuery}
-                  onChange={(e) => handlePharmacySearch(e.target.value)}
-                  autoComplete="off"
-                />
-                {pharmacySearching && (
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+            {/* Pharmacy search section */}
+            {showPharmacySearch && (
+              <>
+                {/* If the user has an existing pharmacy and clicked Change, show a cancel button */}
+                {profile.pharmacy && (
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setShowPharmacySearch(false);
+                        setPharmacyQuery('');
+                        setPharmacyResults([]);
+                        setSelectedPharmacy(null);
+                        setValue('preferredPharmacyId', '');
+                      }}
+                      className="text-gray-500 hover:text-gray-700"
+                    >
+                      Cancel
+                    </Button>
                   </div>
                 )}
-              </div>
-            </div>
 
-            {/* Search error */}
-            {pharmacySearchError && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{pharmacySearchError}</AlertDescription>
-              </Alert>
-            )}
-
-            {/* Search results */}
-            {pharmacyResults.length > 0 && (
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {pharmacyResults.map((pharmacy) => {
-                  const isSelected = selectedPharmacy?.id === pharmacy.id;
-                  return (
-                    <button
-                      key={pharmacy.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedPharmacy(pharmacy);
-                        setValue('preferredPharmacyId', pharmacy.id);
-                        setPharmacyResults([]);
-                        setPharmacyQuery('');
-                      }}
-                      className={`w-full text-left p-3 rounded-lg border transition-colors ${
-                        isSelected
-                          ? 'border-ocean-400 bg-ocean-50'
-                          : 'border-gray-200 hover:border-ocean-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      <p className="font-medium text-gray-900 text-sm">{pharmacy.name}</p>
-                      <p className="text-xs text-gray-600">
-                        {[pharmacy.address, pharmacy.city, pharmacy.state, pharmacy.zipCode].filter(Boolean).join(', ')}
-                      </p>
-                      {pharmacy.phone && (
-                        <p className="text-xs text-gray-500 mt-0.5">{pharmacy.phone}</p>
-                      )}
-                      <div className="flex gap-2 mt-1">
-                        {pharmacy.is24Hour && (
-                          <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">24 Hour</span>
-                        )}
-                        {pharmacy.hasDelivery && (
-                          <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded">Delivery</span>
-                        )}
-                        {pharmacy.hasDriveThru && (
-                          <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">Drive-Thru</span>
-                        )}
+                {/* Search input */}
+                <div>
+                  <Label htmlFor="pharmacySearch" className="flex items-center gap-1">
+                    <Search className="h-4 w-4" />
+                    Search Pharmacies
+                  </Label>
+                  <div className="relative mt-1.5">
+                    <Input
+                      id="pharmacySearch"
+                      type="text"
+                      placeholder="Enter pharmacy name or ZIP code..."
+                      value={pharmacyQuery}
+                      onChange={(e) => handlePharmacySearch(e.target.value)}
+                      autoComplete="off"
+                    />
+                    {pharmacySearching && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
                       </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+                    )}
+                  </div>
+                </div>
 
-            {/* No results message */}
-            {pharmacyQuery.trim().length >= 2 && !pharmacySearching && pharmacyResults.length === 0 && !pharmacySearchError && (
-              <p className="text-sm text-muted-foreground text-center py-2">
-                No pharmacies found. Try a different search term.
-              </p>
+                {/* Search error */}
+                {pharmacySearchError && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{pharmacySearchError}</AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Search results */}
+                {pharmacyResults.length > 0 && (
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {pharmacyResults.map((pharmacy) => {
+                      const isSelected = selectedPharmacy?.id === pharmacy.id;
+                      return (
+                        <button
+                          key={pharmacy.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedPharmacy(pharmacy);
+                            setValue('preferredPharmacyId', pharmacy.id);
+                            setPharmacyResults([]);
+                            setPharmacyQuery('');
+                            setShowPharmacySearch(false);
+                          }}
+                          className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                            isSelected
+                              ? 'border-ocean-400 bg-ocean-50'
+                              : 'border-gray-200 hover:border-ocean-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          <p className="font-medium text-gray-900 text-sm">{pharmacy.name}</p>
+                          <p className="text-xs text-gray-600">
+                            {[pharmacy.address, pharmacy.city, pharmacy.state, pharmacy.zipCode].filter(Boolean).join(', ')}
+                          </p>
+                          {pharmacy.phone && (
+                            <p className="text-xs text-gray-500 mt-0.5">{pharmacy.phone}</p>
+                          )}
+                          <div className="flex gap-2 mt-1">
+                            {pharmacy.is24Hour && (
+                              <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">24 Hour</span>
+                            )}
+                            {pharmacy.hasDelivery && (
+                              <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded">Delivery</span>
+                            )}
+                            {pharmacy.hasDriveThru && (
+                              <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">Drive-Thru</span>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* No results message */}
+                {pharmacyQuery.trim().length >= 2 && !pharmacySearching && pharmacyResults.length === 0 && !pharmacySearchError && (
+                  <p className="text-sm text-muted-foreground text-center py-2">
+                    No pharmacies found. Try a different search term.
+                  </p>
+                )}
+              </>
             )}
 
             {/* Hidden field for form submission */}
@@ -650,105 +1033,48 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-ocean-500" />
-              Medical Information (Optional)
+              Medical Information
             </CardTitle>
             <CardDescription>
-              Additional medical details to help your physician
+              Select from common options or type to add your own. This helps your physician provide better care.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Medical History */}
-            <div>
-              <Label htmlFor="medicalHistory" className="flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                Medical History
-              </Label>
-              <Textarea
-                id="medicalHistory"
-                placeholder="Any relevant medical conditions, surgeries, or family history..."
-                rows={4}
-                className="mt-1.5 resize-none"
-                aria-invalid={!!errors.medicalHistory}
-                aria-describedby={errors.medicalHistory ? 'medicalHistory-error' : undefined}
-                {...register('medicalHistory')}
-              />
-              <AnimatePresence>
-                {errors.medicalHistory && (
-                  <motion.p
-                    id="medicalHistory-error"
-                    role="alert"
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                    className="text-sm text-red-500 mt-1.5"
-                  >
-                    {errors.medicalHistory.message}
-                  </motion.p>
-                )}
-              </AnimatePresence>
-            </div>
+          <CardContent className="space-y-6">
+            {/* Medical Conditions Combobox */}
+            <MultiSelectCombobox
+              id="medicalHistory"
+              label="Medical Conditions"
+              icon={<FileText className="h-4 w-4" />}
+              presets={MEDICAL_CONDITIONS_PRESETS}
+              value={medicalHistoryValue}
+              onChange={(val) => setValue('medicalHistory', val, { shouldDirty: true })}
+              placeholder="Select conditions or type to add..."
+              error={errors.medicalHistory?.message}
+            />
 
-            {/* Current Medications */}
-            <div>
-              <Label htmlFor="currentMedications" className="flex items-center gap-2">
-                <Pill className="h-4 w-4" />
-                Current Medications
-              </Label>
-              <Textarea
-                id="currentMedications"
-                placeholder="List any medications you are currently taking..."
-                rows={3}
-                className="mt-1.5 resize-none"
-                aria-invalid={!!errors.currentMedications}
-                aria-describedby={errors.currentMedications ? 'currentMedications-error' : undefined}
-                {...register('currentMedications')}
-              />
-              <AnimatePresence>
-                {errors.currentMedications && (
-                  <motion.p
-                    id="currentMedications-error"
-                    role="alert"
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                    className="text-sm text-red-500 mt-1.5"
-                  >
-                    {errors.currentMedications.message}
-                  </motion.p>
-                )}
-              </AnimatePresence>
-            </div>
+            {/* Current Medications Combobox */}
+            <MultiSelectCombobox
+              id="currentMedications"
+              label="Current Medications"
+              icon={<Pill className="h-4 w-4" />}
+              presets={MEDICATIONS_PRESETS}
+              value={currentMedicationsValue}
+              onChange={(val) => setValue('currentMedications', val, { shouldDirty: true })}
+              placeholder="Select medications or type to add..."
+              error={errors.currentMedications?.message}
+            />
 
-            {/* Allergies */}
-            <div>
-              <Label htmlFor="allergies" className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4" />
-                Allergies
-              </Label>
-              <Textarea
-                id="allergies"
-                placeholder="List any allergies to medications, foods, or other substances..."
-                rows={2}
-                className="mt-1.5 resize-none"
-                aria-invalid={!!errors.allergies}
-                aria-describedby={errors.allergies ? 'allergies-error' : undefined}
-                {...register('allergies')}
-              />
-              <AnimatePresence>
-                {errors.allergies && (
-                  <motion.p
-                    id="allergies-error"
-                    role="alert"
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                    className="text-sm text-red-500 mt-1.5"
-                  >
-                    {errors.allergies.message}
-                  </motion.p>
-                )}
-              </AnimatePresence>
-            </div>
+            {/* Allergies Combobox */}
+            <MultiSelectCombobox
+              id="allergies"
+              label="Allergies"
+              icon={<AlertTriangle className="h-4 w-4" />}
+              presets={ALLERGIES_PRESETS}
+              value={allergiesValue}
+              onChange={(val) => setValue('allergies', val, { shouldDirty: true })}
+              placeholder="Select allergies or type to add..."
+              error={errors.allergies?.message}
+            />
           </CardContent>
         </Card>
 

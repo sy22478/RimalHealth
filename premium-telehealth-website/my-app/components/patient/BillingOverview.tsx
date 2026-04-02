@@ -19,14 +19,29 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { CreditCard, Calendar, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Subscription, SubscriptionStatus, PlanType } from '@prisma/client';
 
 // ============================================================================
 // Types
 // ============================================================================
 
+/** Minimal subscription shape used by billing UI — matches both Prisma model and API response */
+export interface SubscriptionDisplay {
+  id: string;
+  planType: string;
+  status: string;
+  amount: number;
+  currentPeriodStart: Date | string;
+  currentPeriodEnd: Date | string;
+  cancelledAt: Date | string | null;
+  cancelAtPeriodEnd: boolean;
+  stripeSubscriptionId: string;
+  stripeCustomerId: string;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+}
+
 interface BillingOverviewProps {
-  subscription: Subscription & {
+  subscription: SubscriptionDisplay & {
     paymentMethod?: {
       brand: string;
       last4: string;
@@ -47,8 +62,8 @@ interface BillingOverviewProps {
 /**
  * Format plan type for display
  */
-function formatPlanType(planType: PlanType): string {
-  const planNames: Record<PlanType, string> = {
+function formatPlanType(planType: string): string {
+  const planNames: Record<string, string> = {
     ACTIVE_TREATMENT: 'Active Treatment',
     MAINTENANCE: 'Maintenance',
   };
@@ -80,8 +95,8 @@ function formatDate(date: Date | string | null): string {
 /**
  * Get status badge variant
  */
-function getStatusVariant(status: SubscriptionStatus): 'default' | 'secondary' | 'destructive' | 'outline' {
-  const variants: Record<SubscriptionStatus, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+function getStatusVariant(status: string): 'default' | 'secondary' | 'destructive' | 'outline' {
+  const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
     ACTIVE: 'default',
     PAST_DUE: 'destructive',
     CANCELLED: 'secondary',

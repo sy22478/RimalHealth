@@ -122,6 +122,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       addressZip: profile.addressZip,
       primaryConcern: profile.primaryConcern,
       treatmentGoal: profile.treatmentGoal,
+      medicalHistory: profile.medicalHistory,
+      currentMedications: profile.currentMedications,
+      allergies: profile.allergies,
       pharmacy,
       notificationPreferences: profile.notificationPreferences,
       privacyConsent: {
@@ -255,7 +258,35 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
       changedFields.push('allergies');
     }
 
-    if (hasValue(updateData.preferredPharmacyId)) {
+    // Allow clearing optional string fields by sending explicit null
+    const clearableStringFields = [
+      'phone', 'addressStreet', 'addressCity', 'addressZip', 'addressState',
+      'primaryConcern', 'treatmentGoal',
+    ] as const;
+    for (const field of clearableStringFields) {
+      if (field in updateData && (updateData as Record<string, unknown>)[field] === null) {
+        dataToUpdate[field] = null;
+        changedFields.push(field);
+      }
+    }
+
+    // Handle preferredPharmacyId: set, validate, or clear (disconnect)
+    if (updateData.preferredPharmacyId === null) {
+      // Explicit null means disconnect pharmacy
+      dataToUpdate.preferredPharmacy = { disconnect: true };
+      changedFields.push('preferredPharmacyId');
+    } else if (hasValue(updateData.preferredPharmacyId)) {
+      // Validate pharmacy exists before setting
+      const pharmacyExists = await prisma.pharmacy.findUnique({
+        where: { id: updateData.preferredPharmacyId },
+        select: { id: true },
+      });
+      if (!pharmacyExists) {
+        return NextResponse.json(
+          { error: 'Pharmacy not found', code: 'INVALID_PHARMACY' },
+          { status: 400 }
+        );
+      }
       dataToUpdate.preferredPharmacyId = updateData.preferredPharmacyId;
       changedFields.push('preferredPharmacyId');
     }
@@ -266,7 +297,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
     }
 
     // Update profile
-    const updatedProfile = await prisma.patientProfile.update({
+    await prisma.patientProfile.update({
       where: { userId },
       data: dataToUpdate,
     });
@@ -283,11 +314,81 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
       'Profile update'
     );
 
+    // Re-query the full profile (same shape as GET) to avoid stale data on the client
+    const refreshedProfile = await prisma.patientProfile.findUnique({
+      where: { userId },
+      include: {
+        user: {
+          select: {
+            email: true,
+            emailVerified: true,
+            createdAt: true,
+          },
+        },
+        preferredPharmacy: true,
+      },
+    });
+
+    if (!refreshedProfile) {
+      return NextResponse.json(
+        { error: 'Profile not found after update', code: 'NOT_FOUND' },
+        { status: 404 }
+      );
+    }
+
+    // Build pharmacy info for response
+    let updatedPharmacy: {
+      name: string;
+      address: string;
+      city: string;
+      zip: string;
+      phone?: string;
+      source: 'pharmacy_record' | 'intake';
+    } | null = null;
+
+    if (refreshedProfile.preferredPharmacy) {
+      updatedPharmacy = {
+        name: refreshedProfile.preferredPharmacy.name,
+        address: refreshedProfile.preferredPharmacy.address,
+        city: refreshedProfile.preferredPharmacy.city,
+        zip: refreshedProfile.preferredPharmacy.zipCode,
+        phone: refreshedProfile.preferredPharmacy.phone || undefined,
+        source: 'pharmacy_record',
+      };
+    }
+
     return NextResponse.json({
       success: true,
       profile: {
-        id: updatedProfile.userId,
-        updatedAt: updatedProfile.updatedAt.toISOString(),
+        id: refreshedProfile.userId,
+        email: refreshedProfile.user.email,
+        emailVerified: refreshedProfile.user.emailVerified,
+        firstName: refreshedProfile.firstName,
+        lastName: refreshedProfile.lastName,
+        dateOfBirth: refreshedProfile.dateOfBirth,
+        phone: refreshedProfile.phone,
+        addressStreet: refreshedProfile.addressStreet,
+        addressCity: refreshedProfile.addressCity,
+        addressState: refreshedProfile.addressState,
+        addressZip: refreshedProfile.addressZip,
+        primaryConcern: refreshedProfile.primaryConcern,
+        treatmentGoal: refreshedProfile.treatmentGoal,
+        medicalHistory: refreshedProfile.medicalHistory,
+        currentMedications: refreshedProfile.currentMedications,
+        allergies: refreshedProfile.allergies,
+        pharmacy: updatedPharmacy,
+        notificationPreferences: refreshedProfile.notificationPreferences,
+        privacyConsent: {
+          given: refreshedProfile.privacyConsentGiven,
+          date: refreshedProfile.privacyConsentDate?.toISOString(),
+          version: refreshedProfile.privacyConsentVersion,
+        },
+        termsAccepted: {
+          accepted: refreshedProfile.termsAccepted,
+          date: refreshedProfile.termsAcceptedDate?.toISOString(),
+        },
+        createdAt: refreshedProfile.createdAt.toISOString(),
+        updatedAt: refreshedProfile.updatedAt.toISOString(),
       },
     });
   } catch (error) {

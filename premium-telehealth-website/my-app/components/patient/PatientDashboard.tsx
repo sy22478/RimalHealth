@@ -208,6 +208,8 @@ interface PatientDashboardProps {
   accountAgeDays?: number;
   /** Whether the patient has pharmacy info from their intake form (even if preferredPharmacyId is not set) */
   hasIntakePharmacy?: boolean;
+  /** Whether the patient has uploaded a government-issued ID */
+  hasGovernmentId?: boolean;
   className?: string;
 }
 
@@ -348,7 +350,7 @@ function SubscriptionAlert({ subscription }: SubscriptionAlertProps) {
 // Main Dashboard Component
 // ============================================================================
 
-export function PatientDashboard({ data, userId, mfaEnabled = true, accountAgeDays = 0, hasIntakePharmacy = false, className }: PatientDashboardProps) {
+export function PatientDashboard({ data, userId, mfaEnabled = true, accountAgeDays = 0, hasIntakePharmacy = false, hasGovernmentId = false, className }: PatientDashboardProps) {
   // Determine dashboard status
   const dashboardStatus: DashboardStatus = getDashboardStatus(
     data.intake?.status ?? IntakeStatus.DRAFT,
@@ -384,6 +386,28 @@ export function PatientDashboard({ data, userId, mfaEnabled = true, accountAgeDa
 
       {/* Intake CTA - Only show if intake incomplete */}
       <IntakeCTA status={dashboardStatus} />
+
+      {/* Government ID Upload Banner */}
+      {!hasGovernmentId && (
+        <Card className="mb-6 border-amber-200 bg-amber-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="font-medium text-amber-900">
+                  Please upload your government-issued ID to complete your profile
+                </p>
+              </div>
+              <Link href="/patient/documents">
+                <Button variant="outline" size="sm" className="border-amber-300 text-amber-700 hover:bg-amber-100 flex-shrink-0">
+                  Upload ID
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Subscription Alert - Show if expiring soon */}
       {data.subscription && (

@@ -16,14 +16,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { InvoiceCard } from './InvoiceCard';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { FileText, AlertCircle } from 'lucide-react';
-import { Invoice } from '@prisma/client';
+import type { InvoiceDisplay } from './InvoiceCard';
 
 // ============================================================================
 // Types
 // ============================================================================
 
 interface InvoiceListProps {
-  invoices: Invoice[];
+  invoices: InvoiceDisplay[];
   isLoading?: boolean;
   error?: string | null;
   onDownload: (invoiceId: string) => void;

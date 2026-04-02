@@ -49,7 +49,7 @@ export async function notifyNewIntake(patientId: string, intakeId: string): Prom
       priority: 'normal',
     });
   } catch (error) {
-    console.error(`[NotificationService] Failed to notify new intake: ${intakeId}`, error);
+    console.error(`[NotificationService] Failed to notify new intake: ${intakeId}`, error instanceof Error ? error.message : 'Unknown error');
     // Don't throw - notification failures shouldn't disrupt the flow
   }
 }
@@ -106,7 +106,7 @@ export async function notifyReviewComplete(
       priority: status === 'APPROVED' ? 'high' : 'normal',
     });
   } catch (error) {
-    console.error(`[NotificationService] Failed to notify review complete for patient: ${patientId}`, error);
+    console.error(`[NotificationService] Failed to notify review complete for patient: ${patientId}`, error instanceof Error ? error.message : 'Unknown error');
   }
 }
 
@@ -142,7 +142,7 @@ export async function notifyPrescriptionSent(
       priority: 'high',
     });
   } catch (error) {
-    console.error(`[NotificationService] Failed to notify prescription sent: ${prescriptionId}`, error);
+    console.error(`[NotificationService] Failed to notify prescription sent: ${prescriptionId}`, error instanceof Error ? error.message : 'Unknown error');
   }
 }
 
@@ -177,7 +177,7 @@ export async function notifyNewMessage(
       priority: 'normal',
     });
   } catch (error) {
-    console.error(`[NotificationService] Failed to notify new message in thread: ${threadId}`, error);
+    console.error(`[NotificationService] Failed to notify new message in thread: ${threadId}`, error instanceof Error ? error.message : 'Unknown error');
   }
 }
 
@@ -203,7 +203,7 @@ export async function notifyPaymentFailed(patientId: string, retryUrl?: string):
       priority: 'high',
     });
   } catch (error) {
-    console.error(`[NotificationService] Failed to notify payment failed for patient: ${patientId}`, error);
+    console.error(`[NotificationService] Failed to notify payment failed for patient: ${patientId}`, error instanceof Error ? error.message : 'Unknown error');
   }
 }
 
@@ -229,7 +229,7 @@ export async function notifyRefillApproved(patientId: string, prescriptionId: st
       priority: 'normal',
     });
   } catch (error) {
-    console.error(`[NotificationService] Failed to notify refill approved: ${prescriptionId}`, error);
+    console.error(`[NotificationService] Failed to notify refill approved: ${prescriptionId}`, error instanceof Error ? error.message : 'Unknown error');
   }
 }
 
@@ -286,7 +286,7 @@ export async function notifyPhysicianNewIntake(
 
     console.log(`[NotificationService] Notified ${activePhysicians.length} physicians of new intake: ${intakeId}`);
   } catch (error) {
-    console.error(`[NotificationService] Failed to notify physicians of new intake: ${intakeId}`, error);
+    console.error(`[NotificationService] Failed to notify physicians of new intake: ${intakeId}`, error instanceof Error ? error.message : 'Unknown error');
   }
 }
 
@@ -318,7 +318,7 @@ export async function notifyPhysicianNewMessage(
       priority: 'normal',
     });
   } catch (error) {
-    console.error(`[NotificationService] Failed to notify physician of new message: ${physicianId}`, error);
+    console.error(`[NotificationService] Failed to notify physician of new message:`, error instanceof Error ? error.message : 'Unknown error');
   }
 }
 
@@ -350,7 +350,7 @@ export async function notifyPhysicianRefillRequest(
       priority: 'normal',
     });
   } catch (error) {
-    console.error(`[NotificationService] Failed to notify physician of refill request: ${physicianId}`, error);
+    console.error(`[NotificationService] Failed to notify physician of refill request: ${physicianId}`, error instanceof Error ? error.message : 'Unknown error');
   }
 }
 
@@ -383,7 +383,7 @@ export async function notifyAdmin(
       },
     });
   } catch (error) {
-    console.error(`[NotificationService] Failed to notify admins: ${subject}`, error);
+    console.error(`[NotificationService] Failed to notify admins: ${subject}`, error instanceof Error ? error.message : 'Unknown error');
   }
 }
 

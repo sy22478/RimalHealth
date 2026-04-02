@@ -554,6 +554,7 @@ export default function DocumentsPage() {
   const [isUploadOpen, setIsUploadOpen] = React.useState(false);
   const [isUploading, setIsUploading] = React.useState(false);
   const [uploadError, setUploadError] = React.useState<string | null>(null);
+  const [selectedUploadType, setSelectedUploadType] = React.useState('OTHER');
 
   // Intake viewer state
   const [viewingIntakeId, setViewingIntakeId] = React.useState<string | null>(null);
@@ -589,7 +590,7 @@ export default function DocumentsPage() {
     const errors: string[] = [];
 
     for (const file of files) {
-      const result = await uploadDocumentToS3(file, 'OTHER');
+      const result = await uploadDocumentToS3(file, selectedUploadType);
       if (!result.success) {
         errors.push(`${file.name}: ${result.error}`);
       }
@@ -736,7 +737,7 @@ export default function DocumentsPage() {
       )}
 
       {/* Upload Dialog */}
-      <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
+      <Dialog open={isUploadOpen} onOpenChange={(open) => { setIsUploadOpen(open); if (!open) setSelectedUploadType('OTHER'); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Upload Documents</DialogTitle>
@@ -750,7 +751,25 @@ export default function DocumentsPage() {
               <span className="ml-2 text-gray-600">Uploading...</span>
             </div>
           ) : (
-            <UploadDropzone onUpload={handleUpload} />
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="upload-doc-type" className="block text-sm font-medium text-gray-700 mb-1">
+                  Document Type
+                </label>
+                <select
+                  id="upload-doc-type"
+                  value={selectedUploadType}
+                  onChange={(e) => setSelectedUploadType(e.target.value)}
+                  className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ocean-500"
+                >
+                  <option value="ID_VERIFICATION">Government ID</option>
+                  <option value="INSURANCE_CARD">Insurance Card</option>
+                  <option value="MEDICAL_RECORD">Lab Result / Medical Record</option>
+                  <option value="OTHER">Other</option>
+                </select>
+              </div>
+              <UploadDropzone onUpload={handleUpload} />
+            </div>
           )}
           {uploadError && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">

@@ -65,10 +65,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const { key, documentType } = validation.data;
 
-    // Get patient profile
+    // Verify patient profile exists
     const patientProfile = await prisma.patientProfile.findUnique({
       where: { userId },
-      select: { id: true },
+      select: { userId: true },
     });
 
     if (!patientProfile) {
@@ -94,9 +94,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const cleanFileName = fileName.replace(/^\d+-/, '');
 
     // Create document record
+    // Document.patientId FK references PatientProfile.userId (not PatientProfile.id)
     const document = await prisma.document.create({
       data: {
-        patientId: patientProfile.id,
+        patientId: userId,
         documentType,
         fileName: cleanFileName,
         fileSize: objectInfo.size,

@@ -76,14 +76,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       });
 
       // ====================================================================
-      // Stripe fallback: if DB has zero invoices, backfill from Stripe.
-      // Strategy:
-      //   1. Try to find stripeCustomerId from the user's Subscription record
-      //   2. If no Subscription, look up Stripe customer by the user's email
-      // This handles accounts where the webhook didn't create Invoice records,
-      // or where the Subscription record was never created properly.
+      // Stripe sync: always merge Stripe data to catch invoices the webhook
+      // didn't create. Deduplicates by stripeInvoiceId.
       // ====================================================================
-      if (invoices.length === 0) {
+      {
         try {
           const stripe = getStripe();
           let stripeCustomerId: string | null = null;
@@ -122,58 +118,60 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           if (stripeCustomerId) {
             const stripeInvoices = await stripe.invoices.list({
               customer: stripeCustomerId,
-              status: 'paid',
               limit: 50,
             });
 
-            // Backfill each paid Stripe invoice into the local DB
-            for (const si of stripeInvoices.data) {
-              // Skip if already exists (race-condition guard)
-              const exists = await prisma.invoice.findFirst({
-                where: { stripeInvoiceId: si.id },
-              });
-              if (exists) continue;
+            // Backfill Stripe invoices into the local DB, wrapped in a transaction
+            // to ensure atomicity. Deduplicates by stripeInvoiceId.
+            const invoiceSubId = subscriptionId;
+            if (invoiceSubId && stripeInvoices.data.length > 0) {
+              const existingIds = new Set(
+                (await prisma.invoice.findMany({
+                  where: { userId },
+                  select: { stripeInvoiceId: true },
+                })).map(i => i.stripeInvoiceId)
+              );
 
-              // Use the Subscription id if we have one; otherwise create without it
-              // by finding or creating a minimal subscription reference
-              const invoiceSubId = subscriptionId;
+              const newInvoices = stripeInvoices.data.filter(si => !existingIds.has(si.id));
 
-              if (invoiceSubId) {
-                await prisma.invoice.create({
-                  data: {
-                    subscriptionId: invoiceSubId,
-                    userId,
-                    amount: si.amount_paid,
-                    currency: (si.currency || 'usd').toUpperCase(),
-                    status: 'PAID' as InvoiceStatus,
-                    stripeInvoiceId: si.id,
-                    stripeChargeId: typeof (si as unknown as Record<string, unknown>).charge === 'string' ? (si as unknown as Record<string, unknown>).charge as string : null,
-                    pdfUrl: si.invoice_pdf || null,
-                    paidAt: si.status_transitions?.paid_at
-                      ? new Date(si.status_transitions.paid_at * 1000)
-                      : new Date(),
-                  },
-                });
+              if (newInvoices.length > 0) {
+                await prisma.$transaction(
+                  newInvoices.map(si =>
+                    prisma.invoice.create({
+                      data: {
+                        subscriptionId: invoiceSubId,
+                        userId,
+                        amount: si.amount_paid,
+                        currency: (si.currency || 'usd').toUpperCase(),
+                        status: si.status === 'paid' ? ('PAID' as InvoiceStatus) : ('OPEN' as InvoiceStatus),
+                        stripeInvoiceId: si.id,
+                        stripeChargeId: typeof (si as unknown as Record<string, unknown>).charge === 'string' ? (si as unknown as Record<string, unknown>).charge as string : null,
+                        pdfUrl: si.invoice_pdf || null,
+                        paidAt: si.status_transitions?.paid_at
+                          ? new Date(si.status_transitions.paid_at * 1000)
+                          : (si.status === 'paid' ? new Date() : null),
+                      },
+                    })
+                  )
+                );
               }
             }
 
-            // Re-fetch from DB so we return consistent records
-            if (stripeInvoices.data.length > 0 && subscriptionId) {
-              invoices = await prisma.invoice.findMany({
-                where: { userId },
-                orderBy: { createdAt: 'desc' },
-                select: {
-                  id: true,
-                  amount: true,
-                  status: true,
-                  stripeInvoiceId: true,
-                  stripeChargeId: true,
-                  pdfUrl: true,
-                  createdAt: true,
-                  paidAt: true,
-                },
-              });
-            }
+            // Re-fetch from DB so we return consistent records (always, to merge any new backfill)
+            invoices = await prisma.invoice.findMany({
+              where: { userId },
+              orderBy: { createdAt: 'desc' },
+              select: {
+                id: true,
+                amount: true,
+                status: true,
+                stripeInvoiceId: true,
+                stripeChargeId: true,
+                pdfUrl: true,
+                createdAt: true,
+                paidAt: true,
+              },
+            });
 
             // If we have Stripe invoices but no Subscription record to persist them,
             // return them directly without persisting to DB

@@ -321,7 +321,7 @@ export default function BillingPage(): React.ReactElement {
 
         {invoices.length > 0 && (
           <InvoiceList
-            invoices={invoices as unknown as Parameters<typeof InvoiceList>[0]['invoices']}
+            invoices={invoices}
             onDownload={handleDownloadInvoice}
             downloadingId={downloadingId}
           />
@@ -357,7 +357,7 @@ export default function BillingPage(): React.ReactElement {
           {/* Subscription Overview */}
           {billingData?.subscription && (
             <BillingOverview
-              subscription={billingData.subscription as unknown as Parameters<typeof BillingOverview>[0]['subscription']}
+              subscription={billingData.subscription}
               onUpdatePayment={handleUpdatePayment}
               onCancel={handleCancelClick}
               isUpdatingPayment={isPortalLoading}
@@ -378,7 +378,7 @@ export default function BillingPage(): React.ReactElement {
             </div>
           ) : (
             <InvoiceList
-              invoices={invoices as unknown as Parameters<typeof InvoiceList>[0]['invoices']}
+              invoices={invoices}
               onDownload={handleDownloadInvoice}
               downloadingId={downloadingId}
               onRetry={() => window.location.reload()}

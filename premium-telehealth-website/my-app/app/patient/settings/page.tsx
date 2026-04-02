@@ -3,10 +3,20 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Bell, Shield, LogOut, Trash2, Mail, MessageSquare, Eye } from 'lucide-react';
+import { AlertTriangle, Bell, Shield, LogOut, Trash2, Mail, MessageSquare, Eye } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from '@/components/ui/dialog';
 
 // ============================================================================
 // Types
@@ -385,15 +395,40 @@ export default function PatientSettingsPage(): React.ReactElement {
                   retained for 7 years per federal law.
                 </p>
               </div>
-              <Link href="/patient/delete-account">
-                <Button
-                  variant="outline"
-                  className="shrink-0 border-red-300 text-red-700 hover:bg-red-100"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </Button>
-              </Link>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="shrink-0 border-red-300 text-red-700 hover:bg-red-100"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2 text-red-900">
+                      <AlertTriangle className="h-5 w-5 text-red-600" />
+                      Delete Your Account
+                    </DialogTitle>
+                    <DialogDescription className="pt-2 text-gray-700">
+                      This will cancel your subscription and deactivate your account. Your
+                      medical records will be retained for 7 years as required by law.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter className="gap-2 sm:gap-0">
+                    <DialogClose asChild>
+                      <Button variant="outline">Cancel</Button>
+                    </DialogClose>
+                    <Button
+                      variant="destructive"
+                      onClick={() => router.push('/patient/delete-account')}
+                    >
+                      Continue
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
           </CardContent>
         </Card>

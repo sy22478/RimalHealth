@@ -131,6 +131,20 @@ export async function getPendingIntakes(
       },
     });
 
+    // Batch-check which patients have a government ID document
+    const patientIds = intakes.map(intake => intake.patientId);
+    const govIdDocs = patientIds.length > 0
+      ? await prisma.document.findMany({
+          where: {
+            patientId: { in: patientIds },
+            documentType: 'ID_VERIFICATION',
+            status: { not: 'DELETED' },
+          },
+          select: { patientId: true },
+        })
+      : [];
+    const patientsWithGovId = new Set(govIdDocs.map(doc => doc.patientId));
+
     // Transform to queue items
     let queueItems: QueueItem[] = intakes.map(intake => {
       const profile = intake.patient.patientProfile;
@@ -177,6 +191,7 @@ export async function getPendingIntakes(
         isOverdue: waitTimeHours > 24,
         riskScore: intake.riskScore || undefined,
         isDeactivated: !!intake.patient.deactivatedAt,
+        hasGovernmentId: patientsWithGovId.has(intake.patientId),
       };
     }).filter(Boolean); // Remove any null items
 
@@ -328,6 +343,7 @@ export function getMockQueueData(): QueueItem[] {
       waitTimeHours: 25,
       isOverdue: true,
       riskScore: 65,
+      hasGovernmentId: true,
     },
     {
       intakeId: 'intake-002',
@@ -340,6 +356,7 @@ export function getMockQueueData(): QueueItem[] {
       waitTimeHours: 12,
       isOverdue: false,
       riskScore: 35,
+      hasGovernmentId: false,
     },
     {
       intakeId: 'intake-003',
@@ -352,6 +369,7 @@ export function getMockQueueData(): QueueItem[] {
       waitTimeHours: 48,
       isOverdue: true,
       riskScore: 82,
+      hasGovernmentId: true,
     },
     {
       intakeId: 'intake-004',
@@ -364,6 +382,7 @@ export function getMockQueueData(): QueueItem[] {
       waitTimeHours: 3,
       isOverdue: false,
       riskScore: 45,
+      hasGovernmentId: false,
     },
     {
       intakeId: 'intake-005',
@@ -376,6 +395,7 @@ export function getMockQueueData(): QueueItem[] {
       waitTimeHours: 0.5,
       isOverdue: false,
       riskScore: undefined,
+      hasGovernmentId: false,
     },
   ];
 }

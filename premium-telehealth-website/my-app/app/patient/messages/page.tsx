@@ -5,8 +5,6 @@ import { motion } from 'framer-motion';
 import {
   MessageSquare,
   Send,
-  Paperclip,
-  MoreVertical,
   Search,
   Check,
   CheckCheck,
@@ -20,12 +18,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/Skeleton';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 
 import { cn } from '@/lib/utils';
 
@@ -353,17 +345,6 @@ function MessageThread({
             </p>
           </div>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <MoreVertical className="h-5 w-5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem>View Profile</DropdownMenuItem>
-            <DropdownMenuItem>Mark as Unread</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -400,9 +381,6 @@ function MessageThread({
 
       <form onSubmit={handleSend} className="p-4 border-t border-gray-200">
         <div className="flex items-end gap-2">
-          <Button type="button" variant="ghost" size="icon" className="shrink-0">
-            <Paperclip className="h-5 w-5 text-gray-500" />
-          </Button>
           <Textarea
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
@@ -572,6 +550,9 @@ export default function MessagesPage() {
           ),
         }));
       }
+
+      // Refresh thread list to update last message and unread counts
+      loadThreads();
     } catch (err) {
       // Network error — rollback optimistic update
       setMessages(prev => ({

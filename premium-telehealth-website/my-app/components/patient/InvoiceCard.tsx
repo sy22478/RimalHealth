@@ -17,14 +17,25 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Download, ExternalLink, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Invoice, InvoiceStatus } from '@prisma/client';
 
 // ============================================================================
 // Types
 // ============================================================================
 
+/** Minimal invoice shape used by billing UI — matches both Prisma model and API response */
+export interface InvoiceDisplay {
+  id: string;
+  amount: number;
+  status: string;
+  stripeInvoiceId: string;
+  stripeChargeId: string | null;
+  pdfUrl: string | null;
+  createdAt: Date | string;
+  paidAt: Date | string | null;
+}
+
 interface InvoiceCardProps {
-  invoice: Invoice;
+  invoice: InvoiceDisplay;
   onDownload: (invoiceId: string) => void;
   isDownloading?: boolean;
   className?: string;
@@ -58,8 +69,8 @@ function formatDate(date: Date | string): string {
 /**
  * Get status badge variant
  */
-function getStatusVariant(status: InvoiceStatus): 'default' | 'secondary' | 'destructive' | 'outline' {
-  const variants: Record<InvoiceStatus, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+function getStatusVariant(status: string): 'default' | 'secondary' | 'destructive' | 'outline' {
+  const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
     DRAFT: 'outline',
     OPEN: 'outline',
     PAID: 'default',
@@ -132,10 +143,10 @@ export function InvoiceCard({
             </span>
 
             <div className="flex items-center gap-1">
-              {invoice.stripeInvoiceId && (
+              {invoice.pdfUrl && (
                 <Button
                   onClick={() => window.open(
-                    `https://invoice.stripe.com/i/${invoice.stripeInvoiceId}`,
+                    invoice.pdfUrl!,
                     '_blank',
                     'noopener,noreferrer'
                   )}

@@ -136,6 +136,7 @@ export async function getPatientMessagingThreads(
     // No existing messages yet - get the first available physician
     // In production, this would be the assigned physician
     const firstPhysician = await prisma.physician.findFirst({
+      where: { status: 'ACTIVE' },
       select: { userId: true },
     });
     physicianId = firstPhysician?.userId ?? null;
@@ -222,8 +223,10 @@ export async function getPatientThreadMessages(
   threadId: string,
   patientId: string
 ): Promise<PatientThreadDetail | null> {
-  // Verify thread belongs to this patient
-  if (!threadId.includes(patientId)) {
+  // Verify thread belongs to this patient using strict regex matching
+  const UUID_PATTERN = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
+  const pattern = new RegExp(`^thread-${patientId}-${UUID_PATTERN}$`, 'i');
+  if (!pattern.test(threadId)) {
     return null;
   }
 
@@ -337,6 +340,7 @@ export async function sendMessageToPhysician(
       senderType: 'PATIENT',
       senderId: input.patientId,
       recipientId: input.recipientId,
+      userId: input.patientId,
       status: 'SENT',
     },
   });
@@ -448,6 +452,8 @@ export async function verifyThreadAccess(
   threadId: string,
   patientId: string
 ): Promise<boolean> {
-  // Thread ID format: thread-{patientId}-{physicianId}
-  return threadId.includes(patientId);
+  // Thread ID format: thread-{patientId}-{physicianId} — use strict regex
+  const UUID_RE = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
+  const threadPattern = new RegExp(`^thread-${patientId}-${UUID_RE}$`, 'i');
+  return threadPattern.test(threadId);
 }

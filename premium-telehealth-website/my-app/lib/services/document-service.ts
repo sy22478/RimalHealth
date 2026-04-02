@@ -262,8 +262,8 @@ export async function listPatientDocuments(
   patientId: string,
   documentType?: string
 ): Promise<DocumentMetadata[]> {
-  const where: Record<string, unknown> = { patientId };
-  
+  const where: Record<string, unknown> = { patientId, status: { not: 'DELETED' } };
+
   if (documentType) {
     where.documentType = documentType;
   }

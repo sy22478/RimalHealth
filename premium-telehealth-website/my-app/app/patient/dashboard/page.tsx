@@ -11,7 +11,7 @@ interface UserMFAInfo {
   accountAgeDays: number;
 }
 
-async function getDashboardData(userId: string): Promise<DashboardData & { hasIntakePharmacy: boolean }> {
+async function getDashboardData(userId: string): Promise<DashboardData & { hasGovernmentId: boolean; hasIntakePharmacy: boolean }> {
   const results = await Promise.allSettled([
     prisma.patientProfile.findUnique({
       where: { userId },
@@ -88,6 +88,14 @@ async function getDashboardData(userId: string): Promise<DashboardData & { hasIn
       },
     }),
     prisma.message.count({ where: { recipientId: userId, readAt: null } }),
+    prisma.document.findFirst({
+      where: {
+        patientId: userId,
+        documentType: 'ID_VERIFICATION',
+        status: { not: 'DELETED' },
+      },
+      select: { id: true },
+    }),
   ]);
 
   // Extract each result with graceful fallback for failures
@@ -103,6 +111,8 @@ async function getDashboardData(userId: string): Promise<DashboardData & { hasIn
     results[4].status === "fulfilled" ? results[4].value : [];
   const unreadCount =
     results[5].status === "fulfilled" ? results[5].value : 0;
+  const hasGovernmentId =
+    results[6].status === "fulfilled" ? results[6].value !== null : false;
 
   // Log any failed queries for debugging (no PHI in error messages)
   const queryNames = [
@@ -112,6 +122,7 @@ async function getDashboardData(userId: string): Promise<DashboardData & { hasIn
     "prescriptions",
     "messages",
     "unreadCount",
+    "governmentId",
   ];
   results.forEach((result, index) => {
     if (result.status === "rejected") {
@@ -167,6 +178,7 @@ async function getDashboardData(userId: string): Promise<DashboardData & { hasIn
     prescriptions,
     messages: dashboardMessages,
     unreadCount,
+    hasGovernmentId,
     hasIntakePharmacy,
   };
 }
@@ -208,6 +220,7 @@ export default async function PatientDashboardPage() {
         mfaEnabled={mfaInfo.mfaEnabled}
         accountAgeDays={mfaInfo.accountAgeDays}
         hasIntakePharmacy={data.hasIntakePharmacy}
+        hasGovernmentId={data.hasGovernmentId}
       />
     </div>
   );
