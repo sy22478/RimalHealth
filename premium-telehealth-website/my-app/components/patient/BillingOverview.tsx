@@ -155,6 +155,7 @@ export function BillingOverview({
   }
 
   const isActive = subscription.status === 'ACTIVE';
+  const isTrialing = subscription.status === 'TRIALING';
   const isCancelling = subscription.cancelAtPeriodEnd;
   const periodEnd = new Date(subscription.currentPeriodEnd);
 
@@ -190,6 +191,19 @@ export function BillingOverview({
             </span>
           </div>
           
+          {isTrialing && (
+            <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+              <div className="text-sm text-blue-800">
+                <p className="font-medium">Pending physician review</p>
+                <p>
+                  Your subscription is pending physician review. You will not be charged
+                  until your intake is approved.
+                </p>
+              </div>
+            </div>
+          )}
+
           {isCancelling && (
             <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
               <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
@@ -197,7 +211,7 @@ export function BillingOverview({
                 <p className="font-medium">Subscription ending</p>
                 <p>
                   Your subscription will remain active until{' '}
-                  <strong>{formatDate(periodEnd)}</strong>. After this date, 
+                  <strong>{formatDate(periodEnd)}</strong>. After this date,
                   your access will be limited.
                 </p>
               </div>
@@ -207,11 +221,11 @@ export function BillingOverview({
 
         {/* Billing Info */}
         <div className="space-y-3 border-t pt-4">
-          <div className="flex items-center gap-3 text-sm">
+          <div className={cn('flex items-center gap-3 text-sm', isTrialing && 'opacity-50')}>
             <Calendar className="h-4 w-4 text-muted-foreground" />
             <span className="text-muted-foreground">Next billing date:</span>
             <span className="font-medium">
-              {isCancelling ? 'No further billing' : formatDate(periodEnd)}
+              {isTrialing ? 'Pending approval' : isCancelling ? 'No further billing' : formatDate(periodEnd)}
             </span>
           </div>
 

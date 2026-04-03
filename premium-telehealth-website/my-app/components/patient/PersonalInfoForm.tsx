@@ -95,6 +95,11 @@ const personalInfoSchema = z.object({
   addressState: z.string().optional().or(z.literal('')),
   addressZip: z.string()
     .max(10, 'ZIP code is too long')
+    .refine((val) => {
+      if (!val) return true; // optional field
+      const n = parseInt(val.substring(0, 5), 10);
+      return n >= 90001 && n <= 96162;
+    }, { message: 'Must be a valid California ZIP code (90001-96162)' })
     .optional().or(z.literal('')),
   medicalHistory: z.string()
     .max(2000, 'Medical history must be under 2000 characters')

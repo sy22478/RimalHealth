@@ -16,6 +16,7 @@ import { AuditService } from '@/lib/services/audit-service';
 import { ValidationService } from '@/lib/services/validation-service';
 import { updateProfileSchema } from '@/lib/validation/schemas';
 import { Role, IntakeStatus } from '@prisma/client';
+import { validateCaliforniaZip } from '@/lib/utils/validation-helpers';
 import { DataModificationAction } from '@/lib/audit/index';
 // PHI encryption/decryption is handled automatically by the Prisma encryption extension
 // in lib/db/encryption-extension.ts. Do NOT manually call encryptPHI/decryptPHI on fields
@@ -234,6 +235,10 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
     }
 
     if (hasValue(updateData.addressZip)) {
+      const zipValidation = validateCaliforniaZip(updateData.addressZip);
+      if (!zipValidation.valid) {
+        return NextResponse.json({ error: zipValidation.error }, { status: 400 });
+      }
       dataToUpdate.addressZip = updateData.addressZip;
       changedFields.push('addressZip');
     }

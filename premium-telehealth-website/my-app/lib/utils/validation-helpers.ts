@@ -212,19 +212,12 @@ export function validatePattern(
 export function validateCaliforniaZip(zip: string | null | undefined): ValidationResult {
   const baseValidation = validateZipCode(zip);
   if (!baseValidation.valid) return baseValidation;
-  
-  // California ZIP codes start with 900-961 (with some gaps)
-  const caPrefixes = ['900', '901', '902', '903', '904', '905', '906', '907', '908', '909', 
-    '910', '911', '912', '913', '914', '915', '916', '917', '918', '919', '920', '921', '922',
-    '923', '924', '925', '926', '927', '928', '930', '931', '932', '933', '934', '935', '936',
-    '937', '938', '939', '940', '941', '942', '943', '944', '945', '946', '947', '948', '949',
-    '950', '951', '952', '953', '954', '955', '956', '957', '958', '959', '960', '961'];
-  
-  const prefix = zip?.substring(0, 3);
-  if (!prefix || !caPrefixes.includes(prefix)) {
-    return { valid: false, error: ERROR_MESSAGES.VALIDATION.CALIFORNIA_ONLY };
+
+  const zipNum = parseInt(zip!.substring(0, 5), 10);
+  // California ZIP codes: 90001-96162
+  if (zipNum < 90001 || zipNum > 96162) {
+    return { valid: false, error: 'This service is only available to California residents. Please enter a valid California ZIP code (90001-96162).' };
   }
-  
   return { valid: true };
 }
 
