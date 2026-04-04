@@ -51,14 +51,22 @@ const intakeFormSchema = z.object({
   }, { message: 'You must be at least 18 years old to use our services' }),
   phone: z.string().min(10, { message: 'Valid phone number required' }),
   addressStreet: z.string().min(1, { message: 'Street address is required' }),
-  addressCity: z.string().min(1, { message: 'City is required' }),
+  addressCity: z.string()
+    .min(2, { message: 'City name is required' })
+    .max(100, { message: 'City name is too long' })
+    .regex(/^[a-zA-Z\s\-'.]+$/, { message: 'City name contains invalid characters' }),
+  addressState: z.literal('CA', { message: 'Service is only available in California' }),
   addressZip: z.string().regex(/^\d{5}$/, { message: 'Must be a 5-digit ZIP code' }).refine((zip) => {
     const n = parseInt(zip, 10);
     return n >= 90001 && n <= 96162;
   }, { message: 'Must be a valid California ZIP code (90001-96162)' }),
   pharmacyName: z.string().min(1, { message: 'Pharmacy name is required' }),
   pharmacyAddress: z.string().min(1, { message: 'Pharmacy address is required' }),
-  pharmacyCity: z.string().min(1, { message: 'Pharmacy city is required' }),
+  pharmacyCity: z.string()
+    .min(2, { message: 'Pharmacy city is required' })
+    .max(100, { message: 'Pharmacy city is too long' })
+    .regex(/^[a-zA-Z\s\-'.]+$/, { message: 'City name contains invalid characters' }),
+  pharmacyState: z.literal('CA', { message: 'Pharmacy must be in California' }),
   pharmacyZip: z.string().regex(/^\d{5}$/, { message: 'Must be a 5-digit ZIP code' }).refine((zip) => {
     const n = parseInt(zip, 10);
     return n >= 90001 && n <= 96162;
@@ -214,7 +222,7 @@ function PersonalInfoStep(): React.ReactElement {
 
   return (
     <section aria-label="Section 0: Personal Information" className="space-y-6">
-      <StepErrorSummary stepFields={['firstName', 'lastName', 'dateOfBirth', 'phone', 'addressStreet', 'addressCity', 'addressZip', 'pharmacyName', 'pharmacyAddress', 'pharmacyCity', 'pharmacyZip']} />
+      <StepErrorSummary stepFields={['firstName', 'lastName', 'dateOfBirth', 'phone', 'addressStreet', 'addressCity', 'addressState', 'addressZip', 'pharmacyName', 'pharmacyAddress', 'pharmacyCity', 'pharmacyState', 'pharmacyZip']} />
 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-gray-900">Personal Information</h3>
@@ -357,6 +365,7 @@ function PharmacySearchSection(): React.ReactElement {
     setValue('pharmacyName', pharmacy.name, { shouldValidate: true, shouldDirty: true });
     setValue('pharmacyAddress', pharmacy.address, { shouldValidate: true, shouldDirty: true });
     setValue('pharmacyCity', pharmacy.city, { shouldValidate: true, shouldDirty: true });
+    setValue('pharmacyState', 'CA', { shouldValidate: true, shouldDirty: true });
     setValue('pharmacyZip', pharmacy.zipCode, { shouldValidate: true, shouldDirty: true });
     setValue('pharmacyPhone', pharmacy.phone || '', { shouldDirty: true });
     setShowResults(false);
@@ -369,6 +378,7 @@ function PharmacySearchSection(): React.ReactElement {
     setValue('pharmacyName', '', { shouldDirty: true });
     setValue('pharmacyAddress', '', { shouldDirty: true });
     setValue('pharmacyCity', '', { shouldDirty: true });
+    setValue('pharmacyState', 'CA', { shouldDirty: true });
     setValue('pharmacyZip', '', { shouldDirty: true });
     setValue('pharmacyPhone', '', { shouldDirty: true });
   };
@@ -456,11 +466,16 @@ function PharmacySearchSection(): React.ReactElement {
             <Input id="pharmacyAddress" {...register('pharmacyAddress')} placeholder="456 Oak Ave" />
             {errors.pharmacyAddress && <p className="text-sm text-red-500" role="alert">{errors.pharmacyAddress.message}</p>}
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label htmlFor="pharmacyCity">City *</Label>
               <Input id="pharmacyCity" {...register('pharmacyCity')} placeholder="Los Angeles" />
               {errors.pharmacyCity && <p className="text-sm text-red-500" role="alert">{errors.pharmacyCity.message}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="pharmacyStateDisplay">State</Label>
+              <Input id="pharmacyStateDisplay" value="California" disabled className="bg-gray-50" />
+              <input type="hidden" value="CA" {...register('pharmacyState')} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="pharmacyZip">ZIP Code *</Label>
@@ -481,6 +496,7 @@ function PharmacySearchSection(): React.ReactElement {
           <input {...register('pharmacyName')} />
           <input {...register('pharmacyAddress')} />
           <input {...register('pharmacyCity')} />
+          <input {...register('pharmacyState')} />
           <input {...register('pharmacyZip')} />
           <input {...register('pharmacyPhone')} />
         </div>
@@ -1529,10 +1545,12 @@ export default function IntakePage(): React.ReactElement {
       phone: '',
       addressStreet: '',
       addressCity: '',
+      addressState: 'CA',
       addressZip: '',
       pharmacyName: '',
       pharmacyAddress: '',
       pharmacyCity: '',
+      pharmacyState: 'CA',
       pharmacyZip: '',
       pharmacyPhone: '',
       dsm5Q1: undefined,
@@ -1632,7 +1650,7 @@ export default function IntakePage(): React.ReactElement {
   // Validate current step fields before proceeding
   const validateCurrentStep = async (): Promise<boolean> => {
     const stepFields: Record<string, string[]> = {
-      personal: ['firstName', 'lastName', 'dateOfBirth', 'phone', 'addressStreet', 'addressCity', 'addressZip', 'pharmacyName', 'pharmacyAddress', 'pharmacyCity', 'pharmacyZip'],
+      personal: ['firstName', 'lastName', 'dateOfBirth', 'phone', 'addressStreet', 'addressCity', 'addressState', 'addressZip', 'pharmacyName', 'pharmacyAddress', 'pharmacyCity', 'pharmacyState', 'pharmacyZip'],
       dsm5: ['dsm5Q1', 'dsm5Q2', 'dsm5Q3', 'dsm5Q4', 'dsm5Q5', 'dsm5Q6', 'dsm5Q7', 'dsm5Q8', 'dsm5Q9', 'dsm5Q10', 'dsm5Q11'],
       drinking: ['drinkingDaysPerWeek', 'drinksPerDay', 'lastDrink', 'bingeDrinking'],
       withdrawal: ['withdrawalSeizure', 'withdrawalDTs', 'withdrawalHospitalized', 'morningDrinking'],

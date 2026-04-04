@@ -22,7 +22,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const zipCode = searchParams.get('zip') || '';
     const limit = Math.min(parseInt(searchParams.get('limit') || '20', 10), 50);
 
-    const where: Record<string, unknown> = { isActive: true };
+    const where: Record<string, unknown> = { isActive: true, state: 'CA' };
 
     if (query) {
       where.OR = [

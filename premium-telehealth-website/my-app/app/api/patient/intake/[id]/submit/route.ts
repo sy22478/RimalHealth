@@ -122,21 +122,37 @@ export async function POST(
       }
     }
 
-    // Server-side California address validation
+    // Server-side California address validation (state + ZIP)
+    const addressState = fd_raw.addressState as string | undefined;
+    if (addressState && addressState.toUpperCase() !== 'CA') {
+      return NextResponse.json(
+        { error: 'Service is only available to California residents', code: 'CA_ONLY' },
+        { status: 400 }
+      );
+    }
     if (fd_raw.addressZip && typeof fd_raw.addressZip === 'string') {
       const zip = parseInt(fd_raw.addressZip.substring(0, 5), 10);
       if (isNaN(zip) || zip < 90001 || zip > 96162) {
         return NextResponse.json(
-          { error: 'Patient address must be in California', code: 'CA_ONLY' },
+          { error: 'Patient address must be in California (ZIP 90001-96162)', code: 'CA_ONLY' },
           { status: 400 }
         );
       }
+    }
+
+    // Server-side California pharmacy validation (state + ZIP)
+    const pharmacyState = fd_raw.pharmacyState as string | undefined;
+    if (pharmacyState && pharmacyState.toUpperCase() !== 'CA') {
+      return NextResponse.json(
+        { error: 'Pharmacy must be in California', code: 'CA_ONLY' },
+        { status: 400 }
+      );
     }
     if (fd_raw.pharmacyZip && typeof fd_raw.pharmacyZip === 'string') {
       const zip = parseInt(fd_raw.pharmacyZip.substring(0, 5), 10);
       if (isNaN(zip) || zip < 90001 || zip > 96162) {
         return NextResponse.json(
-          { error: 'Pharmacy must be in California', code: 'CA_ONLY' },
+          { error: 'Pharmacy ZIP code must be a valid California ZIP code (90001-96162)', code: 'CA_ONLY' },
           { status: 400 }
         );
       }

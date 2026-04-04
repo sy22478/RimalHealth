@@ -193,6 +193,14 @@ export const dsm5IntakeFormDataSchema = z.object({
   // Section 7: Demographics (Q33)
   biologicalSex: z.enum(['MALE', 'FEMALE', 'OTHER']),
   biologicalSexOther: z.string().optional(),
+
+  // Address — California only
+  addressState: z.literal('CA').optional(),
+  pharmacyState: z.literal('CA').optional(),
+  pharmacyZip: z.string().regex(/^\d{5}$/).refine((zip) => {
+    const n = parseInt(zip, 10);
+    return n >= 90001 && n <= 96162;
+  }, { message: 'Must be a valid California ZIP code (90001-96162)' }).optional(),
 }).passthrough(); // Allow additional fields (e.g., primaryConcern added by submit handler)
 
 /** Submit intake request — validates formData structure server-side */
@@ -228,7 +236,7 @@ export const updateProfileSchema = z.object({
   phone: z.string().max(30).nullable().optional().or(z.literal('')),
   addressStreet: z.string().max(255).nullable().optional().or(z.literal('')),
   addressCity: z.string().max(100).nullable().optional().or(z.literal('')),
-  addressState: z.string().max(5).nullable().optional().or(z.literal('')),
+  addressState: z.enum(['CA', '']).nullable().optional().or(z.literal('CA')),
   addressZip: z.string().max(10).nullable().optional().or(z.literal('')),
   primaryConcern: z.string().max(100).nullable().optional().or(z.literal('')),
   treatmentGoal: z.string().max(500).nullable().optional().or(z.literal('')),

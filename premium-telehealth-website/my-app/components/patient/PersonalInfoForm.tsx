@@ -91,8 +91,9 @@ const personalInfoSchema = z.object({
     .optional().or(z.literal('')),
   addressCity: z.string()
     .max(100, 'City must be under 100 characters')
+    .regex(/^[a-zA-Z\s\-'.]*$/, { message: 'City name contains invalid characters' })
     .optional().or(z.literal('')),
-  addressState: z.string().optional().or(z.literal('')),
+  addressState: z.enum(['CA', '']).optional().or(z.literal('CA')),
   addressZip: z.string()
     .max(10, 'ZIP code is too long')
     .refine((val) => {
@@ -452,7 +453,7 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
       phone: profile.phone || '',
       addressStreet: profile.addressStreet || '',
       addressCity: profile.addressCity || '',
-      addressState: profile.addressState || 'CA',
+      addressState: 'CA' as const,
       addressZip: profile.addressZip || '',
       medicalHistory: profile.medicalHistory || '',
       currentMedications: profile.currentMedications || '',
@@ -475,7 +476,7 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
       phone: profile.phone || '',
       addressStreet: profile.addressStreet || '',
       addressCity: profile.addressCity || '',
-      addressState: profile.addressState || 'CA',
+      addressState: 'CA' as const,
       addressZip: profile.addressZip || '',
       medicalHistory: profile.medicalHistory || '',
       currentMedications: profile.currentMedications || '',
