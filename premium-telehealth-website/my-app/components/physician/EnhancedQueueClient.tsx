@@ -79,7 +79,7 @@ interface ActiveFilters {
 // Constants
 // ============================================================================
 
-const AUTO_REFRESH_INTERVAL = 60 * 1000; // 60 seconds
+const AUTO_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
 const COUNTDOWN_INTERVAL = 1000; // 1 second
 
 const FILTER_OPTIONS: { type: FilterType; label: string; icon: React.ReactNode }[] = [

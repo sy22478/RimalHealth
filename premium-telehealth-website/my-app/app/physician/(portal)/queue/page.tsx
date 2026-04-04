@@ -131,7 +131,7 @@ export default async function QueuePage(): Promise<React.ReactElement> {
         <h1 className="text-3xl font-bold tracking-tight">Patient Queue</h1>
         <p className="mt-2 text-muted-foreground">
           Review and manage pending patient intakes. High priority cases are highlighted
-          and should be reviewed first. Auto-refreshes every 60 seconds.
+          and should be reviewed first. Auto-refreshes every 5 minutes.
         </p>
       </div>
 

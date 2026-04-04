@@ -100,7 +100,14 @@ export async function POST(
 
     // Server-side age validation: patient must be 18+
     if (fd_raw.dateOfBirth && typeof fd_raw.dateOfBirth === 'string') {
-      const dob = new Date(fd_raw.dateOfBirth);
+      const dobStr = fd_raw.dateOfBirth;
+      let dob: Date;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dobStr)) {
+        const [y, m, d] = dobStr.split('-').map(Number);
+        dob = new Date(y, m - 1, d);
+      } else {
+        dob = new Date(dobStr);
+      }
       const today = new Date();
       let age = today.getFullYear() - dob.getFullYear();
       const monthDiff = today.getMonth() - dob.getMonth();
@@ -110,6 +117,26 @@ export async function POST(
       if (age < 18) {
         return NextResponse.json(
           { error: 'You must be at least 18 years old to use this service', code: 'AGE_REQUIREMENT' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Server-side California address validation
+    if (fd_raw.addressZip && typeof fd_raw.addressZip === 'string') {
+      const zip = parseInt(fd_raw.addressZip.substring(0, 5), 10);
+      if (isNaN(zip) || zip < 90001 || zip > 96162) {
+        return NextResponse.json(
+          { error: 'Patient address must be in California', code: 'CA_ONLY' },
+          { status: 400 }
+        );
+      }
+    }
+    if (fd_raw.pharmacyZip && typeof fd_raw.pharmacyZip === 'string') {
+      const zip = parseInt(fd_raw.pharmacyZip.substring(0, 5), 10);
+      if (isNaN(zip) || zip < 90001 || zip > 96162) {
+        return NextResponse.json(
+          { error: 'Pharmacy must be in California', code: 'CA_ONLY' },
           { status: 400 }
         );
       }
@@ -337,6 +364,27 @@ export async function POST(
       where: { userId },
       data: profileUpdate,
     });
+
+    // Save pharmacy from intake to patient profile (preferredPharmacyId)
+    const pharmacyName = fd.pharmacyName as string | undefined;
+    const pharmacyZip = fd.pharmacyZip as string | undefined;
+    if (pharmacyName && pharmacyZip) {
+      try {
+        const pharmacy = await prisma.pharmacy.findFirst({
+          where: { name: pharmacyName, zipCode: pharmacyZip },
+          select: { id: true },
+        });
+        if (pharmacy) {
+          await prisma.patientProfile.update({
+            where: { userId },
+            data: { preferredPharmacyId: pharmacy.id },
+          });
+        }
+      } catch (pharmacyError) {
+        // Pharmacy save failure should not block intake submission
+        console.error('Failed to save pharmacy to profile:', pharmacyError instanceof Error ? pharmacyError.message : 'Unknown error');
+      }
+    }
 
     // Create an INTAKE_FORM document record so the intake appears in the Documents tab.
     // This is a "virtual" document (no S3 file) that references the intake by ID.

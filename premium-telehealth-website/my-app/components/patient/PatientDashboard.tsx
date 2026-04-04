@@ -22,7 +22,7 @@ import {
   SubscriptionStatus, 
   PrescriptionStatus 
 } from '@prisma/client';
-import { AlertCircle, ChevronRight, ShieldCheck, Sparkles, User, X } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ChevronRight, ShieldCheck, Sparkles, User, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // ============================================================================
@@ -433,18 +433,47 @@ export function PatientDashboard({ data, userId, mfaEnabled = true, accountAgeDa
         </Card>
       )}
 
+      {/* Approved — show physician's note */}
+      {data.intake?.review?.decision === 'APPROVED' && data.intake.review.clinicalNotes && (
+        <Card className="mb-6 border-green-200 bg-green-50">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-green-900">
+                  Your physician&apos;s note
+                </p>
+                <p className="text-sm text-green-700 mt-1">
+                  {data.intake.review.clinicalNotes}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Cancelled — rejected patient */}
       {data.subscription?.status === SubscriptionStatus.CANCELLED && (
         <Card className="mb-6 border-red-200 bg-red-50">
           <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="font-medium text-red-900">
                   Your intake was not approved. No charges were applied.
                 </p>
-                <p className="text-sm text-red-700">
-                  Your account will remain accessible for 30 days. Please check your messages for details from your physician.
+                {data.intake?.review?.rejectionReason && (
+                  <p className="text-sm text-red-700 mt-1">
+                    <span className="font-medium">Reason:</span> {data.intake.review.rejectionReason}
+                  </p>
+                )}
+                {data.intake?.review?.alternativeRecommendation && (
+                  <p className="text-sm text-red-700 mt-1">
+                    <span className="font-medium">Recommendation:</span> {data.intake.review.alternativeRecommendation}
+                  </p>
+                )}
+                <p className="text-sm text-red-600 mt-2">
+                  Your account will remain accessible for 30 days. Please check your messages for more details.
                 </p>
               </div>
             </div>

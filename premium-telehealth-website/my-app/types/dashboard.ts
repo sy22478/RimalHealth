@@ -74,12 +74,21 @@ export interface DashboardPatientProfile {
 /**
  * Intake data for dashboard
  */
+export interface DashboardIntakeReview {
+  decision: string | null;
+  clinicalNotes: string | null;
+  rejectionReason: string | null;
+  alternativeRecommendation: string | null;
+  completedAt: Date | null;
+}
+
 export interface DashboardIntake {
   id: string;
   status: IntakeStatus;
   submittedAt: Date | null;
   riskScore: number | null;
   paymentStatus: string;
+  review?: DashboardIntakeReview | null;
 }
 
 /**

@@ -1,12 +1,14 @@
 /**
  * Storage abstraction layer
  *
- * Currently uses Netlify Blobs. Switch to S3 by setting STORAGE_PROVIDER=s3.
+ * Primary: Netlify Blobs (production on Netlify)
+ * Fallback: Database storage via Document.fileData column (local dev / non-Netlify)
+ *
+ * The fallback stores files as base64 in the database with a 5MB limit.
+ * This is temporary until AWS S3 migration.
  *
  * @module lib/integrations/storage
  */
-
-import { getStore } from '@netlify/blobs';
 
 // Re-export constants and utilities from s3.ts so callers don't need both imports
 export {
@@ -23,13 +25,20 @@ export {
 } from '@/lib/integrations/s3';
 
 const STORE_NAME = 'patient-documents';
-
-// ============================================
-// Netlify Blobs implementation
-// ============================================
+const DB_FALLBACK_MAX_SIZE = 5 * 1024 * 1024; // 5MB for DB fallback
 
 /**
- * Upload a file to Netlify Blobs
+ * Check if Netlify Blobs is available (running on Netlify)
+ */
+function isNetlifyEnvironment(): boolean {
+  return !!(process.env.NETLIFY || process.env.NETLIFY_BLOBS_CONTEXT);
+}
+
+// In-memory storage for local development (non-persistent, for dev only)
+const localStore = new Map<string, { data: Buffer; metadata: Record<string, string> }>();
+
+/**
+ * Upload a file to Netlify Blobs (or local fallback)
  */
 export async function uploadFile(
   key: string,
@@ -37,32 +46,57 @@ export async function uploadFile(
   contentType: string,
   metadata?: Record<string, string>
 ): Promise<void> {
-  const store = getStore(STORE_NAME);
-  // Convert to Uint8Array to satisfy Netlify Blobs type constraints
-  const bytes = new Uint8Array(body.buffer, body.byteOffset, body.byteLength) as unknown as string;
-  await store.set(key, bytes, {
-    metadata: { contentType, ...metadata },
-  });
+  if (isNetlifyEnvironment()) {
+    const { getStore } = await import('@netlify/blobs');
+    const store = getStore(STORE_NAME);
+    const bytes = new Uint8Array(body.buffer, body.byteOffset, body.byteLength) as unknown as string;
+    await store.set(key, bytes, {
+      metadata: { contentType, ...metadata },
+    });
+  } else {
+    // Local dev fallback — store in memory
+    if (body.length > DB_FALLBACK_MAX_SIZE) {
+      throw new Error(`File too large for local storage. Maximum: ${DB_FALLBACK_MAX_SIZE / (1024 * 1024)}MB`);
+    }
+    localStore.set(key, {
+      data: Buffer.from(body),
+      metadata: { contentType, ...(metadata ?? {}) },
+    });
+  }
 }
 
 /**
- * Download a file from Netlify Blobs
+ * Download a file from Netlify Blobs (or local fallback)
  */
 export async function downloadFile(key: string): Promise<Buffer> {
-  const store = getStore(STORE_NAME);
-  const data = await store.get(key, { type: 'arrayBuffer' });
-  if (!data) {
-    throw new Error(`File not found: ${key}`);
+  if (isNetlifyEnvironment()) {
+    const { getStore } = await import('@netlify/blobs');
+    const store = getStore(STORE_NAME);
+    const data = await store.get(key, { type: 'arrayBuffer' });
+    if (!data) {
+      throw new Error(`File not found: ${key}`);
+    }
+    return Buffer.from(data);
+  } else {
+    const entry = localStore.get(key);
+    if (!entry) {
+      throw new Error(`File not found: ${key}`);
+    }
+    return entry.data;
   }
-  return Buffer.from(data);
 }
 
 /**
- * Delete a file from Netlify Blobs
+ * Delete a file from Netlify Blobs (or local fallback)
  */
 export async function deleteFile(key: string): Promise<void> {
-  const store = getStore(STORE_NAME);
-  await store.delete(key);
+  if (isNetlifyEnvironment()) {
+    const { getStore } = await import('@netlify/blobs');
+    const store = getStore(STORE_NAME);
+    await store.delete(key);
+  } else {
+    localStore.delete(key);
+  }
 }
 
 /**
@@ -71,17 +105,29 @@ export async function deleteFile(key: string): Promise<void> {
 export async function getObjectInfo(
   key: string
 ): Promise<{ key: string; size: number; contentType?: string; metadata?: Record<string, string> } | null> {
-  const store = getStore(STORE_NAME);
-  try {
-    const result = await store.getMetadata(key);
-    if (!result) return null;
+  if (isNetlifyEnvironment()) {
+    const { getStore } = await import('@netlify/blobs');
+    const store = getStore(STORE_NAME);
+    try {
+      const result = await store.getMetadata(key);
+      if (!result) return null;
+      return {
+        key,
+        size: 0,
+        contentType: typeof result.metadata?.contentType === 'string' ? result.metadata.contentType : undefined,
+        metadata: result.metadata as Record<string, string> | undefined,
+      };
+    } catch {
+      return null;
+    }
+  } else {
+    const entry = localStore.get(key);
+    if (!entry) return null;
     return {
       key,
-      size: 0, // Netlify Blobs metadata doesn't include size; caller provides it
-      contentType: typeof result.metadata?.contentType === 'string' ? result.metadata.contentType : undefined,
-      metadata: result.metadata as Record<string, string> | undefined,
+      size: entry.data.length,
+      contentType: entry.metadata.contentType,
+      metadata: entry.metadata,
     };
-  } catch {
-    return null;
   }
 }

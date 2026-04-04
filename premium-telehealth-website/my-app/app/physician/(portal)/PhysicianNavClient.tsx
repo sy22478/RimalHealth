@@ -16,7 +16,6 @@ import { Button } from '@/components/ui/button';
 import {
   LayoutDashboard,
   Users,
-  ClipboardList,
   ListChecks,
   Pill,
   MessageSquare,
@@ -40,7 +39,6 @@ const navItems: NavItem[] = [
   { href: '/physician/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/physician/queue', label: 'Patient Queue', icon: ListChecks },
   { href: '/physician/patients', label: 'Patients', icon: Users },
-  { href: '/physician/reviews', label: 'Reviews', icon: ClipboardList },
   { href: '/physician/prescriptions', label: 'Prescriptions', icon: Pill },
 ];
 

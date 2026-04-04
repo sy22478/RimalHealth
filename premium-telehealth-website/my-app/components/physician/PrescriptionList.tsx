@@ -448,17 +448,17 @@ export function PrescriptionList({
                       onClick={() => onPrescriptionClick?.(rx)}
                     >
                       <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-ocean-100 flex items-center justify-center">
+                        <div className="flex items-center gap-3 max-w-[200px]">
+                          <div className="w-8 h-8 rounded-full bg-ocean-100 flex items-center justify-center shrink-0">
                             <User className="w-4 h-4 text-ocean-600" />
                           </div>
-                          <span className="font-medium">{rx.patientName}</span>
+                          <span className="font-medium truncate">{rx.patientName}</span>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div>
-                          <p className="font-medium">{rx.medicationName}</p>
-                          <p className="text-sm text-muted-foreground">
+                        <div className="max-w-[200px]">
+                          <p className="font-medium truncate">{rx.medicationName}</p>
+                          <p className="text-sm text-muted-foreground truncate">
                             {rx.dosage}
                           </p>
                         </div>

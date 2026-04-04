@@ -53,7 +53,15 @@ export function IntakeReview({ intake, physicianId, physicianName, isDeactivated
   // Calculate patient age
   const patientAge = React.useMemo(() => {
     if (!intake.patient.dateOfBirth) return null;
-    const dob = new Date(intake.patient.dateOfBirth);
+    // Parse YYYY-MM-DD as local date to avoid timezone shift
+    const dobStr = String(intake.patient.dateOfBirth);
+    let dob: Date;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dobStr)) {
+      const [y, m, d] = dobStr.split('-').map(Number);
+      dob = new Date(y, m - 1, d);
+    } else {
+      dob = new Date(dobStr);
+    }
     if (isNaN(dob.getTime())) return null;
     // Sentinel value: epoch (1970) means DOB is unknown
     if (dob.getTime() === 0) return null;

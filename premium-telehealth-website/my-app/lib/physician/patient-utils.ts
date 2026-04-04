@@ -5,10 +5,24 @@
  */
 
 /**
+ * Parse a date-only string (YYYY-MM-DD) as local date to avoid timezone shift.
+ * "1999-04-03" stays April 3 in any timezone instead of becoming April 2 in PST.
+ */
+function parseDateOnly(date: Date | string): Date {
+  if (date instanceof Date) return date;
+  // If it's a date-only string (YYYY-MM-DD), parse as local time
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    const [year, month, day] = date.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  }
+  return new Date(date);
+}
+
+/**
  * Format date for display
  */
 export function formatDate(date: Date | string): string {
-  return new Date(date).toLocaleDateString('en-US', {
+  return parseDateOnly(date).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -32,15 +46,15 @@ export function formatDateTime(date: Date | string): string {
  * Calculate patient age from DOB
  */
 export function calculateAge(dateOfBirth: string): number {
-  const dob = new Date(dateOfBirth);
+  const dob = parseDateOnly(dateOfBirth);
   const today = new Date();
   let age = today.getFullYear() - dob.getFullYear();
   const monthDiff = today.getMonth() - dob.getMonth();
-  
+
   if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
     age--;
   }
-  
+
   return age;
 }
 

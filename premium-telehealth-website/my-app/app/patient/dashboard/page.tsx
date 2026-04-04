@@ -42,6 +42,15 @@ async function getDashboardData(userId: string): Promise<DashboardData & { hasGo
         riskScore: true,
         paymentStatus: true,
         formData: true,
+        review: {
+          select: {
+            decision: true,
+            clinicalNotes: true,
+            rejectionReason: true,
+            alternativeRecommendation: true,
+            completedAt: true,
+          },
+        },
       },
     }),
     prisma.subscription.findFirst({
@@ -169,6 +178,13 @@ async function getDashboardData(userId: string): Promise<DashboardData & { hasGo
     submittedAt: intake.submittedAt,
     riskScore: intake.riskScore,
     paymentStatus: intake.paymentStatus,
+    review: intake.review ? {
+      decision: intake.review.decision,
+      clinicalNotes: intake.review.clinicalNotes,
+      rejectionReason: intake.review.rejectionReason,
+      alternativeRecommendation: intake.review.alternativeRecommendation,
+      completedAt: intake.review.completedAt,
+    } : null,
   } : null;
 
   return {

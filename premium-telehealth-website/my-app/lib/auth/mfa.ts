@@ -1,3 +1,8 @@
+// TODO: Replace TOTP-based MFA with SMS verification code via Twilio
+// Current: Patient scans QR code with authenticator app
+// Desired: Patient receives 6-digit code via SMS to their registered phone number
+// Requires: Twilio integration (lib/integrations/twilio.ts is implemented but not connected)
+
 /**
  * MFA (Multi-Factor Authentication) Utilities
  * TOTP-based MFA for all user roles (patients, physicians, admins)

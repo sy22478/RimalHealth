@@ -58,8 +58,17 @@ interface PatientDetailViewProps {
 /**
  * Format date for display
  */
-function formatDate(date: Date | undefined): string {
+function formatDate(date: Date | string | undefined): string {
   if (!date) return 'N/A';
+  // Parse YYYY-MM-DD as local date to avoid timezone shift (e.g. DOB)
+  if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    const [year, month, day] = date.split('-').map(Number);
+    return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  }
   return new Date(date).toLocaleDateString('en-US', {
     month: 'long',
     day: 'numeric',

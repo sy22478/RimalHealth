@@ -193,6 +193,15 @@ export function IntakeDataView({ formData: rawFormData, scores, riskAssessment, 
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '-';
+    // Parse YYYY-MM-DD as local date to avoid timezone shift (e.g. DOB)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      const [year, month, day] = dateStr.split('-').map(Number);
+      return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+    }
     return new Date(dateStr).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',

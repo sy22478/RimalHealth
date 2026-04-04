@@ -24,7 +24,6 @@ import { cn } from '@/lib/utils';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/Skeleton';
 import {
@@ -128,18 +127,25 @@ function getConcernConfig(concernType: string): {
 }
 
 /**
- * Calculate age from date of birth string
+ * Calculate age from date of birth string.
+ * Parses YYYY-MM-DD as local date to avoid timezone shift.
  */
 function calculateAge(dateOfBirth: string | Date): number {
-  const dob = new Date(dateOfBirth);
+  let dob: Date;
+  if (typeof dateOfBirth === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth)) {
+    const [year, month, day] = dateOfBirth.split('-').map(Number);
+    dob = new Date(year, month - 1, day);
+  } else {
+    dob = new Date(dateOfBirth);
+  }
   const today = new Date();
   let age = today.getFullYear() - dob.getFullYear();
   const monthDiff = today.getMonth() - dob.getMonth();
-  
+
   if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
     age--;
   }
-  
+
   return age;
 }
 
@@ -189,12 +195,6 @@ export function QueueItemEnhanced({
   const waitTimeFormatted = formatWaitTime(item.waitTimeHours);
   const relativeTime = formatRelativeTime(item.submittedAt);
   
-  // Calculate complexity score (mock for now - can be extended)
-  const complexityScore = Math.min(
-    Math.round((item.riskScore || 0) * 0.7 + (item.waitTimeHours > 24 ? 20 : 0)),
-    100
-  );
-
   // Card styling based on priority
   const cardStyles = cn(
     'group transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5',
@@ -305,21 +305,6 @@ export function QueueItemEnhanced({
           </Badge>
         </div>
 
-        {/* Complexity Score */}
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground flex items-center gap-1">
-              <TrendingUp className="size-3" />
-              Complexity Score
-            </span>
-            <span className="font-medium text-foreground">{complexityScore}%</span>
-          </div>
-          <Progress 
-            value={complexityScore} 
-            className="h-2"
-          />
-        </div>
-
         {/* Risk Score Bar */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-xs">
@@ -396,22 +381,13 @@ export function QueueItemEnhancedSkeleton(): React.ReactElement {
           <Skeleton className="h-6 w-24 rounded-full" />
         </div>
 
-        {/* Progress Bars Skeleton */}
-        <div className="space-y-3">
-          <div className="space-y-1.5">
-            <div className="flex justify-between">
-              <Skeleton className="h-3 w-24" />
-              <Skeleton className="h-3 w-8" />
-            </div>
-            <Skeleton className="h-2 w-full rounded-full" />
+        {/* Risk Score Skeleton */}
+        <div className="space-y-1.5">
+          <div className="flex justify-between">
+            <Skeleton className="h-3 w-28" />
+            <Skeleton className="h-3 w-16" />
           </div>
-          <div className="space-y-1.5">
-            <div className="flex justify-between">
-              <Skeleton className="h-3 w-28" />
-              <Skeleton className="h-3 w-16" />
-            </div>
-            <Skeleton className="h-2 w-full rounded-full" />
-          </div>
+          <Skeleton className="h-2 w-full rounded-full" />
         </div>
       </CardContent>
       <CardFooter className="pt-2 pb-4 px-4">

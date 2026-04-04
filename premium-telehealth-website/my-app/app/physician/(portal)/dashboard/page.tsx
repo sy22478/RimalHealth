@@ -266,7 +266,7 @@ export default async function PhysicianDashboardPage() {
           title="Pending Reviews"
           description={`Review ${stats.pendingReviews} pending intake${stats.pendingReviews !== 1 ? 's' : ''}`}
           icon={Clock}
-          href="/physician/reviews"
+          href="/physician/queue"
           badge={stats.pendingReviews}
           colorClass="bg-amber-100 text-amber-600"
         />
