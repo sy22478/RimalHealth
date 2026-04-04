@@ -9,7 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/auth/require-auth';
 import { prisma } from '@/lib/db/prisma';
-import { deleteFile } from '@/lib/integrations/s3';
+import { deleteFile } from '@/lib/integrations/storage';
 import { auditPHIAccess, createAuditContext, PHIResourceType } from '@/lib/audit/index';
 import { DocumentStatus, Role } from '@prisma/client';
 

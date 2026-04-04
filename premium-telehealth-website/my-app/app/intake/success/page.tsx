@@ -168,54 +168,20 @@ function GovernmentIdUpload() {
     setError(null);
 
     try {
-      // Step 1: Get presigned upload URL
-      const urlRes = await fetch('/api/patient/documents/upload-url', {
+      // Upload file directly to server (Netlify Blobs)
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('documentType', 'ID_VERIFICATION');
+
+      const uploadRes = await fetch('/api/patient/documents/upload', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          fileName: selectedFile.name,
-          contentType: selectedFile.type,
-          documentType: 'ID_VERIFICATION',
-          fileSize: selectedFile.size,
-        }),
-      });
-
-      if (!urlRes.ok) {
-        const err = await urlRes.json().catch(() => ({}));
-        throw new Error(err.error || 'Failed to get upload URL');
-      }
-
-      const { uploadUrl, key } = await urlRes.json();
-
-      // Step 2: Upload file directly to S3 with encryption
-      const uploadRes = await fetch(uploadUrl, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': selectedFile.type,
-          'x-amz-server-side-encryption': 'AES256',
-        },
-        body: selectedFile,
+        body: formData,
       });
 
       if (!uploadRes.ok) {
-        throw new Error('Failed to upload file to secure storage');
-      }
-
-      // Step 3: Confirm upload (create DB record)
-      const confirmRes = await fetch('/api/patient/documents/confirm', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          key,
-          documentType: 'ID_VERIFICATION',
-        }),
-      });
-
-      if (!confirmRes.ok) {
-        const err = await confirmRes.json().catch(() => ({}));
-        throw new Error(err.error || 'Failed to confirm upload');
+        const err = await uploadRes.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to upload file');
       }
 
       setUploadState('success');

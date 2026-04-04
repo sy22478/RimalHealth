@@ -70,14 +70,6 @@ export interface UploadProgress {
   error?: string;
 }
 
-/**
- * Upload URL response from API
- */
-export interface UploadUrlResponse {
-  uploadUrl: string;
-  key: string;
-  expiresAt: string;
-}
 
 // ============================================
 // Constants
@@ -249,53 +241,24 @@ export function getFileExtension(mimeType: string): string {
 // ============================================
 
 /**
- * Request upload URL from server
- * 
+ * Upload file directly to the server (Netlify Blobs backend)
+ *
  * @param file - File to upload
  * @param documentType - Type of document
- * @returns Upload URL response
+ * @param onProgress - Progress callback (0–100)
  */
-export async function requestUploadUrl(
+export async function uploadToServer(
   file: File,
-  documentType: DocumentType
-): Promise<UploadUrlResponse> {
-  const response = await fetch('/api/patient/documents/upload-url', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      fileName: file.name,
-      contentType: file.type,
-      documentType,
-      fileSize: file.size,
-    }),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to get upload URL');
-  }
-
-  return response.json();
-}
-
-/**
- * Upload file directly to S3
- * 
- * @param file - File to upload
- * @param uploadUrl - Presigned S3 URL
- * @param onProgress - Progress callback
- */
-export async function uploadToS3(
-  file: File,
-  uploadUrl: string,
+  documentType: DocumentType,
   onProgress?: (progress: number) => void
 ): Promise<void> {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('documentType', documentType);
+
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
 
-    // Track upload progress
     xhr.upload.addEventListener('progress', (event) => {
       if (event.lengthComputable && onProgress) {
         const progress = Math.round((event.loaded / event.total) * 100);
@@ -307,7 +270,12 @@ export async function uploadToS3(
       if (xhr.status >= 200 && xhr.status < 300) {
         resolve();
       } else {
-        reject(new Error(`Upload failed with status ${xhr.status}`));
+        try {
+          const result = JSON.parse(xhr.responseText);
+          reject(new Error(result.error || `Upload failed with status ${xhr.status}`));
+        } catch {
+          reject(new Error(`Upload failed with status ${xhr.status}`));
+        }
       }
     });
 
@@ -319,34 +287,10 @@ export async function uploadToS3(
       reject(new Error('Upload was cancelled.'));
     });
 
-    xhr.open('PUT', uploadUrl);
-    xhr.setRequestHeader('Content-Type', file.type);
-    xhr.send(file);
+    xhr.open('POST', '/api/patient/documents/upload');
+    xhr.withCredentials = true;
+    xhr.send(formData);
   });
-}
-
-/**
- * Confirm upload success with server
- * 
- * @param key - S3 object key
- * @param documentType - Document type
- */
-export async function confirmUpload(
-  key: string,
-  documentType: DocumentType
-): Promise<void> {
-  const response = await fetch('/api/patient/documents/confirm', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ key, documentType }),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to confirm upload');
-  }
 }
 
 /**
@@ -388,10 +332,10 @@ export async function deleteDocument(documentId: string): Promise<void> {
 }
 
 /**
- * Get download URL for a document
- * 
+ * Download a document as a Blob
+ *
  * @param documentId - Document ID
- * @returns Download URL
+ * @returns Object URL that can be used for download
  */
 export async function getDownloadUrl(documentId: string): Promise<string> {
   const response = await fetch(`/api/patient/documents/${documentId}/download`, {
@@ -399,12 +343,11 @@ export async function getDownloadUrl(documentId: string): Promise<string> {
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to get download URL');
+    throw new Error('Failed to download document');
   }
 
-  const data = await response.json();
-  return data.downloadUrl;
+  const blob = await response.blob();
+  return URL.createObjectURL(blob);
 }
 
 // ============================================
@@ -412,8 +355,8 @@ export async function getDownloadUrl(documentId: string): Promise<string> {
 // ============================================
 
 /**
- * Complete upload flow: validate, get URL, upload to S3, confirm
- * 
+ * Complete upload flow: validate → upload to server → done
+ *
  * @param file - File to upload
  * @param documentType - Document type
  * @param onProgress - Progress callback
@@ -431,19 +374,11 @@ export async function uploadDocument(
     throw new Error(validation.error);
   }
 
-  // Step 2: Request upload URL
-  onProgress?.({ status: 'requesting_url', progress: 10 });
-  const { uploadUrl, key } = await requestUploadUrl(file, documentType);
-
-  // Step 3: Upload to S3
-  onProgress?.({ status: 'uploading', progress: 20 });
-  await uploadToS3(file, uploadUrl, (progress) => {
-    onProgress?.({ status: 'uploading', progress: 20 + Math.round(progress * 0.7) });
+  // Step 2: Upload directly to server (stores in Netlify Blobs + creates DB record)
+  onProgress?.({ status: 'uploading', progress: 10 });
+  await uploadToServer(file, documentType, (progress) => {
+    onProgress?.({ status: 'uploading', progress: 10 + Math.round(progress * 0.85) });
   });
-
-  // Step 4: Confirm upload
-  onProgress?.({ status: 'confirming', progress: 95 });
-  await confirmUpload(key, documentType);
 
   // Success
   onProgress?.({ status: 'success', progress: 100 });
