@@ -310,6 +310,25 @@ export function IntakeReviewForm({
         </CardContent>
       </Card>
 
+      {/* Billing Impact Notice */}
+      <Card className="border-amber-200 bg-amber-50">
+        <CardContent className="p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+            <div className="text-sm text-amber-800 space-y-1">
+              <p>
+                <strong>Approving</strong> this intake will activate the patient&apos;s $50/month
+                subscription and charge their payment method.
+              </p>
+              <p>
+                <strong>Declining</strong> this intake will cancel the subscription — the patient
+                will not be charged.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Decision Selection */}
       <Card>
         <CardHeader>

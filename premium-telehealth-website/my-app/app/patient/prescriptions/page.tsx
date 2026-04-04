@@ -75,7 +75,8 @@ function UnderReviewState() {
           Your intake is under review
         </h3>
         <p className="text-gray-600 max-w-md mx-auto">
-          Our medical team is reviewing your intake form. You&apos;ll be notified once a decision is made.
+          Our medical team is reviewing your intake form. Once approved, your subscription will activate
+          and your physician will send your prescription. You will not be charged until approval.
           This typically takes less than 24 hours.
         </p>
       </CardContent>
@@ -93,9 +94,12 @@ function RejectedState() {
         <h3 className="text-xl font-semibold text-gray-900 mb-2">
           Your intake was not approved
         </h3>
-        <p className="text-gray-600 max-w-md mx-auto mb-6">
+        <p className="text-gray-600 max-w-md mx-auto mb-4">
           Your physician has reviewed your intake and determined that this treatment is not appropriate
-          at this time. Please check your messages for details from your physician.
+          at this time. No charges have been applied to your payment method.
+        </p>
+        <p className="text-gray-500 text-sm max-w-md mx-auto mb-6">
+          Your account will remain accessible for 30 days. Please check your messages for details from your physician.
         </p>
         <Link href="/patient/messages">
           <Button className="bg-ocean-500 hover:bg-ocean-600 text-white">

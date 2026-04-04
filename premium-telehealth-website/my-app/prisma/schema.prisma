@@ -23,6 +23,7 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   lastLoginAt   DateTime?
+  deactivateAt  DateTime? // Scheduled deactivation date (set on intake rejection)
   deactivatedAt DateTime? // Set when patient requests account deletion
 
   // MFA

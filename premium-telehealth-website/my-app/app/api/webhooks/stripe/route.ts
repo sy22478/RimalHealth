@@ -138,7 +138,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         break;
 
       case 'customer.subscription.updated':
-        await handleSubscriptionUpdated(event.data.object as Stripe.Subscription);
+        await handleSubscriptionUpdated(
+          event.data.object as Stripe.Subscription,
+          (event.data as unknown as { previous_attributes?: Record<string, unknown> }).previous_attributes
+        );
         break;
 
       case 'customer.subscription.deleted':
@@ -546,11 +549,15 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice): Promise<v
     throw new Error(`[Stripe Webhook] Subscription not found for invoice. subscriptionId=${subscriptionId}, invoiceId=${invoice.id}`);
   }
 
-  // Update subscription status to ACTIVE
-  await prisma.subscription.update({
-    where: { id: subscription.id },
-    data: { status: SubscriptionStatus.ACTIVE },
-  });
+  // Update subscription status to ACTIVE — but only if subscription is not still TRIALING.
+  // TRIALING subscriptions should only be activated by physician approval (review route),
+  // not by invoice payment. This prevents premature activation when a trial expires naturally.
+  if (subscription.status !== SubscriptionStatus.TRIALING) {
+    await prisma.subscription.update({
+      where: { id: subscription.id },
+      data: { status: SubscriptionStatus.ACTIVE },
+    });
+  }
 
   // ========================================================================
   // 3. Create invoice record
@@ -637,7 +644,10 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription): Pro
  * Handle customer.subscription.updated
  * Updates subscription details including plan changes and status updates
  */
-async function handleSubscriptionUpdated(subscription: Stripe.Subscription): Promise<void> {
+async function handleSubscriptionUpdated(
+  subscription: Stripe.Subscription,
+  previousAttributes?: Record<string, unknown>
+): Promise<void> {
   // Processing customer.subscription.updated
 
   // Initialize lazy imports
@@ -654,6 +664,31 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription): Pro
   if (!localSubscription) {
     console.warn(`[Stripe Webhook] Subscription not found: ${subscription.id}`);
     return;
+  }
+
+  // ========================================================================
+  // 1b. Guard: cancel trial-expired subscriptions without physician approval
+  //     If a subscription transitions from trialing→active naturally (30-day timeout)
+  //     and the physician has NOT approved (local status still TRIALING),
+  //     cancel immediately — the patient should never be charged without approval.
+  // ========================================================================
+  if (
+    subscription.status === 'active' &&
+    previousAttributes?.status === 'trialing' &&
+    localSubscription.status === SubscriptionStatus.TRIALING
+  ) {
+    try {
+      const stripe = getStripe();
+      await stripe.subscriptions.cancel(subscription.id);
+      await prisma.subscription.update({
+        where: { id: localSubscription.id },
+        data: { status: SubscriptionStatus.CANCELLED, cancelledAt: new Date() },
+      });
+      console.log('[Webhook] Auto-cancelled subscription — trial expired without physician approval');
+    } catch (cancelError) {
+      console.error('[Webhook] Failed to auto-cancel expired trial:', cancelError instanceof Error ? cancelError.message : 'Unknown error');
+    }
+    return; // Don't proceed with normal status sync
   }
 
   // ========================================================================

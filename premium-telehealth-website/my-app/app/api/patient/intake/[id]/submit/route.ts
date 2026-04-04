@@ -161,16 +161,17 @@ export async function POST(
 
     // Check payment status — payment-first flow means the user already paid via Stripe
     // before reaching the intake form. Verify via subscription or intake paymentStatus.
+    // TRIALING subscriptions are valid — payment is captured but not charged until physician approval.
     const requirePayment = process.env.NODE_ENV === 'production' || process.env.REQUIRE_PAYMENT === 'true';
     if (requirePayment && intake.paymentStatus !== 'COMPLETED') {
-      // Check if user has an active subscription (payment-first flow)
+      // Check if user has an active or trialing subscription (payment-first flow)
       const subscription = await prisma.subscription.findFirst({
-        where: { userId, status: 'ACTIVE' },
+        where: { userId, status: { in: ['ACTIVE', 'TRIALING'] } },
         select: { id: true },
       });
 
       if (subscription) {
-        // Payment confirmed via subscription — update intake paymentStatus
+        // Payment method confirmed via subscription — update intake paymentStatus
         await prisma.intake.update({
           where: { id: intakeId },
           data: { paymentStatus: 'COMPLETED' },

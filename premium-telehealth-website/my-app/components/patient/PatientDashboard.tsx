@@ -414,6 +414,44 @@ export function PatientDashboard({ data, userId, mfaEnabled = true, accountAgeDa
         <SubscriptionAlert subscription={data.subscription} />
       )}
 
+      {/* Trialing — awaiting physician review */}
+      {data.subscription?.status === SubscriptionStatus.TRIALING && data.intake?.status === IntakeStatus.SUBMITTED && (
+        <Card className="mb-6 border-blue-200 bg-blue-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="h-5 w-5 text-blue-600 flex-shrink-0" />
+              <div>
+                <p className="font-medium text-blue-900">
+                  Intake submitted — awaiting physician review
+                </p>
+                <p className="text-sm text-blue-700">
+                  You will not be charged until your intake is approved.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Cancelled — rejected patient */}
+      {data.subscription?.status === SubscriptionStatus.CANCELLED && (
+        <Card className="mb-6 border-red-200 bg-red-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
+              <div>
+                <p className="font-medium text-red-900">
+                  Your intake was not approved. No charges were applied.
+                </p>
+                <p className="text-sm text-red-700">
+                  Your account will remain accessible for 30 days. Please check your messages for details from your physician.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Profile Completion Prompt - Show if profile is incomplete */}
       <ProfileCompletionPrompt profile={data.profile} hasIntakePharmacy={hasIntakePharmacy} />
 
@@ -465,12 +503,22 @@ export function PatientDashboard({ data, userId, mfaEnabled = true, accountAgeDa
                   {formatCurrency(data.subscription.amount)}
                   <span className="text-sm font-normal text-gray-500">/month</span>
                 </p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Renews {new Date(data.subscription.currentPeriodEnd).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric'
-                  })}
-                </p>
+                {data.subscription.status === SubscriptionStatus.TRIALING ? (
+                  <p className="text-sm text-blue-600 mt-1">
+                    Charged upon physician approval
+                  </p>
+                ) : data.subscription.status === SubscriptionStatus.CANCELLED ? (
+                  <p className="text-sm text-red-600 mt-1">
+                    No charges applied
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Renews {new Date(data.subscription.currentPeriodEnd).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric'
+                    })}
+                  </p>
+                )}
               </CardContent>
             </Card>
           )}

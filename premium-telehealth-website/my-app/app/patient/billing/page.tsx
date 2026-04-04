@@ -357,6 +357,18 @@ export default function BillingPage(): React.ReactElement {
         </Alert>
       )}
 
+      {/* Rejected / Cancelled Banner */}
+      {billingData?.subscription?.status === 'CANCELLED' && (
+        <Alert className="mb-6 border-red-200 bg-red-50">
+          <AlertCircle className="h-4 w-4 text-red-600" />
+          <AlertDescription className="text-red-800">
+            <strong>Subscription cancelled</strong> — Your intake was not approved.
+            No charges have been applied to your payment method. Your account will remain
+            accessible for 30 days.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Error Alert */}
       {error && (
         <Alert variant="destructive" className="mb-6">

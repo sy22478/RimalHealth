@@ -99,7 +99,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       metadata: sessionMetadata,
       subscription_data: {
         metadata: { planType },
-        trial_period_days: 7,
+        trial_period_days: 30,
       },
     });
 

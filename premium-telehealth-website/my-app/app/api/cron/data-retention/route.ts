@@ -69,6 +69,34 @@ export async function GET(request: Request): Promise<NextResponse> {
 
   try {
     const result = await processExpiredDeletions();
+
+    // === Deactivate accounts past their scheduled deactivation date ===
+    let deactivatedCount = 0;
+    try {
+      const { prisma } = await import('@/lib/db/prisma');
+      const expiredAccounts = await prisma.user.findMany({
+        where: {
+          deactivateAt: { lte: new Date() },
+          deactivatedAt: null,
+        },
+        select: { id: true },
+      });
+
+      for (const account of expiredAccounts) {
+        await prisma.user.update({
+          where: { id: account.id },
+          data: { deactivatedAt: new Date() },
+        });
+        deactivatedCount++;
+      }
+
+      if (deactivatedCount > 0) {
+        console.error(`[Cron:DataRetention] Deactivated ${deactivatedCount} expired accounts`);
+      }
+    } catch (deactivateError) {
+      console.error('[Cron:DataRetention] Account deactivation failed:', deactivateError instanceof Error ? deactivateError.message : 'Unknown error');
+    }
+
     const durationMs = Date.now() - startTime;
 
     console.error(
@@ -81,6 +109,7 @@ export async function GET(request: Request): Promise<NextResponse> {
       anonymized: result.anonymized,
       softDeleted: result.softDeleted,
       errors: result.errors,
+      deactivatedCount,
       durationMs,
     });
   } catch (error) {

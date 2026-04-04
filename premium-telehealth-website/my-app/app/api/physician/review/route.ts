@@ -209,6 +209,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       console.error('Subscription update error:', stripeError instanceof Error ? stripeError.message : 'Unknown error');
     }
 
+    // Schedule account deactivation for rejected patients
+    if (decision === 'DECLINED') {
+      try {
+        await prisma.user.update({
+          where: { id: intake.patientId },
+          data: {
+            deactivateAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+          },
+        });
+      } catch (deactivateError) {
+        console.error('[Review] Failed to set deactivateAt:', deactivateError instanceof Error ? deactivateError.message : 'Unknown error');
+      }
+    }
+
     // Log review submission
     await AuditService.logDataModification(
       DataModificationAction.CREATE,

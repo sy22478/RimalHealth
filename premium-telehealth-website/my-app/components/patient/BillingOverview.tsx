@@ -156,6 +156,7 @@ export function BillingOverview({
 
   const isActive = subscription.status === 'ACTIVE';
   const isTrialing = subscription.status === 'TRIALING';
+  const isCancelled = subscription.status === 'CANCELLED';
   const isCancelling = subscription.cancelAtPeriodEnd;
   const periodEnd = new Date(subscription.currentPeriodEnd);
 
@@ -204,7 +205,20 @@ export function BillingOverview({
             </div>
           )}
 
-          {isCancelling && (
+          {isCancelled && (
+            <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+              <div className="text-sm text-red-800">
+                <p className="font-medium">Intake not approved</p>
+                <p>
+                  Your intake was not approved. No charges have been applied to your payment method.
+                  Your account will remain accessible for 30 days.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {isCancelling && !isCancelled && (
             <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
               <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
               <div className="text-sm text-amber-800">
@@ -225,7 +239,7 @@ export function BillingOverview({
             <Calendar className="h-4 w-4 text-muted-foreground" />
             <span className="text-muted-foreground">Next billing date:</span>
             <span className="font-medium">
-              {isTrialing ? 'Pending approval' : isCancelling ? 'No further billing' : formatDate(periodEnd)}
+              {isCancelled ? 'No charges applied' : isTrialing ? 'Pending approval' : isCancelling ? 'No further billing' : formatDate(periodEnd)}
             </span>
           </div>
 
@@ -245,7 +259,7 @@ export function BillingOverview({
 
         {/* Actions */}
         <div className="space-y-3 pt-2">
-          <Button
+          {!isCancelled && <Button
             onClick={onUpdatePayment}
             disabled={isUpdatingPayment}
             className="w-full"
@@ -259,7 +273,7 @@ export function BillingOverview({
                 Update Payment Method
               </>
             )}
-          </Button>
+          </Button>}
 
           {isActive && !isCancelling && (
             <div className="border-t pt-4 mt-4">
