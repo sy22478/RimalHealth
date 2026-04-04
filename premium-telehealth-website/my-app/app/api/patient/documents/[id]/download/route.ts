@@ -1,6 +1,6 @@
 /**
  * Document Download API
- * GET: Generate presigned URL for document download
+ * GET: Stream document from storage (Netlify Blobs or S3)
  *
  * @module app/api/patient/documents/[id]/download
  */
@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/auth/require-auth';
 import { prisma } from '@/lib/db/prisma';
-import { generateDownloadUrl } from '@/lib/integrations/s3';
+import { downloadFile } from '@/lib/integrations/storage';
 import { auditPHIAccess, createAuditContext, PHIResourceType } from '@/lib/audit/index';
 import { DocumentStatus, Role } from '@prisma/client';
 
@@ -75,11 +75,8 @@ export async function GET(
       );
     }
 
-    // Generate presigned download URL (5 minute expiry for security)
-    const downloadUrl = await generateDownloadUrl({
-      key: document.s3Key,
-      expiresIn: 300, // 5 minutes
-    });
+    // Download file from storage
+    const fileBuffer = await downloadFile(document.s3Key);
 
     // Audit log - PHI access (document downloaded)
     const auditContext = createAuditContext(request);
@@ -97,11 +94,13 @@ export async function GET(
       }
     );
 
-    return NextResponse.json({
-      downloadUrl,
-      fileName: document.fileName,
-      mimeType: document.mimeType,
-      expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+    return new NextResponse(new Uint8Array(fileBuffer), {
+      headers: {
+        'Content-Type': document.mimeType || 'application/octet-stream',
+        'Content-Disposition': `attachment; filename="${document.fileName}"`,
+        'Content-Length': String(fileBuffer.length),
+        'Cache-Control': 'no-store',
+      },
     });
 
   } catch (error) {

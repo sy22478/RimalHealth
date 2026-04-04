@@ -626,10 +626,14 @@ export default function DocumentsPage() {
       const res = await fetch(`/api/patient/documents/${doc.id}/download`, {
         credentials: 'include',
       });
-      if (!res.ok) throw new Error('Failed to generate download link');
-      const data = await res.json();
-      // Open the presigned download URL in a new tab
-      window.open(data.downloadUrl, '_blank');
+      if (!res.ok) throw new Error('Failed to download document');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = window.document.createElement('a');
+      a.href = url;
+      a.download = doc.name;
+      a.click();
+      URL.revokeObjectURL(url);
     } catch (err) {
       setFetchError(err instanceof Error ? err.message : 'Failed to download document');
     }
