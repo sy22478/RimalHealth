@@ -53,8 +53,13 @@ const ACTIVITY_EVENTS: (keyof WindowEventMap)[] = [
 
 export function useTokenRefresh({ enabled, loginPath }: UseTokenRefreshProps): void {
   const router = useRouter();
-  const lastActivityRef = useRef<number>(Date.now());
+  const lastActivityRef = useRef<number>(0);
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Initialize lastActivityRef on mount
+  useEffect(() => {
+    lastActivityRef.current = Date.now();
+  }, []);
 
   // Track user activity
   const handleActivity = useCallback((): void => {

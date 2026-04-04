@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense, useState, useEffect, useCallback } from 'react';
+import React, { Suspense, useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Loader2, XCircle, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
@@ -98,37 +98,46 @@ function VerifyEmailContent(): React.JSX.Element {
   const [status, setStatus] = useState<'verifying' | 'success' | 'already-verified' | 'error'>('verifying');
   const [errorMessage, setErrorMessage] = useState('');
 
-  const verifyEmail = useCallback(async (): Promise<void> => {
-    if (!token) {
-      setStatus('error');
-      setErrorMessage('Verification token is missing. Please check your email for the correct link.');
-      return;
-    }
+  useEffect(() => {
+    let cancelled = false;
 
-    try {
-      const response = await fetch(`/api/auth/verify-email?token=${encodeURIComponent(token)}`);
-      const result = await response.json();
-
-      if (!response.ok) {
-        setStatus('error');
-        setErrorMessage(result.error || 'Email verification failed. Please try again.');
+    const doVerify = async (): Promise<void> => {
+      if (!token) {
+        if (!cancelled) {
+          setStatus('error');
+          setErrorMessage('Verification token is missing. Please check your email for the correct link.');
+        }
         return;
       }
 
-      if (result.alreadyVerified) {
-        setStatus('already-verified');
-      } else {
-        setStatus('success');
-      }
-    } catch {
-      setStatus('error');
-      setErrorMessage('Unable to verify email. Please try again.');
-    }
-  }, [token]);
+      try {
+        const response = await fetch(`/api/auth/verify-email?token=${encodeURIComponent(token)}`);
+        if (cancelled) return;
+        const result = await response.json();
+        if (cancelled) return;
 
-  useEffect(() => {
-    void verifyEmail();
-  }, [verifyEmail]);
+        if (!response.ok) {
+          setStatus('error');
+          setErrorMessage(result.error || 'Email verification failed. Please try again.');
+          return;
+        }
+
+        if (result.alreadyVerified) {
+          setStatus('already-verified');
+        } else {
+          setStatus('success');
+        }
+      } catch {
+        if (!cancelled) {
+          setStatus('error');
+          setErrorMessage('Unable to verify email. Please try again.');
+        }
+      }
+    };
+
+    doVerify();
+    return () => { cancelled = true; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-redirect to login after successful verification (or already verified)
   useEffect(() => {
