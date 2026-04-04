@@ -56,6 +56,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     );
   }
 
+  // Rate limiting — outside try/catch so 429 is never swallowed as 500
+  const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
+  const rateLimitResult = await rateLimit(clientIp, rateLimitPresets.strict);
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.', code: 'RATE_LIMITED' },
+      { status: 429, headers: { 'Retry-After': String(rateLimitResult.retryAfter ?? 60) } }
+    );
+  }
+
   try {
     // Find the token in PasswordReset table
     const verificationRecord = await prisma.passwordReset.findUnique({
@@ -72,16 +82,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
 
     if (!verificationRecord) {
-      // Apply rate limiting only for invalid tokens (prevents brute-force guessing)
-      const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
-      const rateLimitResult = await rateLimit(clientIp, rateLimitPresets.strict);
-      if (!rateLimitResult.success) {
-        return NextResponse.json(
-          { error: 'Too many requests. Please try again later.', code: 'RATE_LIMITED' },
-          { status: 429, headers: { 'Retry-After': String(rateLimitResult.retryAfter ?? 60) } }
-        );
-      }
-
       await auditPasswordEvent(
         AuditEventType.EMAIL_VERIFIED,
         'unknown',
@@ -104,22 +104,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         message: 'Email already verified. You can log in.',
         alreadyVerified: true,
       });
-    }
-
-    // Rate limiting for valid tokens that haven't been verified yet
-    // 10 requests per 15 minutes per IP — lenient enough for legitimate re-clicks
-    const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
-    const rateLimitResult = await rateLimit(clientIp, {
-      requests: 10,
-      windowMs: 15 * 60 * 1000, // 15 minutes
-      keyPrefix: 'ratelimit:verify-email',
-      useMemoryFallback: true,
-    });
-    if (!rateLimitResult.success) {
-      return NextResponse.json(
-        { error: 'Too many requests. Please try again later.', code: 'RATE_LIMITED' },
-        { status: 429, headers: { 'Retry-After': String(rateLimitResult.retryAfter ?? 60) } }
-      );
     }
 
     // Check expiry
