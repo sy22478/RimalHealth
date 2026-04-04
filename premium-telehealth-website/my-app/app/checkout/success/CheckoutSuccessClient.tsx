@@ -8,7 +8,7 @@
  * Security:
  * - Does NOT call authenticated API endpoints (user has no account yet)
  * - Does NOT display customer email, tokens, or any PHI
- * - The Stripe webhook handles user creation and sends the set-password email
+ * - The Stripe webhook handles user creation and sends the create-account email
  *
  * @module app/checkout/success/CheckoutSuccessClient
  */
@@ -18,7 +18,7 @@
 import * as React from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { CheckCircle, AlertCircle, ArrowRight, KeyRound, Mail } from 'lucide-react';
+import { CheckCircle, AlertCircle, ArrowRight, ClipboardList, Mail } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -63,7 +63,7 @@ export default function CheckoutSuccessPage() {
   }
 
   // Success state — Stripe redirected here after successful payment.
-  // The webhook will handle user creation and send the set-password email.
+  // The webhook will handle user creation and send the create-account email.
   return (
     <div className="container mx-auto max-w-2xl py-12 px-4">
       <Card className="text-center">
@@ -73,7 +73,7 @@ export default function CheckoutSuccessPage() {
           </div>
           <CardTitle className="text-3xl font-bold">Welcome to Rimal Health!</CardTitle>
           <CardDescription className="text-lg">
-            Your subscription is now active
+            Your payment has been received
           </CardDescription>
         </CardHeader>
 
@@ -104,7 +104,7 @@ export default function CheckoutSuccessPage() {
               <Separator className="my-2" />
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Status</span>
-                <span className="font-medium text-success">Active</span>
+                <span className="font-medium text-ocean-600">Pending Physician Review</span>
               </div>
             </div>
           </div>
@@ -119,17 +119,17 @@ export default function CheckoutSuccessPage() {
                 <div>
                   <p className="font-medium">Check Your Email</p>
                   <p className="text-sm text-muted-foreground">
-                    We sent you a link to set your password and activate your account.
+                    We sent you a link to create your account. Click it to get started.
                   </p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3 rounded-lg border p-4">
-                <KeyRound className="mt-0.5 h-5 w-5 text-primary" />
+                <ClipboardList className="mt-0.5 h-5 w-5 text-primary" />
                 <div>
                   <p className="font-medium">Complete Your Intake</p>
                   <p className="text-sm text-muted-foreground">
-                    After setting your password, log in and complete your intake form.
+                    After creating your account, log in and complete your intake form.
                   </p>
                 </div>
               </div>
@@ -139,22 +139,16 @@ export default function CheckoutSuccessPage() {
           <Alert className="text-left">
             <Mail className="h-4 w-4" />
             <AlertDescription>
-              Check your email (including spam/junk folder) for a link to set your password. If you do not receive it within a few minutes, use the &quot;Forgot Password&quot; link on the login page.
+              Check your email (including spam/junk folder) for a link to create your account. If you do not receive it within a few minutes, use the &quot;Forgot Password&quot; link on the login page.
             </AlertDescription>
           </Alert>
         </CardContent>
 
         <CardFooter className="flex flex-col gap-3">
           <Button asChild className="w-full" size="lg">
-            <Link href="/set-password">
-              Set Your Password
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-          </Button>
-
-          <Button variant="outline" asChild className="w-full">
             <Link href="/login">
-              Already have a password? Log in
+              Go to Login
+              <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>
         </CardFooter>
