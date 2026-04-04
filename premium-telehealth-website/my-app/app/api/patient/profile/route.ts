@@ -123,9 +123,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       addressZip: profile.addressZip,
       primaryConcern: profile.primaryConcern,
       treatmentGoal: profile.treatmentGoal,
-      medicalHistory: profile.medicalHistory,
-      currentMedications: profile.currentMedications,
-      allergies: profile.allergies,
+      medicalHistory: typeof profile.medicalHistory === 'string' ? profile.medicalHistory : profile.medicalHistory != null ? String(profile.medicalHistory) : null,
+      currentMedications: typeof profile.currentMedications === 'string' ? profile.currentMedications : profile.currentMedications != null ? String(profile.currentMedications) : null,
+      allergies: typeof profile.allergies === 'string' ? profile.allergies : profile.allergies != null ? String(profile.allergies) : null,
       pharmacy,
       notificationPreferences: profile.notificationPreferences,
       privacyConsent: {

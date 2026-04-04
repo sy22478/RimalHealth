@@ -196,8 +196,9 @@ function MultiSelectCombobox({
 
   // Parse comma-separated string into array of items
   const selectedItems = React.useMemo((): string[] => {
-    if (!value || value.trim() === '') return [];
-    return value.split(',').map((item) => item.trim()).filter(Boolean);
+    const str = typeof value === 'string' ? value : '';
+    if (!str || str.trim() === '') return [];
+    return str.split(',').map((item) => item.trim()).filter(Boolean);
   }, [value]);
 
   // Filter presets based on search query, excluding already-selected items
