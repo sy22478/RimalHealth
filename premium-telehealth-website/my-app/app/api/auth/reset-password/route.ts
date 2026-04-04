@@ -168,13 +168,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Perform all updates in a transaction
     await prisma.$transaction(async (tx) => {
-      // Update user password
-      // Note: emailVerified is NOT set here — email verification is a separate step
-      // handled by the /api/auth/verify-email endpoint
+      // Update user password and mark email as verified.
+      // Clicking a time-limited token sent to this email proves ownership,
+      // so a separate email verification step is unnecessary.
       await tx.user.update({
         where: { id: userId },
         data: {
           passwordHash,
+          emailVerified: true,
           // Increment token version to invalidate all existing sessions
           tokenVersion: {
             increment: 1,

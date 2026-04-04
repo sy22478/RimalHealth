@@ -775,7 +775,7 @@ This link expires in 72 hours.`;
     const html = wrapEmail(`
       <h2 style="color: #0a2540; margin-top: 0;">Create Your Rimal Health Account</h2>
       <p>Welcome to Rimal Health! Your payment was successful and your account is ready to be set up.</p>
-      <p>Click the button below to create your account by setting a password. Once your account is created, you'll verify your email and then complete your health intake form.</p>
+      <p>Click the button below to create your account by setting a password. Once your account is created, you can log in and complete your health intake form.</p>
       <div style="text-align: center; margin: 30px 0;">
         <a href="{{createAccountUrl}}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #3b82f6, #0284c7); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
           Create Your Account
@@ -791,7 +791,7 @@ Your payment was successful and your account is ready to be set up.
 
 Create your account here: {{createAccountUrl}}
 
-Once your account is created, you'll verify your email and then complete your health intake form.
+Once your account is created, you can log in and complete your health intake form.
 
 This link expires in 72 hours. If you did not make this purchase, please contact support at ${siteConfig.supportEmail}.`;
 

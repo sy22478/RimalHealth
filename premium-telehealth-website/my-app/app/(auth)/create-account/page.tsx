@@ -265,29 +265,19 @@ function CreateAccountContent(): React.JSX.Element {
             </div>
             <h1 className="text-2xl font-bold text-navy mb-2">Account Created!</h1>
             <p className="text-muted-foreground mb-2 max-w-sm mx-auto">
-              We&apos;ve sent a verification email to:
+              Your account has been created successfully. You can now log in and complete your intake form.
             </p>
-            <p className="font-medium text-navy mb-6">{userEmail}</p>
 
-            <div className="rounded-xl bg-ocean-50/50 border border-ocean-100 p-4 mb-6 text-left max-w-sm mx-auto">
-              <h3 className="text-sm font-semibold text-navy mb-2 flex items-center gap-2">
-                <Mail className="h-4 w-4 text-ocean" />
-                Next steps
-              </h3>
-              <ol className="text-sm text-gray-600 space-y-1.5 list-decimal list-inside">
-                <li>Check your inbox (and spam folder)</li>
-                <li>Click the verification link in the email</li>
-                <li>Log in and complete your intake form</li>
-              </ol>
+            <div className="mt-6">
+              <Link href="/login">
+                <Button
+                  className="w-full rounded-full h-11 font-semibold bg-gradient-to-r from-navy-500 to-ocean-500 hover:from-navy-600 hover:to-ocean-500 shadow-lg shadow-ocean/20 transition-all duration-200"
+                >
+                  Log In
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
             </div>
-
-            <Link
-              href="/login"
-              className="inline-flex items-center gap-2 text-ocean font-medium hover:text-ocean-600 transition-colors"
-            >
-              Go to Login
-              <ArrowRight className="h-4 w-4" />
-            </Link>
           </CardContent>
         </Card>
       </div>
@@ -314,18 +304,6 @@ function CreateAccountContent(): React.JSX.Element {
 
       if (!response.ok) {
         throw new Error(result.error || 'Failed to create account');
-      }
-
-      // Step 2: Trigger email verification
-      const verifyResponse = await fetch('/api/auth/send-verification', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: userEmail }),
-      });
-
-      if (!verifyResponse.ok) {
-        // Account was created but verification email failed -- still show success
-        console.error('Failed to send verification email');
       }
 
       setStatus('success');
