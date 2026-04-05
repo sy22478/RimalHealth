@@ -42,7 +42,7 @@ Ongoing record of deep code reviews across all critical patient flows, APIs, and
 
 ### Action Items
 
-- [ ] Wire `documents/page.tsx` upload handler to call `POST /api/patient/documents/upload` with FormData instead of old `upload-url` -> S3 PUT -> `confirm` chain
+- [x] Wire `documents/page.tsx` upload handler to call `POST /api/patient/documents/upload` with FormData instead of old `upload-url` -> S3 PUT -> `confirm` chain — DONE (commit 05a46d4)
 
 ---
 
@@ -84,7 +84,7 @@ Ongoing record of deep code reviews across all critical patient flows, APIs, and
 ### Action Items
 
 - [ ] Change `AUTO_REFRESH_INTERVAL` from `5 * 60 * 1000` to `60 * 1000` in `EnhancedQueueClient.tsx:82`
-- [ ] Remove 4 quick-link cards from `physician/(portal)/dashboard/page.tsx:264-295` (duplicate sidebar nav)
+- [x] Remove 4 quick-link cards from `physician/(portal)/dashboard/page.tsx:264-295` — DONE (commit 3b6f297)
 - [ ] Add "View Patient" link to `PrescriptionList.tsx` prescription rows (navigate to patient detail)
 - [ ] Consider adding completed review history page (currently `/physician/reviews` just redirects to queue)
 
