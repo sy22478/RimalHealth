@@ -10,7 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
-import { requireAuth } from '@/lib/auth/require-auth';
+import { requireRole } from '@/lib/auth/require-auth';
 import { auditLogger, AuditEventType } from '@/lib/audit';
 import { Role } from '@prisma/client';
 
@@ -37,13 +37,10 @@ const revokeConsentSchema = z.object({
 // ---------------------------------------------------------------------------
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const auth = await requireAuth(request);
+  const auth = await requireRole(request, [Role.PATIENT]);
   if (auth instanceof NextResponse) return auth;
 
-  const { userId, role } = auth.user;
-  if (role !== Role.PATIENT) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
+  const { userId } = auth.user;
 
   try {
     const records = await prisma.consentRecord.findMany({
@@ -63,13 +60,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const auth = await requireAuth(request);
+  const auth = await requireRole(request, [Role.PATIENT]);
   if (auth instanceof NextResponse) return auth;
 
-  const { userId, role } = auth.user;
-  if (role !== Role.PATIENT) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
+  const { userId } = auth.user;
 
   try {
     const body = await request.json();
@@ -119,13 +113,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 // ---------------------------------------------------------------------------
 
 export async function PUT(request: NextRequest): Promise<NextResponse> {
-  const auth = await requireAuth(request);
+  const auth = await requireRole(request, [Role.PATIENT]);
   if (auth instanceof NextResponse) return auth;
 
-  const { userId, role } = auth.user;
-  if (role !== Role.PATIENT) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
+  const { userId } = auth.user;
 
   try {
     const body = await request.json();

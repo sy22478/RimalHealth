@@ -7,20 +7,17 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { requireAuth } from '@/lib/auth/require-auth';
+import { requireRole } from '@/lib/auth/require-auth';
 import { AuditEventType } from '@/lib/audit';
 import { Role } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const auth = await requireAuth(request);
+  const auth = await requireRole(request, [Role.PATIENT]);
   if (auth instanceof NextResponse) return auth;
 
-  const { userId, role } = auth.user;
-  if (role !== Role.PATIENT) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
+  const { userId } = auth.user;
 
   const url = new URL(request.url);
   const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10));

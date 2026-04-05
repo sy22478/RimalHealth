@@ -482,54 +482,19 @@ async function uploadDocumentToS3(
   documentType: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // Step 1: Get presigned upload URL
-    const urlRes = await fetch('/api/patient/documents/upload-url', {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('documentType', documentType);
+
+    const res = await fetch('/api/patient/documents/upload', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({
-        fileName: file.name,
-        contentType: file.type,
-        documentType,
-        fileSize: file.size,
-      }),
+      body: formData,
     });
 
-    if (!urlRes.ok) {
-      const err = await urlRes.json().catch(() => ({}));
-      throw new Error(err.error || 'Failed to get upload URL');
-    }
-
-    const { uploadUrl, key } = await urlRes.json();
-
-    // Step 2: Upload file directly to S3
-    const uploadRes = await fetch(uploadUrl, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': file.type,
-        'x-amz-server-side-encryption': 'AES256',
-      },
-      body: file,
-    });
-
-    if (!uploadRes.ok) {
-      throw new Error('Failed to upload file to storage');
-    }
-
-    // Step 3: Confirm upload (create DB record)
-    const confirmRes = await fetch('/api/patient/documents/confirm', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({
-        key,
-        documentType,
-      }),
-    });
-
-    if (!confirmRes.ok) {
-      const err = await confirmRes.json().catch(() => ({}));
-      throw new Error(err.error || 'Failed to confirm upload');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to upload document');
     }
 
     return { success: true };

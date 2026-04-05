@@ -9,7 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
-import { requireAuth } from '@/lib/auth/require-auth';
+import { requireRole } from '@/lib/auth/require-auth';
 import { auditLogger, AuditEventType } from '@/lib/audit';
 import { Role } from '@prisma/client';
 
@@ -25,19 +25,29 @@ const createRestrictionSchema = z.object({
 // ---------------------------------------------------------------------------
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const auth = await requireAuth(request);
+  const auth = await requireRole(request, [Role.PATIENT]);
   if (auth instanceof NextResponse) return auth;
 
-  const { userId, role } = auth.user;
-  if (role !== Role.PATIENT) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
+  const { userId } = auth.user;
 
   try {
     const restrictions = await prisma.disclosureRestriction.findMany({
       where: { userId },
       orderBy: { requestedAt: 'desc' },
     });
+
+    await auditLogger.logPHIAccess(
+      'VIEW',
+      userId,
+      Role.PATIENT,
+      'PATIENT_PROFILE',
+      userId,
+      {
+        ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
+        userAgent: request.headers.get('user-agent') || 'unknown',
+        requestId: crypto.randomUUID(),
+      },
+    );
 
     return NextResponse.json({ restrictions });
   } catch (error) {
@@ -51,13 +61,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const auth = await requireAuth(request);
+  const auth = await requireRole(request, [Role.PATIENT]);
   if (auth instanceof NextResponse) return auth;
 
-  const { userId, role } = auth.user;
-  if (role !== Role.PATIENT) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
+  const { userId } = auth.user;
 
   try {
     const body = await request.json();

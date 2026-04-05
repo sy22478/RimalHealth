@@ -268,10 +268,10 @@ export function PrescriptionWriter({
                 <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
                   <Pill className="w-5 h-5 text-blue-600" />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium">{med.name}</p>
-                  <p className="text-sm text-muted-foreground">{med.genericName}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{med.drugClass}</p>
+                <div className="flex-1 min-w-0 overflow-hidden">
+                  <p className="font-medium break-words">{med.name}</p>
+                  <p className="text-sm text-muted-foreground break-words">{med.genericName}</p>
+                  <p className="text-xs text-muted-foreground mt-1 break-words">{med.drugClass}</p>
                 </div>
                 <ChevronDown className="w-4 h-4 text-muted-foreground -rotate-90" />
               </button>
@@ -286,9 +286,9 @@ export function PrescriptionWriter({
                 <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
                   <Pill className="w-5 h-5 text-blue-600" />
                 </div>
-                <div>
-                  <p className="font-medium">{selectedMedication?.name}</p>
-                  <p className="text-sm text-muted-foreground">
+                <div className="min-w-0 overflow-hidden">
+                  <p className="font-medium break-words">{selectedMedication?.name}</p>
+                  <p className="text-sm text-muted-foreground break-words">
                     {selectedMedication?.genericName}
                   </p>
                 </div>
@@ -461,14 +461,14 @@ export function PrescriptionWriter({
                   <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center shrink-0">
                     <MapPin className="w-4 h-4 text-green-600" />
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0 overflow-hidden">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium">{pharmacy.name}</span>
+                      <span className="font-medium break-words">{pharmacy.name}</span>
                       {pharmacyId === pharmacy.id && (
-                        <Check className="w-4 h-4 text-primary" />
+                        <Check className="w-4 h-4 text-primary shrink-0" />
                       )}
                     </div>
-                    <p className="text-sm text-muted-foreground">{pharmacy.address}</p>
+                    <p className="text-sm text-muted-foreground break-words">{pharmacy.address}</p>
                     {pharmacy.phone && (
                       <p className="text-sm text-muted-foreground">{pharmacy.phone}</p>
                     )}
@@ -482,15 +482,15 @@ export function PrescriptionWriter({
           <Card className="bg-muted/50">
             <CardContent className="p-4 space-y-2">
               <h4 className="font-medium text-sm text-muted-foreground">Prescription Preview</h4>
-              <div className="space-y-1">
-                <p className="font-semibold">
+              <div className="space-y-1 overflow-hidden">
+                <p className="font-semibold break-words">
                   {selectedMedication.name} {dosage}
                 </p>
                 <p className="text-sm">{frequency}</p>
                 <p className="text-sm">Quantity: {quantity}</p>
                 <p className="text-sm">Refills: {refills}</p>
                 {watch('instructions') && (
-                  <p className="text-sm text-muted-foreground italic">
+                  <p className="text-sm text-muted-foreground italic break-words whitespace-pre-wrap">
                     &ldquo;{watch('instructions')}&rdquo;
                   </p>
                 )}
@@ -541,16 +541,16 @@ export function PrescriptionDisplay({
             <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
               <Pill className="w-5 h-5 text-blue-600" />
             </div>
-            <div>
-              <p className="font-semibold">{prescription.medicationName}</p>
-              <p className="text-sm text-muted-foreground">
+            <div className="min-w-0 overflow-hidden">
+              <p className="font-semibold break-words">{prescription.medicationName}</p>
+              <p className="text-sm text-muted-foreground break-words">
                 {prescription.dosage} • {prescription.frequency}
               </p>
               <p className="text-sm text-muted-foreground">
                 Qty: {prescription.quantity} • Refills: {prescription.refills}
               </p>
               {prescription.pharmacyName && (
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-xs text-muted-foreground mt-1 break-words">
                   {prescription.pharmacyName}
                 </p>
               )}
@@ -572,7 +572,7 @@ export function PrescriptionDisplay({
           )}
         </div>
         {prescription.instructions && (
-          <p className="text-sm text-muted-foreground mt-3 italic">
+          <p className="text-sm text-muted-foreground mt-3 italic break-words whitespace-pre-wrap">
             &ldquo;{prescription.instructions}&rdquo;
           </p>
         )}

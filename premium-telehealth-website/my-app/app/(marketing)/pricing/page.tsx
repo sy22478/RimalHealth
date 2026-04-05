@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Check, Shield, ChevronDown, ArrowRight, CreditCard, FileText, UserCheck, Pill, Sparkles } from "lucide-react";
 import { PricingCard } from "@/components/marketing/PricingCard";
 import { ComparisonTable, rimalComparisonFeatures } from "@/components/marketing/ComparisonTable";
 import { TrustBadges } from "@/components/TrustBadges";
 
 export default function PricingPage() {
+  const shouldReduceMotion = useReducedMotion();
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   const faqs = [
@@ -83,38 +84,38 @@ export default function PricingPage() {
       <section className="pt-28 pb-16 px-6">
         <div className="max-w-7xl mx-auto text-center">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
+            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.6, ease: "easeOut" }}
           >
             <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-ocean-500/10 border border-ocean-500/20 text-sm font-semibold text-ocean-600 mb-6">
               <Sparkles className="w-4 h-4" />
               Start treatment today
             </span>
           </motion.div>
-          
+
           <motion.h1
             className="text-5xl md:text-6xl font-bold text-gray-900"
-            initial={{ opacity: 0, y: 20 }}
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
+            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.6, ease: "easeOut" }}
           >
             Simple pricing. No hidden fees.
           </motion.h1>
           <motion.p
             className="text-xl text-gray-600 mt-6 mb-8 max-w-2xl mx-auto"
-            initial={{ opacity: 0, y: 20 }}
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1, ease: "easeOut" }}
+            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.6, delay: 0.1, ease: "easeOut" }}
           >
-            Choose your plan, complete checkout, and start your treatment journey. 
+            Choose your plan, complete checkout, and start your treatment journey.
             Cancel anytime.
           </motion.p>
 
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.15, ease: "easeOut" }}
+            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.6, delay: 0.15, ease: "easeOut" }}
           >
             <TrustBadges />
           </motion.div>
@@ -126,17 +127,17 @@ export default function PricingPage() {
         <div className="max-w-6xl mx-auto">
           <motion.div
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4"
-            initial={{ opacity: 0, y: 20 }}
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
+            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.6, delay: 0.2, ease: "easeOut" }}
           >
             {workflowSteps.map((step, index) => (
               <motion.div
                 key={index}
                 className="relative bg-gray-50 rounded-xl p-5 text-center"
-                initial={{ opacity: 0, y: 20 }}
+                initial={shouldReduceMotion ? false : { opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.25 + index * 0.1, ease: "easeOut" }}
+                transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.4, delay: 0.25 + index * 0.1, ease: "easeOut" }}
               >
                 {/* Connector line (hidden on mobile) */}
                 {index < workflowSteps.length - 1 && (
@@ -161,10 +162,10 @@ export default function PricingPage() {
         <div className="max-w-4xl mx-auto">
           <motion.h2
             className="text-3xl md:text-4xl font-bold text-gray-900 text-center mb-12"
-            initial={{ opacity: 0, y: 20 }}
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
+            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.5, ease: "easeOut" }}
           >
             Choose your plan
           </motion.h2>
@@ -199,19 +200,19 @@ export default function PricingPage() {
         <div className="max-w-4xl mx-auto">
           <motion.h2
             className="text-3xl md:text-4xl font-bold text-gray-900 text-center mb-12"
-            initial={{ opacity: 0, y: 20 }}
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
+            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.5, ease: "easeOut" }}
           >
             Total monthly cost
           </motion.h2>
           <motion.div
             className="bg-white border border-gray-200 rounded-xl overflow-hidden"
-            initial={{ opacity: 0, y: 20 }}
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
+            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.5, delay: 0.1, ease: "easeOut" }}
           >
             <table className="w-full">
               <thead className="bg-gray-50">
@@ -263,19 +264,19 @@ export default function PricingPage() {
         <div className="max-w-6xl mx-auto">
           <motion.h2
             className="text-3xl md:text-4xl font-bold text-gray-900 text-center mb-6"
-            initial={{ opacity: 0, y: 20 }}
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
+            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.5, ease: "easeOut" }}
           >
             How we compare
           </motion.h2>
           <motion.p
             className="text-center text-gray-600 mb-12 max-w-2xl mx-auto"
-            initial={{ opacity: 0, y: 20 }}
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
+            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.5, delay: 0.1, ease: "easeOut" }}
           >
             See how Rimal Health compares to traditional telehealth and in-person treatment options
           </motion.p>
@@ -288,19 +289,19 @@ export default function PricingPage() {
         <div className="max-w-4xl mx-auto">
           <motion.h2
             className="text-3xl md:text-4xl font-bold text-gray-900 text-center mb-12"
-            initial={{ opacity: 0, y: 20 }}
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
+            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.5, ease: "easeOut" }}
           >
             No extra fees, ever
           </motion.h2>
           <motion.div
             className="bg-gray-50 rounded-xl p-8 md:p-10"
-            initial={{ opacity: 0, y: 20 }}
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
+            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.5, delay: 0.1, ease: "easeOut" }}
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {[
@@ -328,10 +329,10 @@ export default function PricingPage() {
         <div className="max-w-4xl mx-auto">
           <motion.div
             className="max-w-xl mx-auto border-2 border-dashed border-emerald-500 rounded-2xl p-10 text-center"
-            initial={{ opacity: 0, y: 20 }}
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
+            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.5, ease: "easeOut" }}
           >
             <Shield className="w-12 h-12 text-ocean-500 mx-auto mb-6" />
             <h3 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
@@ -352,10 +353,10 @@ export default function PricingPage() {
         <div className="max-w-4xl mx-auto">
           <motion.div
             className="bg-gradient-to-br from-amber-50 to-emerald-50 rounded-xl p-8"
-            initial={{ opacity: 0, y: 20 }}
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
+            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.5, ease: "easeOut" }}
           >
             <h3 className="text-2xl font-semibold text-gray-900 mb-4">
               Pay with pre-tax dollars
@@ -396,19 +397,19 @@ export default function PricingPage() {
         <div className="max-w-4xl mx-auto">
           <motion.h2
             className="text-3xl md:text-4xl font-bold text-gray-900 text-center mb-12"
-            initial={{ opacity: 0, y: 20 }}
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
+            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.5, ease: "easeOut" }}
           >
             Common questions
           </motion.h2>
           <motion.div
             className="max-w-3xl mx-auto space-y-4"
-            initial={{ opacity: 0, y: 20 }}
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
+            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.5, delay: 0.1, ease: "easeOut" }}
           >
             {faqs.map((faq, index) => (
               <div

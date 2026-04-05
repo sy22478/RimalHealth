@@ -45,6 +45,7 @@ import {
   MoreHorizontal,
   Send,
 } from 'lucide-react';
+import Link from 'next/link';
 import { PhysicianPrescriptionListItem } from '@/types/physician-dashboard';
 import { PrescriptionStatusBadge } from '@/components/shared/StatusBadge';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -448,11 +449,18 @@ export function PrescriptionList({
                       onClick={() => onPrescriptionClick?.(rx)}
                     >
                       <TableCell>
-                        <div className="flex items-center gap-3 max-w-[200px]">
+                        <div className="flex items-center gap-3 max-w-[250px]">
                           <div className="w-8 h-8 rounded-full bg-ocean-100 flex items-center justify-center shrink-0">
                             <User className="w-4 h-4 text-ocean-600" />
                           </div>
                           <span className="font-medium truncate">{rx.patientName}</span>
+                          <Link
+                            href={`/physician/patients/${rx.patientId}`}
+                            className="text-sm text-ocean-500 hover:underline ml-auto shrink-0"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            View Profile
+                          </Link>
                         </div>
                       </TableCell>
                       <TableCell>

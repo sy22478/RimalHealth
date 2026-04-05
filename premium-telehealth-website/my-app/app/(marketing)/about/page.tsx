@@ -1,24 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Heart, FlaskConical, User, Lock } from "lucide-react";
 import { ProgressiveImage } from "@/components/ui/ProgressiveImage";
 
-const fadeInUp = {
-  initial: { opacity: 0, y: 20 },
-  whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true },
-  transition: { duration: 0.6, ease: "easeOut" as const },
-};
-
-const staggerContainer = {
-  initial: {},
-  whileInView: { transition: { staggerChildren: 0.1 } },
-  viewport: { once: true },
-};
-
 export default function AboutPage() {
+  const shouldReduceMotion = useReducedMotion();
+
+  const fadeInUp = {
+    initial: shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 },
+    whileInView: { opacity: 1, y: 0 },
+    viewport: { once: true },
+    transition: shouldReduceMotion ? { duration: 0 } : { duration: 0.6, ease: "easeOut" as const },
+  };
+
+  const staggerContainer = {
+    initial: {},
+    whileInView: { transition: { staggerChildren: shouldReduceMotion ? 0 : 0.1 } },
+    viewport: { once: true },
+  };
   const values = [
     {
       icon: Heart,
@@ -66,10 +67,10 @@ export default function AboutPage() {
             </motion.h1>
             <motion.p
               className="text-xl text-gray-600 mt-6 leading-relaxed"
-              initial={{ opacity: 0, y: 20 }}
+              initial={shouldReduceMotion ? false : { opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" as const }}
+              transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.6, delay: 0.2, ease: "easeOut" as const }}
             >
               2.9 million Californians struggle with substance use disorder.
               Only 10% get treatment. We&apos;re changing that.

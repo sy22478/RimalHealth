@@ -27,7 +27,13 @@ import type { PhysicianPatientDetail } from '@/types/physician-dashboard';
  */
 function calculateAge(dateOfBirth: string | Date | null | undefined): number {
   if (!dateOfBirth) return 0;
-  const dob = new Date(dateOfBirth);
+  let dob: Date;
+  if (typeof dateOfBirth === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dateOfBirth)) {
+    const [y, m, d] = dateOfBirth.split('-').map(Number);
+    dob = new Date(y, m - 1, d);
+  } else {
+    dob = new Date(dateOfBirth);
+  }
   if (isNaN(dob.getTime())) return 0;
   const today = new Date();
   let age = today.getFullYear() - dob.getFullYear();
@@ -74,7 +80,11 @@ function mapApiResponseToPatientDetail(raw: Record<string, unknown>): PhysicianP
     riskLevel: (raw.riskLevel as string) || 'LOW',
     emailMasked: maskEmail(email),
     phoneMasked: (raw.phone as string) || 'No phone',
-    dateOfBirth: dob ? new Date(dob) : undefined,
+    dateOfBirth: dob
+      ? (typeof dob === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dob)
+        ? new Date(parseInt(dob.split('-')[0]), parseInt(dob.split('-')[1]) - 1, parseInt(dob.split('-')[2]))
+        : new Date(dob))
+      : undefined,
     address: address && address.street ? {
       street: address.street || '',
       city: address.city || '',

@@ -10,20 +10,13 @@
 import * as React from 'react';
 import { Metadata } from 'next';
 import { cookies } from 'next/headers';
-import Link from 'next/link';
-import { Card, CardContent } from '@/components/ui/card';
 import { DashboardStats } from '@/components/physician/DashboardStats';
 import { ReviewQueue } from '@/components/physician/ReviewQueue';
 import { PrescriptionList } from '@/components/physician/PrescriptionList';
 import { Badge } from '@/components/ui/badge';
 import {
-  Clock,
   AlertCircle,
-  Users,
-  Pill,
-  MessageSquare,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import type {
   PhysicianDashboardStats,
   ReviewQueueItem,
@@ -59,45 +52,6 @@ const defaultStats: PhysicianDashboardStats = {
 // Components
 // ============================================================================
 
-/**
- * Quick Action Card
- */
-function QuickActionCard({
-  title,
-  description,
-  icon: Icon,
-  href,
-  badge,
-  colorClass,
-}: {
-  title: string;
-  description: string;
-  icon: React.ElementType;
-  href: string;
-  badge?: number;
-  colorClass: string;
-}) {
-  return (
-    <Link href={href}>
-      <Card className="h-full hover:shadow-md transition-shadow group">
-        <CardContent className="p-5">
-          <div className="flex items-start justify-between">
-            <div className={cn('p-3 rounded-lg', colorClass)}>
-              <Icon className="w-5 h-5" />
-            </div>
-            {badge !== undefined && badge > 0 && (
-              <Badge variant="destructive">{badge}</Badge>
-            )}
-          </div>
-          <h3 className="font-semibold mt-3 group-hover:text-ocean-600 transition-colors">
-            {title}
-          </h3>
-          <p className="text-sm text-muted-foreground mt-1">{description}</p>
-        </CardContent>
-      </Card>
-    </Link>
-  );
-}
 
 // ============================================================================
 // Main Page
@@ -259,40 +213,6 @@ export default async function PhysicianDashboardPage() {
 
       {/* Stats */}
       <DashboardStats stats={stats} />
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <QuickActionCard
-          title="Pending Reviews"
-          description={`Review ${stats.pendingReviews} pending intake${stats.pendingReviews !== 1 ? 's' : ''}`}
-          icon={Clock}
-          href="/physician/queue"
-          badge={stats.pendingReviews}
-          colorClass="bg-amber-100 text-amber-600"
-        />
-        <QuickActionCard
-          title="My Patients"
-          description="View and manage patient list"
-          icon={Users}
-          href="/physician/patients"
-          colorClass="bg-blue-100 text-blue-600"
-        />
-        <QuickActionCard
-          title="Prescriptions"
-          description="Manage active prescriptions"
-          icon={Pill}
-          href="/physician/prescriptions"
-          colorClass="bg-green-100 text-green-600"
-        />
-        <QuickActionCard
-          title="Messages"
-          description={`${stats.unreadMessages} unread message${stats.unreadMessages !== 1 ? 's' : ''}`}
-          icon={MessageSquare}
-          href="/physician/messages"
-          badge={stats.unreadMessages}
-          colorClass="bg-purple-100 text-purple-600"
-        />
-      </div>
 
       {/* Main Content Grid */}
       <div className="grid gap-6 lg:grid-cols-3">
