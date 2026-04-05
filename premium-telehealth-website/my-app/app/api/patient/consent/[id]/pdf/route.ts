@@ -7,8 +7,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { requireAuth } from '@/lib/auth/require-auth';
+import { requireRole } from '@/lib/auth/require-auth';
 import { Role } from '@prisma/client';
+import { auditLogger } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,13 +17,10 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
-  const auth = await requireAuth(request);
+  const auth = await requireRole(request, [Role.PATIENT]);
   if (auth instanceof NextResponse) return auth;
 
-  const { userId, role } = auth.user;
-  if (role !== Role.PATIENT) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
+  const { userId } = auth.user;
 
   const { id } = await params;
 
@@ -59,6 +57,20 @@ export async function GET(
       'in accordance with 42 CFR Part 2.',
       '========================================',
     ].join('\n');
+
+    await auditLogger.logPHIAccess(
+      'VIEW',
+      userId,
+      Role.PATIENT,
+      'PATIENT_PROFILE',
+      id,
+      {
+        ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
+        userAgent: request.headers.get('user-agent') || 'unknown',
+        requestId: crypto.randomUUID(),
+      },
+      { accessReason: 'Consent record download' },
+    );
 
     return new NextResponse(content, {
       status: 200,

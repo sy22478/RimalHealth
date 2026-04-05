@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { SectionWrapper } from "@/components/sections/SectionWrapper";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import {
   Sparkles,
   CreditCard,
@@ -17,15 +17,17 @@ import {
 } from "lucide-react";
 
 export default function HowItWorksPage() {
+  const shouldReduceMotion = useReducedMotion();
+
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section */}
       <SectionWrapper className="pt-28 pb-16 px-4">
         <div className="container max-w-7xl mx-auto">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
+            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.5, ease: "easeOut" }}
           >
             <p className="text-sm text-gray-500 mb-6">Home / How It Works</p>
             <h1 className="text-5xl md:text-6xl font-bold text-gray-900 max-w-3xl">
@@ -56,10 +58,10 @@ export default function HowItWorksPage() {
         <div className="container max-w-7xl mx-auto">
           <motion.div
             className="text-center mb-16"
-            initial={{ opacity: 0, y: 20 }}
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
+            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.5, ease: "easeOut" }}
           >
             <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-ocean-500/10 border border-ocean-500/20 text-sm font-semibold text-ocean-600 mb-6">
               New Payment-First Workflow
@@ -155,10 +157,10 @@ export default function HowItWorksPage() {
       <SectionWrapper className="py-20 px-4">
         <div className="container max-w-7xl mx-auto">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
+            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.5, ease: "easeOut" }}
           >
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 text-center mb-6">
               Everything included in your subscription
@@ -173,10 +175,10 @@ export default function HowItWorksPage() {
               <motion.div
                 key={index}
                 className="flex items-start gap-4 bg-gray-50 rounded-xl p-5"
-                initial={{ opacity: 0, y: 20 }}
+                initial={shouldReduceMotion ? false : { opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{
+                transition={shouldReduceMotion ? { duration: 0 } : {
                   duration: 0.5,
                   delay: index * 0.1,
                   ease: "easeOut",
@@ -196,10 +198,10 @@ export default function HowItWorksPage() {
           {/* Not included section */}
           <motion.div
             className="mt-12 p-6 bg-amber-50 border border-amber-200 rounded-xl max-w-4xl mx-auto"
-            initial={{ opacity: 0, y: 20 }}
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.5, ease: "easeOut" }}
+            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.5, delay: 0.5, ease: "easeOut" }}
           >
             <h3 className="font-semibold text-amber-800 mb-2">Not included in subscription:</h3>
             <ul className="text-sm text-amber-700 space-y-1">
@@ -215,10 +217,10 @@ export default function HowItWorksPage() {
       <SectionWrapper className="py-20 px-4 bg-gray-50">
         <div className="container max-w-7xl mx-auto">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
+            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.5, ease: "easeOut" }}
           >
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 text-center mb-6">
               Medications we prescribe
@@ -231,10 +233,10 @@ export default function HowItWorksPage() {
           {/* Alcohol Medications Table */}
           <motion.div
             className="mb-12"
-            initial={{ opacity: 0, y: 20 }}
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
+            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.5, ease: "easeOut" }}
           >
             <h3 className="text-2xl font-bold text-gray-900 mb-6">
               Alcohol Medications
@@ -280,10 +282,10 @@ export default function HowItWorksPage() {
       <SectionWrapper className="py-20 px-4">
         <div className="container max-w-4xl mx-auto">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
+            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.5, ease: "easeOut" }}
           >
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 text-center mb-12">
               Common questions
@@ -311,10 +313,10 @@ export default function HowItWorksPage() {
       <SectionWrapper className="py-20 px-4 bg-gradient-to-b from-gray-50 to-white">
         <div className="container max-w-4xl mx-auto text-center">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
+            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.5, ease: "easeOut" }}
           >
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
               Ready to start your journey?
@@ -352,13 +354,14 @@ function StepCard({
   details: string[];
   delay?: number;
 }) {
+  const prefersReducedMotion = useReducedMotion();
   return (
     <motion.div
       className="bg-white rounded-2xl p-6 md:p-8 border border-gray-200"
-      initial={{ opacity: 0, y: 20 }}
+      initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
-      transition={{ duration: 0.5, delay, ease: "easeOut" }}
+      transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.5, delay, ease: "easeOut" }}
     >
       <div className="flex flex-col md:flex-row md:items-start gap-6">
         {/* Number and Icon */}
@@ -395,6 +398,7 @@ function StepCard({
 // FAQ Accordion Component
 function FAQItem({ question, answer }: { question: string; answer: string }) {
   const [isOpen, setIsOpen] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
 
   return (
     <div className="border-b border-gray-200 py-5">
@@ -414,10 +418,10 @@ function FAQItem({ question, answer }: { question: string; answer: string }) {
       </button>
       {isOpen && (
         <motion.div
-          initial={{ opacity: 0, height: 0 }}
+          initial={prefersReducedMotion ? false : { opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: "auto" }}
-          exit={{ opacity: 0, height: 0 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
+          exit={prefersReducedMotion ? undefined : { opacity: 0, height: 0 }}
+          transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.2, ease: "easeOut" }}
         >
           <p className="text-base text-gray-600 mt-3">{answer}</p>
         </motion.div>

@@ -24,6 +24,7 @@ import {
   Menu,
   Stethoscope,
   Bell,
+  History,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUnreadMessageCount } from '@/hooks/useUnreadMessageCount';
@@ -38,6 +39,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { href: '/physician/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/physician/queue', label: 'Patient Queue', icon: ListChecks },
+  { href: '/physician/reviews', label: 'Review History', icon: History },
   { href: '/physician/patients', label: 'Patients', icon: Users },
   { href: '/physician/prescriptions', label: 'Prescriptions', icon: Pill },
 ];

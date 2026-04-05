@@ -230,7 +230,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       'Review',
       result.review.id,
       auditContext,
-      ['decision', 'intakeId'],
+      ['decision', 'intakeId', 'clinicalNotes', 'rejectionReason', 'alternativeRecommendation', 'instructions'],
       `Review submitted: ${decision}`
     );
 

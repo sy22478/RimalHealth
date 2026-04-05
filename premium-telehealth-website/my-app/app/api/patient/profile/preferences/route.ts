@@ -74,6 +74,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       shareDataForResearch: false,
     };
 
+    await auditLogger.logPHIAccess(
+      'VIEW',
+      userId,
+      Role.PATIENT,
+      'PATIENT_PROFILE',
+      userId,
+      { ipAddress, userAgent, requestId: crypto.randomUUID() },
+    );
+
     return NextResponse.json({
       success: true,
       preferences,

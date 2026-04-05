@@ -30,6 +30,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   const { userId } = auth.user;
+
+  // DoseSpot integration is not implemented — block in production
+  if (process.env.NODE_ENV === 'production' && !process.env.DOSESPOT_CLIENT_ID) {
+    return NextResponse.json(
+      {
+        error: 'E-prescribing is not yet available. Please send prescriptions manually and use the "Mark as Sent" button.',
+        code: 'EPRESCRIBING_UNAVAILABLE',
+      },
+      { status: 503 }
+    );
+  }
+
   const auditContext = AuditService.createAuditContext(
     request,
     userId,
