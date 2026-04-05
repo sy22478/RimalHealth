@@ -45,7 +45,13 @@ export const metadata: Metadata = {
  */
 function calculateAge(dateOfBirth: string | Date | null | undefined): number {
   if (!dateOfBirth) return 0;
-  const dob = new Date(dateOfBirth);
+  let dob: Date;
+  if (typeof dateOfBirth === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dateOfBirth)) {
+    const [y, m, d] = dateOfBirth.split('-').map(Number);
+    dob = new Date(y, m - 1, d);
+  } else {
+    dob = new Date(dateOfBirth);
+  }
   if (isNaN(dob.getTime())) return 0;
   const today = new Date();
   let age = today.getFullYear() - dob.getFullYear();

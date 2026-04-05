@@ -238,7 +238,13 @@ export async function getIntakeForReview(
     const dobString = formDob || profileDob;
     // Use a past sentinel date (epoch) when DOB is missing so the UI can detect "unknown"
     // instead of defaulting to today which would compute age as 0
-    const dateOfBirth = dobString ? new Date(dobString) : new Date(0);
+    let dateOfBirth: Date;
+    if (dobString && /^\d{4}-\d{2}-\d{2}/.test(dobString)) {
+      const [y, m, d] = dobString.split('-').map(Number);
+      dateOfBirth = new Date(y, m - 1, d);
+    } else {
+      dateOfBirth = dobString ? new Date(dobString) : new Date(0);
+    }
 
     const data: IntakeWithPatient = {
       id: intake.id,

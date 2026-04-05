@@ -40,7 +40,13 @@ const intakeFormSchema = z.object({
   firstName: z.string().min(1, { message: 'First name is required' }),
   lastName: z.string().min(1, { message: 'Last name is required' }),
   dateOfBirth: z.string().min(1, { message: 'Date of birth is required' }).refine((dob) => {
-    const birthDate = new Date(dob);
+    let birthDate: Date;
+    if (/^\d{4}-\d{2}-\d{2}/.test(dob)) {
+      const [y, m, d] = dob.split('-').map(Number);
+      birthDate = new Date(y, m - 1, d);
+    } else {
+      birthDate = new Date(dob);
+    }
     const today = new Date();
     let age = today.getFullYear() - birthDate.getFullYear();
     const monthDiff = today.getMonth() - birthDate.getMonth();
