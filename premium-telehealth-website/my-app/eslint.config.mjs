@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Netlify build output (causes OOM if linted):
+    ".netlify/**",
   ]),
 ]);
 
