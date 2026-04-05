@@ -1,24 +1,117 @@
+'use client';
+
 /**
  * Patient MFA Setup Page
  *
- * Allows patients to set up TOTP-based two-factor authentication.
- * After the 7-day grace period, patients are redirected here from the
- * patient layout if MFA is not yet enabled.
- *
- * Reuses the shared MFASetup component from components/auth/MFASetup.tsx.
+ * SMS-based two-factor authentication for patients.
+ * Sends a verification code to the patient's phone number on file.
+ * If no phone number, prompts to add one in profile settings.
  *
  * 2026 HIPAA Security Rule mandates MFA for all ePHI access.
  *
  * @module app/patient/mfa-setup/page
  */
 
-'use client';
-
 import * as React from 'react';
-import { MFASetup } from '@/components/auth/MFASetup';
-import { ShieldCheck } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { ShieldCheck, Smartphone, AlertCircle } from 'lucide-react';
+import Link from 'next/link';
 
 export default function PatientMFASetupPage(): React.ReactElement {
+  const router = useRouter();
+  const [step, setStep] = useState<'start' | 'verify' | 'done'>('start');
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [phoneHint, setPhoneHint] = useState('');
+  const [code, setCode] = useState('');
+  const [mfaToken, setMfaToken] = useState('');
+  const [noPhone, setNoPhone] = useState(false);
+
+  // Step 1: Request SMS code for setup
+  const handleStartSetup = useCallback(async (): Promise<void> => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      // First, initiate MFA setup to get an mfaToken
+      const setupRes = await fetch('/api/auth/mfa/setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+
+      if (!setupRes.ok) {
+        const data = await setupRes.json();
+        throw new Error(data.error || 'Failed to initiate MFA setup');
+      }
+
+      // Now send the SMS code — we need a temporary token
+      // Use a dedicated endpoint that accepts auth cookies instead of mfaToken
+      const sendRes = await fetch('/api/auth/mfa/send-sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ mfaToken: 'setup' }),
+      });
+
+      const sendData = await sendRes.json();
+
+      if (!sendRes.ok) {
+        if (sendData.code === 'NO_PHONE_NUMBER') {
+          setNoPhone(true);
+          return;
+        }
+        throw new Error(sendData.error || 'Failed to send verification code');
+      }
+
+      setPhoneHint(sendData.phoneHint || '');
+      setStep('verify');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Step 2: Verify the SMS code and enable MFA
+  const handleVerifyCode = useCallback(async (): Promise<void> => {
+    if (code.length !== 6) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/auth/mfa/verify-setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ token: code }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Verification failed');
+      }
+
+      setStep('done');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  }, [code]);
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-2xl mx-auto">
       {/* Header */}
@@ -28,12 +121,10 @@ export default function PatientMFASetupPage(): React.ReactElement {
         </div>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
-            Set Up Two-Factor Authentication
+            Set Up SMS Verification
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Protect your health information with an extra layer of security.
-            You will need an authenticator app such as Google Authenticator,
-            Authy, or 1Password.
+            Protect your health information with a verification code sent to your phone.
           </p>
         </div>
       </div>
@@ -46,8 +137,110 @@ export default function PatientMFASetupPage(): React.ReactElement {
         unauthorized access.
       </div>
 
-      {/* Reuse the shared MFA setup wizard */}
-      <MFASetup redirectUrl="/patient/dashboard" />
+      <Card className="w-full max-w-md mx-auto">
+        <CardHeader>
+          <CardTitle>SMS Verification</CardTitle>
+          <CardDescription>
+            {step === 'start' && 'We will send a code to your phone number on file.'}
+            {step === 'verify' && `Enter the 6-digit code sent to ${phoneHint}.`}
+            {step === 'done' && 'SMS verification is now enabled.'}
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent>
+          {error && (
+            <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700 flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+              {error}
+            </div>
+          )}
+
+          {noPhone && (
+            <div className="space-y-4">
+              <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                <Smartphone className="inline h-4 w-4 mr-1" />
+                <strong>Phone number required.</strong> Please add your phone number
+                in your profile settings first, then return here to enable SMS verification.
+              </div>
+              <Button asChild className="w-full btn-primary">
+                <Link href="/patient/settings">Go to Profile Settings</Link>
+              </Button>
+            </div>
+          )}
+
+          {/* Step 1: Start */}
+          {step === 'start' && !noPhone && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Each time you sign in, we will send a 6-digit verification code
+                to your phone via SMS. This adds an extra layer of security
+                to protect your health information.
+              </p>
+              <Button
+                onClick={handleStartSetup}
+                disabled={loading}
+                className="w-full btn-primary"
+              >
+                {loading ? 'Sending code...' : 'Send Verification Code'}
+              </Button>
+            </div>
+          )}
+
+          {/* Step 2: Verify */}
+          {step === 'verify' && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="sms-code">Verification Code</Label>
+                <Input
+                  id="sms-code"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder="000000"
+                  maxLength={6}
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  className="text-center text-lg tracking-widest font-mono"
+                  autoFocus
+                />
+              </div>
+
+              <Button
+                onClick={handleVerifyCode}
+                disabled={loading || code.length !== 6}
+                className="w-full btn-primary"
+              >
+                {loading ? 'Verifying...' : 'Verify & Enable'}
+              </Button>
+
+              <button
+                type="button"
+                onClick={handleStartSetup}
+                disabled={loading}
+                className="w-full text-sm text-ocean-600 hover:text-ocean-700 disabled:text-muted-foreground"
+              >
+                Resend code
+              </button>
+            </div>
+          )}
+
+          {/* Step 3: Done */}
+          {step === 'done' && (
+            <div className="space-y-4">
+              <div className="rounded-md border border-green-200 bg-green-50 p-4 text-sm text-green-800 text-center">
+                SMS verification is now enabled. You will receive a code
+                each time you sign in.
+              </div>
+              <Button
+                className="w-full btn-primary"
+                onClick={() => router.push('/patient/dashboard')}
+              >
+                Continue to Dashboard
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

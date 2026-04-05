@@ -92,9 +92,13 @@ export function LoginForm() {
   const [resendSuccess, setResendSuccess] = React.useState(false);
   // MFA state
   const [requiresMFA, setRequiresMFA] = React.useState(false);
+  const [mfaType, setMfaType] = React.useState<"totp" | "sms">("totp");
   const [mfaToken, setMfaToken] = React.useState("");
   const [mfaCode, setMfaCode] = React.useState("");
   const [isMFALoading, setIsMFALoading] = React.useState(false);
+  const [phoneHint, setPhoneHint] = React.useState("");
+  const [smsResendCooldown, setSmsResendCooldown] = React.useState(0);
+  const [smsCodeExpiry, setSmsCodeExpiry] = React.useState(300); // 5 minutes
   const router = useRouter();
   const searchParams = useSearchParams();
   const from = searchParams.get("from");
@@ -162,6 +166,12 @@ export function LoginForm() {
       if (result.requiresMFA && result.mfaToken) {
         setRequiresMFA(true);
         setMfaToken(result.mfaToken);
+        setMfaType(result.mfaType === "sms" ? "sms" : "totp");
+        if (result.phoneHint) setPhoneHint(result.phoneHint);
+        if (result.mfaType === "sms") {
+          setSmsCodeExpiry(300);
+          setSmsResendCooldown(30);
+        }
         return;
       }
 
@@ -199,8 +209,10 @@ export function LoginForm() {
     setIsMFALoading(true);
     setError("");
 
+    const endpoint = mfaType === "sms" ? "/api/auth/mfa/verify-sms" : "/api/auth/mfa/verify";
+
     try {
-      const response = await fetch("/api/auth/mfa/verify", {
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -214,7 +226,6 @@ export function LoginForm() {
 
       if (!response.ok) {
         if (result.code === "MFA_TOKEN_EXPIRED") {
-          // Token expired — reset to login form
           setRequiresMFA(false);
           setMfaToken("");
           setMfaCode("");
@@ -255,6 +266,44 @@ export function LoginForm() {
     }
   };
 
+  // SMS resend handler
+  const handleResendSMS = async (): Promise<void> => {
+    if (smsResendCooldown > 0) return;
+    setError("");
+
+    try {
+      const response = await fetch("/api/auth/mfa/send-sms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ mfaToken }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        setError(result.error || "Failed to resend code.");
+        return;
+      }
+
+      setSmsResendCooldown(30);
+      setSmsCodeExpiry(300);
+      setMfaCode("");
+    } catch {
+      setError("Failed to resend verification code.");
+    }
+  };
+
+  // Countdown timers for SMS
+  React.useEffect(() => {
+    if (!requiresMFA || mfaType !== "sms") return;
+    const interval = setInterval(() => {
+      setSmsResendCooldown((prev) => Math.max(0, prev - 1));
+      setSmsCodeExpiry((prev) => Math.max(0, prev - 1));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [requiresMFA, mfaType]);
+
   const handleResendVerification = async (): Promise<void> => {
     const email = (document.getElementById("email") as HTMLInputElement)?.value;
     if (!email) return;
@@ -285,6 +334,10 @@ export function LoginForm() {
 
   // MFA verification form
   if (requiresMFA) {
+    const isSMS = mfaType === "sms";
+    const expiryMinutes = Math.floor(smsCodeExpiry / 60);
+    const expirySeconds = smsCodeExpiry % 60;
+
     return (
       <Card className="w-full max-w-md mx-auto">
         <CardContent className="pt-6">
@@ -295,9 +348,13 @@ export function LoginForm() {
                 <ShieldCheck className="h-8 w-8 text-ocean-600" />
               </div>
               <div className="text-center">
-                <h2 className="text-lg font-semibold text-gray-900">Two-Factor Authentication</h2>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  {isSMS ? "Verify Your Phone" : "Two-Factor Authentication"}
+                </h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Enter the 6-digit code from your authenticator app to continue.
+                  {isSMS
+                    ? `We sent a verification code to ${phoneHint || "your phone"}.`
+                    : "Enter the 6-digit code from your authenticator app to continue."}
                 </p>
               </div>
             </div>
@@ -328,16 +385,28 @@ export function LoginForm() {
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 placeholder="000000"
-                maxLength={8}
+                maxLength={isSMS ? 6 : 8}
                 value={mfaCode}
-                onChange={(e) => setMfaCode(e.target.value)}
+                onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, "").slice(0, isSMS ? 6 : 8))}
                 disabled={isMFALoading}
                 className="h-11 text-center text-lg tracking-widest font-mono"
                 autoFocus
               />
-              <p className="text-xs text-muted-foreground">
-                You can also enter an 8-character backup code.
-              </p>
+              {isSMS && smsCodeExpiry > 0 && (
+                <p className="text-xs text-muted-foreground text-center">
+                  Code expires in {expiryMinutes}:{expirySeconds.toString().padStart(2, "0")}
+                </p>
+              )}
+              {isSMS && smsCodeExpiry <= 0 && (
+                <p className="text-xs text-destructive text-center">
+                  Code expired. Please request a new one.
+                </p>
+              )}
+              {!isSMS && (
+                <p className="text-xs text-muted-foreground">
+                  You can also enter an 8-character backup code.
+                </p>
+              )}
             </div>
 
             {/* Submit */}
@@ -356,6 +425,20 @@ export function LoginForm() {
               )}
             </Button>
 
+            {/* Resend SMS */}
+            {isSMS && (
+              <button
+                type="button"
+                onClick={handleResendSMS}
+                disabled={smsResendCooldown > 0}
+                className="w-full text-sm text-ocean-600 hover:text-ocean-700 disabled:text-muted-foreground disabled:cursor-not-allowed"
+              >
+                {smsResendCooldown > 0
+                  ? `Resend code in ${smsResendCooldown}s`
+                  : "Resend code"}
+              </button>
+            )}
+
             {/* Back to login */}
             <Button
               type="button"
@@ -365,6 +448,8 @@ export function LoginForm() {
                 setRequiresMFA(false);
                 setMfaToken("");
                 setMfaCode("");
+                setMfaType("totp");
+                setPhoneHint("");
                 setError("");
               }}
             >
