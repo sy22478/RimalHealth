@@ -508,70 +508,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       });
     }
 
-    // For patients without MFA enabled: check if they have a phone number
-    // and auto-enable SMS MFA flow
-    if (user.role === 'PATIENT' && !user.mfaEnabled) {
-      try {
-        const profile = await prisma.patientProfile.findUnique({
-          where: { userId: user.id },
-          select: { phone: true },
-        });
-        const phone = typeof profile?.phone === 'string' ? profile.phone : '';
-
-        if (phone) {
-          const jwtSecret = process.env.JWT_SECRET;
-          if (!jwtSecret) {
-            throw new Error('JWT_SECRET environment variable is required');
-          }
-
-          const mfaToken = await new SignJWT({
-            userId: user.id,
-            email: user.email,
-            role: user.role,
-            type: 'mfa',
-          })
-            .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
-            .setIssuedAt()
-            .setExpirationTime('5m')
-            .setSubject(user.id)
-            .setAudience('telehealth-api')
-            .setIssuer('telehealth-platform')
-            .sign(new TextEncoder().encode(jwtSecret));
-
-          let phoneHint = '';
-          try {
-            const redis = getRedisClient();
-            const allowed = await checkSMSRateLimit(redis, phone);
-            if (allowed) {
-              const code = generateSMSCode();
-              await storeSMSCode(redis, user.id, code);
-              await sendSMS({
-                to: phone,
-                body: `Your Rimal Health verification code is: ${code}. It expires in 5 minutes. Do not share this code.`,
-              });
-            }
-            phoneHint = maskPhoneNumber(phone);
-          } catch (smsError) {
-            console.error('[SMS MFA] Failed to send code during login:', smsError instanceof Error ? smsError.message : 'Unknown error');
-          }
-
-          const authMetadataMfa: AuthenticationMetadata = {
-            authMethod: 'password',
-            mfaVerified: false,
-          };
-          await auditLogin(user.id, true, auditContext, authMetadataMfa).catch(() => {});
-
-          return NextResponse.json({
-            requiresMFA: true,
-            mfaType: 'sms',
-            mfaToken,
-            phoneHint,
-          });
-        }
-      } catch {
-        // If phone lookup fails, proceed without MFA
-      }
-    }
+    // MFA is only triggered when user.mfaEnabled === true (checked above).
+    // Patients who have a phone number but haven't enabled MFA skip 2FA.
 
     // Generate token pair
     const { accessToken, refreshToken } = await generateTokenPair(
