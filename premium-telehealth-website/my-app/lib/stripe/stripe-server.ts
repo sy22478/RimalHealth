@@ -23,17 +23,14 @@ import { PlanType } from '@prisma/client';
  */
 export const STRIPE_PRICE_IDS: Record<PlanType, string | undefined> = {
   ACTIVE_TREATMENT: process.env.STRIPE_PRICE_ACTIVE_TREATMENT,
-  MAINTENANCE: process.env.STRIPE_PRICE_MAINTENANCE,
 };
 
 /**
  * Plan amounts in cents (fallback values)
  * ACTIVE_TREATMENT: $50.00/month
- * MAINTENANCE: $25.00/month
  */
 export const PLAN_AMOUNTS: Record<PlanType, number> = {
   ACTIVE_TREATMENT: 5000,
-  MAINTENANCE: 2500,
 };
 
 /**
@@ -41,7 +38,6 @@ export const PLAN_AMOUNTS: Record<PlanType, number> = {
  */
 export const PLAN_NAMES: Record<PlanType, string> = {
   ACTIVE_TREATMENT: 'Active Treatment',
-  MAINTENANCE: 'Maintenance',
 };
 
 /**
@@ -49,7 +45,6 @@ export const PLAN_NAMES: Record<PlanType, string> = {
  */
 export const PLAN_DESCRIPTIONS: Record<PlanType, string> = {
   ACTIVE_TREATMENT: 'Full access to medication-assisted treatment with physician monitoring',
-  MAINTENANCE: 'Ongoing maintenance support after treatment completion',
 };
 
 // ============================================

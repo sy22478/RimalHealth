@@ -11,7 +11,7 @@
  * Request Body:
  * ```json
  * {
- *   "planType": "ACTIVE_TREATMENT" | "MAINTENANCE",
+ *   "planType": "ACTIVE_TREATMENT",
  *   "successUrl": "https://example.com/checkout/success?session_id={CHECKOUT_SESSION_ID}",
  *   "cancelUrl": "https://example.com/checkout/cancel"
  * }

@@ -31,7 +31,7 @@ import { prisma } from '@/lib/db/prisma';
 // ============================================
 
 const createSubscriptionSchema = z.object({
-  planType: z.enum(['ACTIVE_TREATMENT', 'MAINTENANCE']),
+  planType: z.enum(['ACTIVE_TREATMENT']),
   paymentMethodId: z.string().optional(), // For direct payment method attachment
 });
 
@@ -41,7 +41,7 @@ const cancelSubscriptionSchema = z.object({
 
 const updateSubscriptionSchema = z.object({
   action: z.enum(['resume', 'change_plan']),
-  planType: z.enum(['ACTIVE_TREATMENT', 'MAINTENANCE']).optional(),
+  planType: z.enum(['ACTIVE_TREATMENT']).optional(),
 });
 
 // ============================================

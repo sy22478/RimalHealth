@@ -584,7 +584,6 @@ model Subscription {
 
 enum PlanType {
   ACTIVE_TREATMENT
-  MAINTENANCE
 }
 
 enum SubscriptionStatus {

@@ -743,9 +743,6 @@ async function handleSubscriptionUpdated(
     if (priceId && priceId === process.env.STRIPE_PRICE_ACTIVE_TREATMENT && planType !== PlanType.ACTIVE_TREATMENT) {
       planType = PlanType.ACTIVE_TREATMENT;
       amount = 5000; // $50.00
-    } else if (priceId === process.env.STRIPE_PRICE_MAINTENANCE && planType !== PlanType.MAINTENANCE) {
-      planType = PlanType.MAINTENANCE;
-      amount = 2500; // $25.00
     }
   }
 
