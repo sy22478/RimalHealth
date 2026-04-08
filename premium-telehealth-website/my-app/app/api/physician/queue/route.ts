@@ -73,13 +73,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
   } catch (error) {
     console.error('Get queue error:', error instanceof Error ? error.message : 'Unknown error');
-    
-    await AuditService.logApiError(
-      error instanceof Error ? error : new Error('Unknown error'),
-      '/api/physician/queue',
-      auditContext,
-      userId
-    );
+    if (error instanceof Error && error.stack) {
+      console.error('Stack:', error.stack);
+    }
+
+    try {
+      await AuditService.logApiError(
+        error instanceof Error ? error : new Error('Unknown error'),
+        '/api/physician/queue',
+        auditContext,
+        userId
+      );
+    } catch {
+      // Audit logging failure must not mask the original error response
+    }
 
     return NextResponse.json(
       { error: 'Failed to retrieve queue', code: 'INTERNAL_ERROR' },

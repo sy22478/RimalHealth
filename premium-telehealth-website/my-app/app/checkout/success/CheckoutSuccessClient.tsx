@@ -18,7 +18,7 @@
 import * as React from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { CheckCircle, AlertCircle, ArrowRight, ClipboardList, Mail } from 'lucide-react';
+import { CheckCircle, AlertCircle, ClipboardList, Mail } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -119,7 +119,8 @@ export default function CheckoutSuccessPage() {
                 <div>
                   <p className="font-medium">Check Your Email</p>
                   <p className="text-sm text-muted-foreground">
-                    We sent you a link to create your account. Click it to get started.
+                    We&apos;ve sent you an email with a link to create your account and set your password.
+                    Please check your inbox (and spam folder).
                   </p>
                 </div>
               </div>
@@ -144,13 +145,10 @@ export default function CheckoutSuccessPage() {
           </Alert>
         </CardContent>
 
-        <CardFooter className="flex flex-col gap-3">
-          <Button asChild className="w-full" size="lg">
-            <Link href="/login">
-              Go to Login
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-          </Button>
+        <CardFooter className="flex justify-center pt-2 pb-6">
+          <p className="text-sm text-muted-foreground">
+            You can close this page. Check your email to get started.
+          </p>
         </CardFooter>
       </Card>
 

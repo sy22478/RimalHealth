@@ -151,9 +151,10 @@ export async function getPendingIntakes(
       : [];
     const patientsWithGovId = new Set(govIdDocs.map(doc => doc.patientId));
 
-    // Transform to queue items
-    let queueItems: QueueItem[] = intakes.map(intake => {
-      const profile = intake.patient.patientProfile;
+    // Transform to queue items — guard against unexpected data shapes
+    const intakeList = Array.isArray(intakes) ? intakes : [];
+    let queueItems: QueueItem[] = intakeList.map(intake => {
+      const profile = intake.patient?.patientProfile;
       const submittedAt = intake.submittedAt || new Date();
       const waitTimeHours = calculateWaitTime(submittedAt);
 
@@ -196,7 +197,7 @@ export async function getPendingIntakes(
         waitTimeHours: Math.round(waitTimeHours * 10) / 10,
         isOverdue: waitTimeHours > 24,
         riskScore: intake.riskScore || undefined,
-        isDeactivated: !!intake.patient.deactivatedAt,
+        isDeactivated: !!intake.patient?.deactivatedAt,
         hasGovernmentId: patientsWithGovId.has(intake.patientId),
       };
     }).filter(Boolean); // Remove any null items
@@ -238,18 +239,22 @@ export async function getPendingIntakes(
       return sortOrder === 'asc' ? comparison : -comparison;
     });
 
-    // Log PHI access for audit
-    await auditLogger.logPHIAccess(
-      'VIEW',
-      physicianId,
-      Role.PHYSICIAN,
-      PHIResourceType.INTAKE,
-      'queue-list',
-      context,
-      {
-        recordCount: queueItems.length,
-      }
-    );
+    // Log PHI access for audit (non-blocking — must not break the queue)
+    try {
+      await auditLogger.logPHIAccess(
+        'VIEW',
+        physicianId,
+        Role.PHYSICIAN,
+        PHIResourceType.INTAKE,
+        'queue-list',
+        context,
+        {
+          recordCount: queueItems.length,
+        }
+      );
+    } catch (auditError) {
+      console.error('Audit log error (non-fatal):', auditError instanceof Error ? auditError.message : 'Unknown error');
+    }
 
     return queueItems;
   } catch (error) {
