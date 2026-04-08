@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Rimal Health** is a HIPAA-compliant telehealth platform for medication-assisted treatment of alcohol use disorder (AUD) with Naltrexone, serving California residents. Flat-fee pricing: $50/month active treatment, $25/month maintenance.
+**Rimal Health** is a HIPAA-compliant telehealth platform for medication-assisted treatment of alcohol use disorder (AUD) with Naltrexone, serving California residents. Flat-fee pricing: $50/month.
 
 **Stack:** Next.js 16.1.6, React 19, TypeScript 5.x (strict), Prisma 7.4.1, Tailwind CSS 4.x, Zod 4.x, Vitest 4.x, Playwright 1.58.x. Requires Node.js >=18.0.0.
 
