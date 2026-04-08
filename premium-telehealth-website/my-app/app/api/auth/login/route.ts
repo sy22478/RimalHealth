@@ -21,6 +21,11 @@ import {
   ACCESS_TOKEN_EXPIRY_SECONDS,
 } from '@/lib/auth/jwt';
 
+// SMS MFA for patients
+import { generateSMSCode, storeSMSCode, checkSMSRateLimit, maskPhoneNumber } from '@/lib/auth/sms-mfa';
+import { getRedisClient } from '@/lib/redis/client';
+import { sendSMS } from '@/lib/integrations/twilio';
+
 // Password utilities
 import { verifyPassword } from '@/lib/auth/password';
 
@@ -430,6 +435,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Check if MFA is enabled — if so, return a short-lived MFA token
     // instead of real access/refresh tokens.
+    // PATIENT role: SMS-based MFA (send code to phone)
+    // PHYSICIAN/ADMIN role: TOTP-based MFA (authenticator app)
     if (user.mfaEnabled) {
       const mfaSecret = process.env.JWT_SECRET;
       if (!mfaSecret) {
@@ -457,11 +464,52 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
       await auditLogin(user.id, true, auditContext, authMetadataMfa).catch(() => {});
 
+      // For patients, automatically send SMS code
+      if (user.role === 'PATIENT') {
+        let phoneHint = '';
+        try {
+          const profile = await prisma.patientProfile.findUnique({
+            where: { userId: user.id },
+            select: { phone: true },
+          });
+          const phone = typeof profile?.phone === 'string' ? profile.phone : '';
+
+          if (phone) {
+            const redis = getRedisClient();
+            const allowed = await checkSMSRateLimit(redis, phone);
+            if (allowed) {
+              const code = generateSMSCode();
+              await storeSMSCode(redis, user.id, code);
+              await sendSMS({
+                to: phone,
+                body: `Your Rimal Health verification code is: ${code}. It expires in 5 minutes. Do not share this code.`,
+              });
+            }
+            phoneHint = maskPhoneNumber(phone);
+          }
+        } catch (smsError) {
+          // Log but don't fail login — user can request resend
+          console.error('[SMS MFA] Failed to send code during login:', smsError instanceof Error ? smsError.message : 'Unknown error');
+        }
+
+        return NextResponse.json({
+          requiresMFA: true,
+          mfaType: 'sms',
+          mfaToken,
+          phoneHint,
+        });
+      }
+
+      // Physicians/admins: TOTP
       return NextResponse.json({
         requiresMFA: true,
+        mfaType: 'totp',
         mfaToken,
       });
     }
+
+    // MFA is only triggered when user.mfaEnabled === true (checked above).
+    // Patients who have a phone number but haven't enabled MFA skip 2FA.
 
     // Generate token pair
     const { accessToken, refreshToken } = await generateTokenPair(

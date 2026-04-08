@@ -314,11 +314,12 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
     });
 
     // ====================================================================
-    // Create initial Invoice record from the checkout session
-    // This ensures the first invoice exists regardless of whether
-    // invoice.payment_succeeded arrives before or after this handler.
+    // Create initial Invoice record from the checkout session.
+    // Skip for trialing subscriptions — no charge occurs during trial.
+    // The real invoice will be created by handleInvoicePaymentSucceeded
+    // when the physician approves and the trial ends.
     // ====================================================================
-    if (session.invoice) {
+    if (session.invoice && !isTrial) {
       const stripeInvoiceId = typeof session.invoice === 'string'
         ? session.invoice
         : (session.invoice as unknown as { id: string }).id;
@@ -742,9 +743,6 @@ async function handleSubscriptionUpdated(
     if (priceId && priceId === process.env.STRIPE_PRICE_ACTIVE_TREATMENT && planType !== PlanType.ACTIVE_TREATMENT) {
       planType = PlanType.ACTIVE_TREATMENT;
       amount = 5000; // $50.00
-    } else if (priceId === process.env.STRIPE_PRICE_MAINTENANCE && planType !== PlanType.MAINTENANCE) {
-      planType = PlanType.MAINTENANCE;
-      amount = 2500; // $25.00
     }
   }
 

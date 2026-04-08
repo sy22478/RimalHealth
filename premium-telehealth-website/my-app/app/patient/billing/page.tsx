@@ -84,7 +84,6 @@ interface BillingData {
 function formatPlanType(planType: string): string {
   const planNames: Record<string, string> = {
     ACTIVE_TREATMENT: 'Active Treatment',
-    MAINTENANCE: 'Maintenance',
   };
   return planNames[planType] || planType;
 }

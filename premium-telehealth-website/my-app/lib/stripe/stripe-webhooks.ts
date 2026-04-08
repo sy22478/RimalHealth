@@ -504,14 +504,10 @@ function determinePlanType(priceId: string): PlanType | null {
   if (priceId === process.env.STRIPE_PRICE_ACTIVE_TREATMENT) {
     return PlanType.ACTIVE_TREATMENT;
   }
-  if (priceId === process.env.STRIPE_PRICE_MAINTENANCE) {
-    return PlanType.MAINTENANCE;
-  }
   return null;
 }
 
 // Fallback plan amounts (in cents)
 const PLAN_AMOUNTS: Record<PlanType, number> = {
   ACTIVE_TREATMENT: 5000,
-  MAINTENANCE: 2500,
 };

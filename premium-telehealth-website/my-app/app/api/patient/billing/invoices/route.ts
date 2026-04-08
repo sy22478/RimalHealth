@@ -239,6 +239,30 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           paidAt: invoice.paidAt?.toISOString() || null,
         }));
 
+      // If the subscription is TRIALING and there are no real invoices,
+      // show a synthetic "pending" invoice so the patient knows the amount
+      const subscription = await prisma.subscription.findFirst({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        select: { status: true, amount: true, createdAt: true },
+      });
+
+      if (
+        subscription?.status === 'TRIALING' &&
+        response.length === 0
+      ) {
+        response.push({
+          id: 'pending-review',
+          amount: subscription.amount,
+          status: 'OPEN' as InvoiceStatus,
+          stripeInvoiceId: 'pending',
+          stripeChargeId: null,
+          pdfUrl: null,
+          createdAt: subscription.createdAt.toISOString(),
+          paidAt: null,
+        });
+      }
+
       return NextResponse.json({ invoices: response });
 
     } catch (dbError) {

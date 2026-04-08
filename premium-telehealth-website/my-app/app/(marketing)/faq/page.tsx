@@ -83,7 +83,7 @@ const faqData: FAQSection[] = [
       {
         question: "How long do I need to take medication?",
         answer:
-          "Typically 6–12 months for best results. Can extend if helpful. Many patients continue longer-term for maintenance.",
+          "Typically 6-12 months for best results. Can extend if helpful. Many patients continue treatment as long as it's beneficial.",
       },
     ],
   },
@@ -94,7 +94,7 @@ const faqData: FAQSection[] = [
       {
         question: "How much does it cost?",
         answer:
-          "$50/month during active treatment, $25/month after for maintenance.",
+          "$50/month for treatment.",
       },
       {
         question: "What does the $50/month include?",
@@ -150,7 +150,7 @@ const faqData: FAQSection[] = [
       {
         question: "How long does treatment last?",
         answer:
-          "Typically 6–12 months for best results. Continue as long as helpful. Many patients transition to our $25/month maintenance plan after achieving their goals.",
+          "Typically 6-12 months for best results. Many patients continue treatment as long as it supports their goals.",
       },
     ],
   },

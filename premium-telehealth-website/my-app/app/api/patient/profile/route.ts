@@ -22,6 +22,26 @@ import { DataModificationAction } from '@/lib/audit/index';
 // in lib/db/encryption-extension.ts. Do NOT manually call encryptPHI/decryptPHI on fields
 // that are listed in PHI_FIELDS — doing so causes double-encryption (data corruption).
 
+/**
+ * Safely serialize a PHI field that may be a string, array, or object after decryption.
+ * Returns a comma-separated string or null. Prevents [object Object] display issues.
+ */
+function serializePHIField(value: unknown): string | null {
+  if (value == null) return null;
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value)) return value.map(String).join(', ');
+  if (typeof value === 'object') {
+    const obj = value as Record<string, unknown>;
+    // Handle common nested structures like { conditions: [...] }
+    const inner = obj.conditions || obj.medications || obj.items || Object.values(obj)[0];
+    if (Array.isArray(inner)) return inner.map(String).join(', ');
+    if (typeof inner === 'string') return inner;
+    // Last resort: JSON stringify, but don't return [object Object]
+    try { return JSON.stringify(value); } catch { return null; }
+  }
+  return String(value);
+}
+
 // ============================================================================
 // GET - Retrieve Profile
 // ============================================================================
@@ -123,9 +143,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       addressZip: profile.addressZip,
       primaryConcern: profile.primaryConcern,
       treatmentGoal: profile.treatmentGoal,
-      medicalHistory: typeof profile.medicalHistory === 'string' ? profile.medicalHistory : profile.medicalHistory != null ? String(profile.medicalHistory) : null,
-      currentMedications: typeof profile.currentMedications === 'string' ? profile.currentMedications : profile.currentMedications != null ? String(profile.currentMedications) : null,
-      allergies: typeof profile.allergies === 'string' ? profile.allergies : profile.allergies != null ? String(profile.allergies) : null,
+      medicalHistory: serializePHIField(profile.medicalHistory),
+      currentMedications: serializePHIField(profile.currentMedications),
+      allergies: serializePHIField(profile.allergies),
       pharmacy,
       notificationPreferences: profile.notificationPreferences,
       privacyConsent: {
@@ -279,12 +299,10 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    // Handle preferredPharmacyId: set, validate, or clear (disconnect)
-    if (updateData.preferredPharmacyId === null) {
-      // Explicit null means disconnect pharmacy
-      dataToUpdate.preferredPharmacy = { disconnect: true };
-      changedFields.push('preferredPharmacyId');
-    } else if (hasValue(updateData.preferredPharmacyId)) {
+    // Handle preferredPharmacyId: only update when a new pharmacy is explicitly selected.
+    // Sending null or empty string does NOT clear the existing pharmacy —
+    // pharmacy is required for prescription delivery.
+    if (hasValue(updateData.preferredPharmacyId)) {
       // Validate pharmacy exists before setting
       const pharmacyExists = await prisma.pharmacy.findUnique({
         where: { id: updateData.preferredPharmacyId },

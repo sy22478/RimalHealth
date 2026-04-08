@@ -26,17 +26,6 @@ export default function PaymentClient() {
         "Automatic refills",
       ],
     },
-    maintenance: {
-      name: "Maintenance Plan",
-      price: 25,
-      period: "/month",
-      features: [
-        "Ongoing prescription refills",
-        "Quarterly physician check-ins",
-        "Messaging support",
-        "Relapse prevention resources",
-      ],
-    },
   };
 
   const selectedPlan = planId && planDetails[planId as keyof typeof planDetails] 

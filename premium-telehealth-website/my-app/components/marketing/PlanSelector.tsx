@@ -145,19 +145,4 @@ export const rimalPlans: Plan[] = [
       "Cancel anytime",
     ],
   },
-  {
-    id: "maintenance",
-    name: "Maintenance Plan",
-    price: 25,
-    period: "/month",
-    description: "For patients who completed treatment",
-    features: [
-      "Ongoing prescription refills",
-      "Quarterly physician check-ins",
-      "Messaging support as needed",
-      "Relapse prevention resources",
-      "Progress tracking tools",
-      "Cancel anytime",
-    ],
-  },
 ];

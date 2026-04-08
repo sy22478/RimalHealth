@@ -168,12 +168,22 @@ export async function getPatientMessagingThreads(
     orderBy: { sentAt: 'desc' },
   });
 
+  // Check if a physician has ever responded in this thread
+  const hasPhysicianResponse = await prisma.message.count({
+    where: { threadId, senderType: 'PHYSICIAN' },
+  }) > 0;
+
+  // Show "Your Medical Team" until a physician actually responds
+  const displayName = hasPhysicianResponse
+    ? `Dr. ${physician.lastName}`
+    : 'Your Medical Team';
+
   // If no messages exist yet, return thread with welcome state
   if (!latestMessage) {
     return [{
       id: threadId,
       physicianId,
-      physicianName: `Dr. ${physician.lastName}`,
+      physicianName: displayName,
       lastMessage: {
         body: 'Send a message to start the conversation',
         sentAt: new Date().toISOString(),
@@ -201,7 +211,7 @@ export async function getPatientMessagingThreads(
   return [{
     id: threadId,
     physicianId,
-    physicianName: `Dr. ${physician.lastName}`,
+    physicianName: displayName,
     lastMessage: {
       body: latestMessage.body,
       sentAt: latestMessage.sentAt.toISOString(),
@@ -262,6 +272,12 @@ export async function getPatientThreadMessages(
     m => m.recipientId === patientId && !m.readAt
   ).length;
 
+  // Check if a physician has ever responded in this thread
+  const hasPhysicianResponse = messages.some(m => m.senderType === 'PHYSICIAN');
+  const threadDisplayName = hasPhysicianResponse
+    ? `Dr. ${physician.lastName}`
+    : 'Your Medical Team';
+
   // Get patient details for their messages
   const patientProfile = await prisma.patientProfile.findUnique({
     where: { userId: patientId },
@@ -304,7 +320,7 @@ export async function getPatientThreadMessages(
   return {
     id: threadId,
     physicianId,
-    physicianName: `Dr. ${physician.lastName}`,
+    physicianName: threadDisplayName,
     messages: transformedMessages,
     unreadCount,
   };

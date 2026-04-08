@@ -105,8 +105,13 @@ export function InvoiceCard({
     onDownload(invoice.id);
   }, [invoice.id, onDownload]);
 
+  const isPending = invoice.id === 'pending-review';
   const isPaid = invoice.status === 'PAID';
-  const isDownloadable = isPaid || invoice.pdfUrl;
+  const isDownloadable = (isPaid || invoice.pdfUrl) && !isPending;
+
+  const statusLabel = isPending
+    ? 'pending approval'
+    : invoice.status.toLowerCase().replace('_', ' ');
 
   return (
     <Card className={cn('w-full', className)}>
@@ -117,21 +122,23 @@ export function InvoiceCard({
             <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
               <FileText className="h-5 w-5 text-muted-foreground" />
             </div>
-            
+
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-medium text-foreground truncate">
                   {formatDate(invoice.createdAt)}
                 </span>
-                <Badge 
-                  variant={getStatusVariant(invoice.status)}
+                <Badge
+                  variant={isPending ? 'outline' : getStatusVariant(invoice.status)}
                   className="text-xs capitalize flex-shrink-0"
                 >
-                  {invoice.status.toLowerCase().replace('_', ' ')}
+                  {statusLabel}
                 </Badge>
               </div>
               <p className="text-sm text-muted-foreground truncate">
-                {formatInvoiceNumber(invoice.id, invoice.createdAt)}
+                {isPending
+                  ? 'Pending physician approval'
+                  : formatInvoiceNumber(invoice.id, invoice.createdAt)}
               </p>
             </div>
           </div>

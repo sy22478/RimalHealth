@@ -195,13 +195,16 @@ function DocumentCard({
   onDelete,
   onView,
   onDownload,
+  onViewImage,
 }: {
   document: Document;
   onDelete: (id: string) => void;
   onView?: (doc: Document) => void;
   onDownload?: (doc: Document) => void;
+  onViewImage?: (doc: Document) => void;
 }) {
   const isIntakeForm = document.type === 'intake';
+  const isImage = document.type === 'id' || document.type === 'insurance';
 
   return (
     <motion.div
@@ -260,6 +263,17 @@ function DocumentCard({
                 </Button>
               ) : (
                 <>
+                  {isImage && onViewImage && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-gray-400 hover:text-ocean-600"
+                      onClick={() => onViewImage(document)}
+                      title="View"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  )}
                   {onDownload && (
                     <Button
                       variant="ghost"
@@ -354,6 +368,7 @@ function UploadDropzone({
           type="file"
           multiple
           accept={accept}
+          aria-label="Upload documents"
           onChange={(e) => handleFiles(e.target.files)}
           className="hidden"
         />
@@ -610,6 +625,11 @@ export default function DocumentsPage() {
     }
   };
 
+  const handleViewImage = (doc: Document) => {
+    // Open image in new tab for inline viewing
+    window.open(`/api/patient/documents/${doc.id}/download?mode=view`, '_blank');
+  };
+
   if (isLoading) {
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -667,6 +687,9 @@ export default function DocumentsPage() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
+            id="doc-search"
+            name="doc-search"
+            aria-label="Search documents"
             placeholder="Search documents..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -674,6 +697,9 @@ export default function DocumentsPage() {
           />
         </div>
         <select
+          id="doc-type-filter"
+          name="doc-type-filter"
+          aria-label="Filter by document type"
           value={selectedType}
           onChange={(e) => setSelectedType(e.target.value as DocumentType | 'all')}
           className="border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ocean-500"
@@ -699,6 +725,7 @@ export default function DocumentsPage() {
                 onDelete={handleDelete}
                 onView={document.type === 'intake' ? handleViewIntake : undefined}
                 onDownload={document.type !== 'intake' ? handleDownload : undefined}
+                onViewImage={handleViewImage}
               />
             ))}
           </div>
