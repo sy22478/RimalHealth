@@ -445,13 +445,18 @@ export async function configureCustomerPortal(): Promise<Stripe.BillingPortal.Co
 // ============================================
 
 /**
- * Get customer's default payment method
+ * Get customer's payment method, cascading through multiple sources:
+ * 1. Customer's invoice_settings.default_payment_method
+ * 2. Subscription's default_payment_method (covers trial subscriptions)
+ * 3. First card payment method attached to the customer
  *
  * @param customerId - Stripe customer ID
+ * @param subscriptionId - Optional Stripe subscription ID for fallback lookup
  * @returns Payment method or null
  */
 export async function getDefaultPaymentMethod(
-  customerId: string
+  customerId: string,
+  subscriptionId?: string
 ): Promise<Stripe.PaymentMethod | null> {
   const stripe = getStripe();
 
@@ -461,14 +466,44 @@ export async function getDefaultPaymentMethod(
     return null;
   }
 
+  // 1. Try customer's default payment method
   const defaultPaymentMethodId = (customer as Stripe.Customer)
     .invoice_settings?.default_payment_method;
 
-  if (!defaultPaymentMethodId || typeof defaultPaymentMethodId !== 'string') {
-    return null;
+  if (defaultPaymentMethodId && typeof defaultPaymentMethodId === 'string') {
+    return stripe.paymentMethods.retrieve(defaultPaymentMethodId);
   }
 
-  return stripe.paymentMethods.retrieve(defaultPaymentMethodId);
+  // 2. Try subscription's default payment method (e.g. during trial)
+  if (subscriptionId) {
+    try {
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
+        expand: ['default_payment_method'],
+      });
+      const subPm = subscription.default_payment_method;
+      if (subPm && typeof subPm === 'object' && 'id' in subPm) {
+        return subPm as Stripe.PaymentMethod;
+      }
+      if (typeof subPm === 'string') {
+        return stripe.paymentMethods.retrieve(subPm);
+      }
+    } catch {
+      // Subscription may not exist or be inaccessible; continue to fallback
+    }
+  }
+
+  // 3. List customer's card payment methods as last resort
+  const paymentMethods = await stripe.paymentMethods.list({
+    customer: customerId,
+    type: 'card',
+    limit: 1,
+  });
+
+  if (paymentMethods.data.length > 0) {
+    return paymentMethods.data[0];
+  }
+
+  return null;
 }
 
 // ============================================

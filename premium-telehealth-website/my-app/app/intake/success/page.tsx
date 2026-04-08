@@ -9,7 +9,6 @@ import {
   MessageSquare,
   Pill,
   ArrowRight,
-  Calendar,
   Shield,
   Upload,
   FileImage,
@@ -60,33 +59,6 @@ const timelineSteps: TimelineStep[] = [
   },
 ];
 
-// ============================================================================
-// Next Steps Data
-// ============================================================================
-
-const nextSteps = [
-  {
-    icon: MessageSquare,
-    title: 'Check Your Messages',
-    description: 'We\'ll send updates here as your intake is reviewed',
-    action: 'View Messages',
-    href: '/patient/messages',
-  },
-  {
-    icon: Calendar,
-    title: 'Review Timeline',
-    description: 'Most intakes are reviewed within 24 hours',
-    action: 'View Dashboard',
-    href: '/patient/dashboard',
-  },
-  {
-    icon: Shield,
-    title: 'Your Information is Secure',
-    description: 'All data is encrypted and HIPAA-compliant',
-    action: 'Learn More',
-    href: '/hipaa',
-  },
-];
 
 // ============================================================================
 // Government ID Upload Component
@@ -462,44 +434,6 @@ export default function IntakeSuccessPage() {
               </div>
             </CardContent>
           </Card>
-        </motion.div>
-
-        {/* Next Steps Grid */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-          className="mb-10"
-        >
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            What You Can Do Now
-          </h2>
-
-          <div className="grid gap-4 sm:grid-cols-3">
-            {nextSteps.map((step) => (
-              <Card
-                key={step.title}
-                className="hover:shadow-md transition-shadow"
-              >
-                <CardContent className="p-4">
-                  <step.icon className="h-8 w-8 text-ocean-500 mb-3" />
-                  <h3 className="font-medium text-gray-900 mb-1">
-                    {step.title}
-                  </h3>
-                  <p className="text-sm text-gray-600 mb-4">
-                    {step.description}
-                  </p>
-                  <Link
-                    href={step.href}
-                    className="text-sm font-medium text-ocean-600 hover:text-ocean-700 inline-flex items-center gap-1"
-                  >
-                    {step.action}
-                    <ArrowRight className="h-3 w-3" />
-                  </Link>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
         </motion.div>
 
         {/* Important Info */}

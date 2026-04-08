@@ -42,6 +42,79 @@ function serializePHIField(value: unknown): string | null {
   return String(value);
 }
 
+/**
+ * Extract human-readable medical conditions from intake formData.
+ * The intake stores medical history as an object with boolean flags and arrays;
+ * this function returns only the meaningful conditions as a comma-separated string.
+ */
+function extractMedicalConditions(data: unknown): string | null {
+  if (data == null) return null;
+  if (typeof data === 'string') return data || null;
+  if (Array.isArray(data)) return data.map(String).join(', ') || null;
+  if (typeof data === 'object') {
+    const obj = data as Record<string, unknown>;
+    const conditions: string[] = [];
+
+    // Extract array-based condition lists
+    if (Array.isArray(obj.medicalHistoryItems)) {
+      conditions.push(...obj.medicalHistoryItems.map(String));
+    }
+    if (Array.isArray(obj.conditions)) {
+      conditions.push(...obj.conditions.map(String));
+    }
+
+    // Extract free-text conditions
+    if (typeof obj.otherConditions === 'string' && obj.otherConditions.trim()) {
+      conditions.push(obj.otherConditions.trim());
+    }
+    if (typeof obj.medicalHistory === 'string' && obj.medicalHistory.trim()) {
+      conditions.push(obj.medicalHistory.trim());
+    }
+
+    // Add conditions indicated by true boolean flags
+    if (obj.hasLiverDisease === true || obj.hasLiverDisease === 'true') conditions.push('Liver Disease');
+    if (obj.hasKidneyDisease === true || obj.hasKidneyDisease === 'true') conditions.push('Kidney Disease');
+    if (obj.hasHeartCondition === true || obj.hasHeartCondition === 'true') conditions.push('Heart Condition');
+    if (obj.hasSeizureHistory === true || obj.hasSeizureHistory === 'true') conditions.push('Seizure History');
+    if (obj.hasPsychiatricHistory === true || obj.hasPsychiatricHistory === 'true') conditions.push('Psychiatric History');
+    if (obj.isPregnant === true || obj.isPregnant === 'true') conditions.push('Pregnant');
+    if (obj.liverCondition === true || obj.liverCondition === 'true') conditions.push('Liver Condition');
+
+    return conditions.filter(Boolean).join(', ') || null;
+  }
+  return String(data);
+}
+
+/**
+ * Extract human-readable medication list from intake formData.
+ * Returns the medication list string, or null if patient isn't taking medications.
+ */
+function extractMedications(data: unknown): string | null {
+  if (data == null) return null;
+  if (typeof data === 'string') return data || null;
+  if (Array.isArray(data)) return data.map(String).join(', ') || null;
+  if (typeof data === 'object') {
+    const obj = data as Record<string, unknown>;
+
+    // Direct medication list string
+    if (typeof obj.medicationList === 'string' && obj.medicationList.trim()) {
+      return obj.medicationList.trim();
+    }
+    // Array of medications
+    if (Array.isArray(obj.medications) && obj.medications.length > 0) {
+      return obj.medications.map(String).join(', ');
+    }
+    // If not taking medications, return null
+    if (obj.takingMedications === 'false' || obj.takingMedications === false ||
+        obj.currentMedications === 'false' || obj.currentMedications === false) {
+      return null;
+    }
+
+    return null;
+  }
+  return String(data);
+}
+
 // ============================================================================
 // GET - Retrieve Profile
 // ============================================================================
@@ -143,8 +216,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       addressZip: profile.addressZip,
       primaryConcern: profile.primaryConcern,
       treatmentGoal: profile.treatmentGoal,
-      medicalHistory: serializePHIField(profile.medicalHistory),
-      currentMedications: serializePHIField(profile.currentMedications),
+      medicalHistory: extractMedicalConditions(profile.medicalHistory),
+      currentMedications: extractMedications(profile.currentMedications),
       allergies: serializePHIField(profile.allergies),
       pharmacy,
       notificationPreferences: profile.notificationPreferences,
@@ -400,8 +473,8 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
         addressZip: refreshedProfile.addressZip,
         primaryConcern: refreshedProfile.primaryConcern,
         treatmentGoal: refreshedProfile.treatmentGoal,
-        medicalHistory: refreshedProfile.medicalHistory,
-        currentMedications: refreshedProfile.currentMedications,
+        medicalHistory: extractMedicalConditions(refreshedProfile.medicalHistory),
+        currentMedications: extractMedications(refreshedProfile.currentMedications),
         allergies: refreshedProfile.allergies,
         pharmacy: updatedPharmacy,
         notificationPreferences: refreshedProfile.notificationPreferences,

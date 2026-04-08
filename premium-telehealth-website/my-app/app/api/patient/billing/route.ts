@@ -54,10 +54,10 @@ interface BillingResponse {
 /**
  * Fetch payment method details from Stripe
  */
-async function fetchPaymentMethod(stripeCustomerId: string) {
+async function fetchPaymentMethod(stripeCustomerId: string, stripeSubscriptionId?: string) {
   try {
-    const paymentMethod = await getDefaultPaymentMethod(stripeCustomerId);
-    
+    const paymentMethod = await getDefaultPaymentMethod(stripeCustomerId, stripeSubscriptionId);
+
     if (!paymentMethod || paymentMethod.type !== 'card') {
       return null;
     }
@@ -128,10 +128,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         });
       }
 
-      // Fetch payment method from Stripe
+      // Fetch payment method from Stripe (cascades: customer default → subscription → list)
       let paymentMethod = null;
       if (subscription.stripeCustomerId) {
-        paymentMethod = await fetchPaymentMethod(subscription.stripeCustomerId);
+        paymentMethod = await fetchPaymentMethod(
+          subscription.stripeCustomerId,
+          subscription.stripeSubscriptionId
+        );
       }
 
       // Calculate total paid from invoices

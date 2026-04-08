@@ -75,12 +75,21 @@ export async function GET(
       );
     }
 
-    // Download file from storage
-    const fileBuffer = await downloadFile(document.s3Key);
+    // Download file from storage (Netlify Blobs or local fallback)
+    let fileBuffer: Buffer;
+    try {
+      fileBuffer = await downloadFile(document.s3Key);
+    } catch {
+      return NextResponse.json(
+        { error: 'File not found in storage' },
+        { status: 404 }
+      );
+    }
 
-    // Support inline viewing for images via ?mode=view
+    // Support inline viewing for images and PDFs via ?mode=view
     const mode = request.nextUrl.searchParams.get('mode');
-    const isInlineView = mode === 'view' && document.mimeType?.startsWith('image/');
+    const viewableMime = document.mimeType?.startsWith('image/') || document.mimeType === 'application/pdf';
+    const isInlineView = mode === 'view' && viewableMime;
     const disposition = isInlineView
       ? `inline; filename="${document.fileName}"`
       : `attachment; filename="${document.fileName}"`;
@@ -111,9 +120,9 @@ export async function GET(
     });
 
   } catch (error) {
-    console.error('Error generating download URL:', error instanceof Error ? error.message : 'Unknown error');
+    console.error('Error downloading document:', error instanceof Error ? error.message : 'Unknown error');
     return NextResponse.json(
-      { error: 'Failed to generate download URL' },
+      { error: 'Failed to download document' },
       { status: 500 }
     );
   }
