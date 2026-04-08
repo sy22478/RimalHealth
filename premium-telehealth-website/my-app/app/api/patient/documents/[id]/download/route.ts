@@ -78,16 +78,23 @@ export async function GET(
     // Download file from storage
     const fileBuffer = await downloadFile(document.s3Key);
 
-    // Audit log - PHI access (document downloaded)
+    // Support inline viewing for images via ?mode=view
+    const mode = request.nextUrl.searchParams.get('mode');
+    const isInlineView = mode === 'view' && document.mimeType?.startsWith('image/');
+    const disposition = isInlineView
+      ? `inline; filename="${document.fileName}"`
+      : `attachment; filename="${document.fileName}"`;
+
+    // Audit log - PHI access (document downloaded/viewed)
     const auditContext = createAuditContext(request);
     await auditPHIAccess(
       userId,
       PHIResourceType.DOCUMENT,
       document.id,
-      'DOWNLOAD',
+      isInlineView ? 'VIEW' : 'DOWNLOAD',
       auditContext,
       {
-        accessReason: 'Patient downloaded document',
+        accessReason: isInlineView ? 'Patient viewed document' : 'Patient downloaded document',
         documentType: document.documentType,
         fileName: document.fileName,
         fileSize: document.fileSize,
@@ -97,7 +104,7 @@ export async function GET(
     return new NextResponse(new Uint8Array(fileBuffer), {
       headers: {
         'Content-Type': document.mimeType || 'application/octet-stream',
-        'Content-Disposition': `attachment; filename="${document.fileName}"`,
+        'Content-Disposition': disposition,
         'Content-Length': String(fileBuffer.length),
         'Cache-Control': 'no-store',
       },

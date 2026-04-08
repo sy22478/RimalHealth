@@ -314,11 +314,12 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
     });
 
     // ====================================================================
-    // Create initial Invoice record from the checkout session
-    // This ensures the first invoice exists regardless of whether
-    // invoice.payment_succeeded arrives before or after this handler.
+    // Create initial Invoice record from the checkout session.
+    // Skip for trialing subscriptions — no charge occurs during trial.
+    // The real invoice will be created by handleInvoicePaymentSucceeded
+    // when the physician approves and the trial ends.
     // ====================================================================
-    if (session.invoice) {
+    if (session.invoice && !isTrial) {
       const stripeInvoiceId = typeof session.invoice === 'string'
         ? session.invoice
         : (session.invoice as unknown as { id: string }).id;
