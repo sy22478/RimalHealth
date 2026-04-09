@@ -140,7 +140,7 @@ function GovernmentIdUpload() {
     setError(null);
 
     try {
-      // Upload file directly to server (Netlify Blobs)
+      // Upload file directly to server (S3)
       const formData = new FormData();
       formData.append('file', selectedFile);
       formData.append('documentType', 'ID_VERIFICATION');

@@ -1,6 +1,6 @@
 /**
- * Document Upload API (Netlify Blobs)
- * POST: Accept file upload directly and store in Netlify Blobs
+ * Document Upload API (S3)
+ * POST: Accept file upload directly and store in S3
  *
  * Replaces the presigned-URL flow (upload-url → S3 PUT → confirm)
  * with a single request: client POSTs FormData → server stores in Blobs + creates DB record.
@@ -28,7 +28,7 @@ const VALID_DOCUMENT_TYPES = new Set<string>([
 
 /**
  * POST /api/patient/documents/upload
- * Accept file via FormData and store in Netlify Blobs
+ * Accept file via FormData and store in S3
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const auth = await requireRole(request, [Role.PATIENT]);
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         fileSize: file.size,
         mimeType: file.type,
         s3Key: key,
-        s3Bucket: 'netlify-blobs',
+        s3Bucket: process.env.AWS_S3_BUCKET_NAME || 'rimalhealth-documents',
         status: DocumentStatus.ACTIVE,
       },
       select: {

@@ -2,8 +2,8 @@ import type { NextConfig } from "next";
 import { SECURITY_HEADERS } from "./lib/constants";
 
 const nextConfig: NextConfig = {
-  // Enable standalone output for Docker deployments (not Netlify)
-  output: process.env.NETLIFY ? undefined : 'standalone',
+  // Standalone output for AWS Amplify SSR
+  output: 'standalone',
 
   // Turbopack configuration
   turbopack: {

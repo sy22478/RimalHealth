@@ -241,7 +241,7 @@ export function getFileExtension(mimeType: string): string {
 // ============================================
 
 /**
- * Upload file directly to the server (Netlify Blobs backend)
+ * Upload file directly to the server (S3 backend)
  *
  * @param file - File to upload
  * @param documentType - Type of document
@@ -374,7 +374,7 @@ export async function uploadDocument(
     throw new Error(validation.error);
   }
 
-  // Step 2: Upload directly to server (stores in Netlify Blobs + creates DB record)
+  // Step 2: Upload directly to server (stores in S3 + creates DB record)
   onProgress?.({ status: 'uploading', progress: 10 });
   await uploadToServer(file, documentType, (progress) => {
     onProgress?.({ status: 'uploading', progress: 10 + Math.round(progress * 0.85) });

@@ -101,7 +101,8 @@ npm run db:generate && npm run db:migrate
 
 ## Deployment
 
-Deployed to **Netlify** via GitHub Actions. Domain `rimalhealth.com` on SiteGround.
-- Local deploy: `netlify deploy --prod` from `premium-telehealth-website/my-app/`
+Deployed to **AWS Amplify** (SSR, auto-deploys on push to main). Domain `rimalhealth.com` on SiteGround.
+- Build config: `amplify.yml` in repo root. `output: 'standalone'` in `next.config.ts`.
+- GitHub Actions runs tests + security checks on push; Amplify handles the actual deploy.
 - `ignoreBuildErrors = false` -- type errors fail the build. Always run `npm run type-check` first.
 - Turbopack can't resolve barrel exports -- use explicit `/index` imports or deploy locally.

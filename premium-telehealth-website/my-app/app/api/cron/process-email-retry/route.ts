@@ -6,12 +6,12 @@
  * delay has elapsed will be picked up.
  *
  * Authentication: Bearer token via `CRON_SECRET` env var.
- * - Set `CRON_SECRET` in Netlify (and .env.local for dev).
+ * - Set `CRON_SECRET` in AWS Amplify env vars (and .env.local for dev).
  * - Pass as `Authorization: Bearer <CRON_SECRET>` header.
  *
  * Trigger options (pick one):
- *   1. **Netlify Scheduled Functions** — wrap this route in a Netlify scheduled
- *      function that fires every 5 minutes.
+ *   1. **AWS EventBridge / CloudWatch** — schedule a rule that fires
+ *      every 5 minutes.
  *   2. **External cron service** — e.g. cron-job.org, Uptime Robot, or EasyCron
  *      hitting `GET /api/cron/process-email-retry` every 5 minutes with the
  *      Authorization header.

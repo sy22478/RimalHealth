@@ -1,6 +1,6 @@
 /**
  * Document Download API
- * GET: Stream document from storage (Netlify Blobs or S3)
+ * GET: Stream document from storage (S3)
  *
  * @module app/api/patient/documents/[id]/download
  */
@@ -75,7 +75,7 @@ export async function GET(
       );
     }
 
-    // Download file from storage (Netlify Blobs or local fallback)
+    // Download file from storage (S3)
     let fileBuffer: Buffer;
     try {
       fileBuffer = await downloadFile(document.s3Key);
