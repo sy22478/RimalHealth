@@ -4,7 +4,7 @@
  * Third-party service integrations for the platform:
  * - DoseSpot e-Prescribing
  * - Stripe payments
- * - SendGrid email
+ * - Amazon SES email
  * - Twilio SMS
  * - AWS S3 storage
  * 

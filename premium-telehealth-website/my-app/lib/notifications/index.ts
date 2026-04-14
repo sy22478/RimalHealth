@@ -109,7 +109,7 @@ export {
   type EmailTemplateGenerator,
 } from './templates';
 
-// SendGrid Integration
+// Email Integration (SES)
 export {
   sendEmail,
   sendMultipleEmails,
@@ -290,7 +290,7 @@ export async function notifyPhysician(options: {
 /**
  * Initialize all notification services
  * Call this at application startup to eagerly initialize
- * SendGrid and Twilio clients
+ * email (SES) and Twilio clients
  * 
  * @example
  * ```typescript
@@ -326,7 +326,7 @@ export async function processAllQueues(batchSize: number = 10): Promise<void> {
   await Promise.all([
     // Process main notification queue
     notificationQueue.process(batchSize),
-    // Process SendGrid retry queue
+    // Process email retry queue (SES)
     processEmailRetryQueue(),
     // Process Twilio retry queue
     processSMSRetryQueue(),
@@ -405,7 +405,7 @@ export default {
   interpolateTemplate,
   stripHtml,
   
-  // SendGrid
+  // Email (SES)
   sendEmail,
   sendMultipleEmails,
   initializeSendGrid,
