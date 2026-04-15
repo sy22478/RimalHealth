@@ -36,6 +36,8 @@ This document is the single source of truth for the RimalHealth AWS migration. U
 | SES identities | `rimalhealth.com` verified, DKIM ✅, Custom MAIL FROM (`mail.rimalhealth.com`) ✅ |
 | SES code | `lib/integrations/ses.ts` written; `sendgrid.ts` delegates to SES for backward compat |
 | Health check | `/api/health` returns 200, DB + Redis both healthy |
+| **ElastiCache Valkey** | Cluster `rimalhealth-cache`, cache.t4g.micro, engine 8.2, single node, cluster mode disabled, TLS enabled, no-auth, in same VPC as ECS/RDS, subnet group `rimalhealth-cache-subnet-group` (us-east-1a + 1b) |
+| **Upstash → ElastiCache cutover** | `REDIS_URL` updated in task def rev 8 to `rediss://<endpoint>:6379`. No code changes required (`lib/redis/client.ts` auto-detects TLS from `rediss://` scheme). Verified healthy. |
 
 ### Third-party services — migration plan
 
@@ -46,7 +48,7 @@ This document is the single source of truth for the RimalHealth AWS migration. U
 | Address validation | — | Amazon Location Service | ~$0.50 | ✅ Done |
 | Database | Neon (PostgreSQL) | Amazon RDS for PostgreSQL | ~$15 | ✅ Done |
 | Email | SendGrid | Amazon SES | ~$0.10 | 🟡 Code done; awaiting production access |
-| Cache / sessions | Upstash (Redis) | Amazon ElastiCache for Redis (or Valkey) | ~$12 | ⏳ Pending |
+| Cache / sessions | Upstash (Redis) | Amazon ElastiCache for Redis (or Valkey) | ~$12 | ✅ Done (Valkey) |
 | SMS (MFA) | Twilio | Amazon SNS (**optional**) | ~$0.05 | ⏸ Optional — keep Twilio unless cost/simplification justifies |
 | Payments | Stripe | **No AWS alternative** — keep Stripe | N/A | N/A |
 
@@ -62,9 +64,6 @@ This document is the single source of truth for the RimalHealth AWS migration. U
 
 | Item | Priority | Notes |
 |------|----------|-------|
-| ElastiCache (Valkey or Redis OSS) | **High** | Last active external dependency. Recommended: Valkey, cache.t4g.micro, TLS on |
-| Update `REDIS_URL` in task def | After cache exists | Use `rediss://` scheme for TLS |
-| Migrate Upstash → ElastiCache | After cache exists | Redis is used for MFA codes (5-min TTL) + rate limiting — short-lived data, no migration needed, just cutover |
 | Update Stripe webhook URL | Medium | Verify it points to `https://rimalhealth.com/api/webhooks/stripe` (not old Netlify URL) |
 | Verify DoseSpot integration | Low | Currently `DOSESPOT_MOCK_MODE=true`; real credentials pending |
 | RDS SSL hardening | Low | Switch `sslmode=no-verify` → `sslmode=verify-full` with RDS CA bundle in Docker image |
@@ -137,7 +136,7 @@ This document is the single source of truth for the RimalHealth AWS migration. U
 | Variable | Value (current) | Notes |
 |----------|-----------------|-------|
 | `DATABASE_URL` | See format and fields below | `no-verify` due to RDS self-signed CA; see "RDS SSL hardening" |
-| `REDIS_URL` | *(still Upstash `.upstash.io`)* | **Needs update after ElastiCache provisioned** |
+| `REDIS_URL` | `rediss://<cache-endpoint>:6379` (ElastiCache Valkey) | Task def rev 8. TLS via `rediss://`. No AUTH token. |
 
 **`DATABASE_URL` format:**
 
