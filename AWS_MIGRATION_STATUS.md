@@ -136,8 +136,23 @@ This document is the single source of truth for the RimalHealth AWS migration. U
 
 | Variable | Value (current) | Notes |
 |----------|-----------------|-------|
-| `DATABASE_URL` | `postgresql://rimalhealthadmin:<pw>@rimalhealth-db.cszwwssua3ep.us-east-1.rds.amazonaws.com:5432/rimalhealth?sslmode=no-verify` | `no-verify` due to RDS self-signed CA; see "RDS SSL hardening" above |
+| `DATABASE_URL` | See format and fields below | `no-verify` due to RDS self-signed CA; see "RDS SSL hardening" |
 | `REDIS_URL` | *(still Upstash `.upstash.io`)* | **Needs update after ElastiCache provisioned** |
+
+**`DATABASE_URL` format:**
+
+```
+postgresql://USER:PASSWORD@HOST:PORT/DATABASE?sslmode=no-verify
+```
+
+| Field | Value |
+|-------|-------|
+| Host | `rimalhealth-db.cszwwssua3ep.us-east-1.rds.amazonaws.com` |
+| Port | `5432` |
+| Database | `rimalhealth` |
+| User | `rimalhealthadmin` |
+| Password | Stored only in ECS task definition (never in this doc or git) |
+| SSL | `sslmode=no-verify` (temporary; switch to `verify-full` with RDS CA bundle later) |
 
 ### Auth & encryption
 
