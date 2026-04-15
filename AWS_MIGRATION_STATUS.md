@@ -14,7 +14,7 @@ This document is the single source of truth for the RimalHealth AWS migration. U
 
 | Item | Details |
 |------|---------|
-| AWS account + BAA | Account created, AWS BAA signed |
+| AWS account + BAA | Account created, **AWS BAA signed** |
 | IAM users | `rimalhealth-admin` (AdministratorAccess + MFA), `sonu-developer`, `rimalhealth-app` (least-privilege for runtime) |
 | ECR repository | `rimalhealth` (`090814040113.dkr.ecr.us-east-1.amazonaws.com/rimalhealth`) |
 | Dockerfile | Multi-stage, Node 20 Alpine, Next.js standalone, port 3000, non-root `nextjs` user |
@@ -26,7 +26,7 @@ This document is the single source of truth for the RimalHealth AWS migration. U
 | Container | `rimalhealth-app`, port 3000, 0.5 vCPU / 1 GB |
 | ALB | `rimalhealth-alb` → DNS `rimalhealth-alb-1901549988.us-east-1.elb.amazonaws.com` |
 | Target group | `rimalhealth-tg`, HTTP:3000, health check `/api/health` |
-| HTTPS listener | Port 443 with ACM cert, HTTP→HTTPS redirect |
+| HTTPS listener + **SSL certificate** | Port 443 with ACM cert, HTTP→HTTPS redirect |
 | Route 53 | Hosted zone `rimalhealth.com`, NS switched from SiteGround, propagation confirmed |
 | DNS records | A (ALIAS) apex + `www` → ALB; SES DKIM CNAMEs; custom MAIL-FROM MX for `mail.rimalhealth.com`; SiteGround MX (mail receiving) |
 | S3 bucket | `rimalhealth-documents` (PHI, SSE-S3, versioning, public access blocked) |
@@ -36,6 +36,21 @@ This document is the single source of truth for the RimalHealth AWS migration. U
 | SES identities | `rimalhealth.com` verified, DKIM ✅, Custom MAIL FROM (`mail.rimalhealth.com`) ✅ |
 | SES code | `lib/integrations/ses.ts` written; `sendgrid.ts` delegates to SES for backward compat |
 | Health check | `/api/health` returns 200, DB + Redis both healthy |
+
+### Third-party services — migration plan
+
+| Service | Current provider | AWS replacement | Monthly cost | Status |
+|---------|------------------|-----------------|--------------|--------|
+| Hosting | Netlify | ECS Fargate | ~$15-30 | ✅ Done |
+| Storage | Netlify Blobs | S3 | ~$1-5 | ✅ Done |
+| Address validation | — | Amazon Location Service | ~$0.50 | ✅ Done |
+| Database | Neon (PostgreSQL) | Amazon RDS for PostgreSQL | ~$15 | ✅ Done |
+| Email | SendGrid | Amazon SES | ~$0.10 | 🟡 Code done; awaiting production access |
+| Cache / sessions | Upstash (Redis) | Amazon ElastiCache for Redis (or Valkey) | ~$12 | ⏳ Pending |
+| SMS (MFA) | Twilio | Amazon SNS (**optional**) | ~$0.05 | ⏸ Optional — keep Twilio unless cost/simplification justifies |
+| Payments | Stripe | **No AWS alternative** — keep Stripe | N/A | N/A |
+
+**Cost vs. the alternative:** ~$45/mo on AWS (hosting + all migrated services) vs. **$1,000+/mo** for Netlify Enterprise with HIPAA BAA. Savings drove the entire migration decision.
 
 ### In Progress
 
@@ -58,6 +73,7 @@ This document is the single source of truth for the RimalHealth AWS migration. U
 | Delete Upstash | After ElastiCache cutover | |
 | Delete SendGrid | After SES production access + full cutover | |
 | Fix document upload | Medium | Frontend ID upload still uses old S3 presigned flow; backend now uses FormData endpoint |
+| SNS for SMS MFA (optional) | Low | Replace Twilio with Amazon SNS if consolidation desired; otherwise keep Twilio — it works fine |
 
 ---
 
