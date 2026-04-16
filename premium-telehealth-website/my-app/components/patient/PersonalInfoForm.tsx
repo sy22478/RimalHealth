@@ -14,8 +14,6 @@ import {
   Pill,
   AlertTriangle,
   Building2,
-  Search,
-  Loader2,
   X,
   ChevronDown,
   Lock,
@@ -26,6 +24,7 @@ import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { LoadingButton } from '@/components/ui/LoadingButton';
 import { Button } from '@/components/ui/button';
+import { PatientPharmacySearch, SelectedPharmacy } from '@/components/patient/PharmacySearch';
 
 // ============================================================================
 // Preset Options
@@ -150,19 +149,6 @@ interface ProfileData {
 interface PersonalInfoFormProps {
   profile: ProfileData;
   onUpdate: (updatedData: Partial<ProfileData>) => void;
-}
-
-interface PharmacyResult {
-  id: string;
-  name: string;
-  address: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  phone: string | null;
-  is24Hour: boolean;
-  hasDelivery: boolean;
-  hasDriveThru: boolean;
 }
 
 // ============================================================================
@@ -428,14 +414,9 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
   const [submitError, setSubmitError] = React.useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = React.useState(false);
 
-  // Pharmacy search state
-  const [pharmacyQuery, setPharmacyQuery] = React.useState('');
-  const [pharmacyResults, setPharmacyResults] = React.useState<PharmacyResult[]>([]);
-  const [pharmacySearching, setPharmacySearching] = React.useState(false);
-  const [pharmacySearchError, setPharmacySearchError] = React.useState<string | null>(null);
-  const [selectedPharmacy, setSelectedPharmacy] = React.useState<PharmacyResult | null>(null);
+  // Pharmacy state
+  const [selectedPharmacy, setSelectedPharmacy] = React.useState<SelectedPharmacy | null>(null);
   const [showPharmacySearch, setShowPharmacySearch] = React.useState(!profile.pharmacy);
-  const pharmacySearchTimeout = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const {
     register,
@@ -487,59 +468,19 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
     setShowPharmacySearch(!profile.pharmacy);
   }, [profile, reset]);
 
-  // Pharmacy search handler with debounce
-  const handlePharmacySearch = React.useCallback((query: string): void => {
-    setPharmacyQuery(query);
-    setPharmacySearchError(null);
+  // Derive display pharmacy for the current pharmacy section
+  const displayPharmacy = selectedPharmacy
+    ? { name: selectedPharmacy.name, address: `${selectedPharmacy.address}, ${selectedPharmacy.city}, ${selectedPharmacy.state} ${selectedPharmacy.zipCode}`, phone: selectedPharmacy.phone }
+    : profile.pharmacy
+      ? { name: profile.pharmacy.name, address: [profile.pharmacy.address, profile.pharmacy.city, 'CA', profile.pharmacy.zip].filter(Boolean).join(', '), phone: profile.pharmacy.phone ?? null }
+      : null;
 
-    if (pharmacySearchTimeout.current) {
-      clearTimeout(pharmacySearchTimeout.current);
-    }
-
-    if (query.trim().length < 2) {
-      setPharmacyResults([]);
-      return;
-    }
-
-    pharmacySearchTimeout.current = setTimeout(async () => {
-      setPharmacySearching(true);
-      try {
-        // Detect if query looks like a ZIP code (starts with digits)
-        const isZip = /^\d{3,5}$/.test(query.trim());
-        const params = new URLSearchParams();
-        if (isZip) {
-          params.set('zip', query.trim());
-        } else {
-          params.set('q', query.trim());
-        }
-
-        const res = await fetch(`/api/patient/pharmacies/search?${params.toString()}`, {
-          credentials: 'include',
-        });
-
-        if (!res.ok) {
-          throw new Error('Search failed');
-        }
-
-        const data = await res.json();
-        setPharmacyResults(data.pharmacies || []);
-      } catch {
-        setPharmacySearchError('Failed to search pharmacies. Please try again.');
-        setPharmacyResults([]);
-      } finally {
-        setPharmacySearching(false);
-      }
-    }, 400);
-  }, []);
-
-  // Clean up timeout on unmount
-  React.useEffect(() => {
-    return () => {
-      if (pharmacySearchTimeout.current) {
-        clearTimeout(pharmacySearchTimeout.current);
-      }
-    };
-  }, []);
+  // Handle pharmacy selection from search component
+  const handlePharmacySelect = React.useCallback((pharmacy: SelectedPharmacy): void => {
+    setSelectedPharmacy(pharmacy);
+    setValue('preferredPharmacyId', pharmacy.id);
+    setShowPharmacySearch(false);
+  }, [setValue]);
 
   const onSubmit = async (data: PersonalInfoFormValues): Promise<void> => {
     setSubmitError(null);
@@ -876,12 +817,12 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
               Preferred Pharmacy
             </CardTitle>
             <CardDescription>
-              Search by pharmacy name or ZIP code to select your preferred pharmacy.
+              Search by city name or ZIP code to select your preferred pharmacy.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Current pharmacy display */}
-            {(selectedPharmacy || profile.pharmacy) && !showPharmacySearch && (
+            {displayPharmacy && !showPharmacySearch && (
               <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
@@ -894,36 +835,23 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => {
-                      setShowPharmacySearch(true);
-                      setPharmacyQuery('');
-                      setPharmacyResults([]);
-                    }}
+                    onClick={() => setShowPharmacySearch(true)}
                     className="text-ocean-600 border-ocean-200 hover:bg-ocean-50 hover:text-ocean-700"
                   >
                     Change
                   </Button>
                 </div>
-                <p className="font-medium text-gray-900">
-                  {selectedPharmacy?.name ?? profile.pharmacy?.name}
-                </p>
-                <p className="text-sm text-gray-600">
-                  {selectedPharmacy
-                    ? [selectedPharmacy.address, selectedPharmacy.city, selectedPharmacy.state, selectedPharmacy.zipCode].filter(Boolean).join(', ')
-                    : [profile.pharmacy?.address, profile.pharmacy?.city, 'CA', profile.pharmacy?.zip].filter(Boolean).join(', ')}
-                </p>
-                {(selectedPharmacy?.phone ?? profile.pharmacy?.phone) && (
-                  <p className="text-sm text-gray-500 mt-1">
-                    {selectedPharmacy?.phone ?? profile.pharmacy?.phone}
-                  </p>
+                <p className="font-medium text-gray-900">{displayPharmacy.name}</p>
+                <p className="text-sm text-gray-600">{displayPharmacy.address}</p>
+                {displayPharmacy.phone && (
+                  <p className="text-sm text-gray-500 mt-1">{displayPharmacy.phone}</p>
                 )}
               </div>
             )}
 
-            {/* Pharmacy search section */}
+            {/* Pharmacy search via NPI */}
             {showPharmacySearch && (
               <>
-                {/* If the user has an existing pharmacy and clicked Change, show a cancel button */}
                 {profile.pharmacy && (
                   <div className="flex justify-end">
                     <Button
@@ -932,8 +860,6 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
                       size="sm"
                       onClick={() => {
                         setShowPharmacySearch(false);
-                        setPharmacyQuery('');
-                        setPharmacyResults([]);
                         setSelectedPharmacy(null);
                         setValue('preferredPharmacyId', '');
                       }}
@@ -944,89 +870,11 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
                   </div>
                 )}
 
-                {/* Search input */}
-                <div>
-                  <Label htmlFor="pharmacySearch" className="flex items-center gap-1">
-                    <Search className="h-4 w-4" />
-                    Search Pharmacies
-                  </Label>
-                  <div className="relative mt-1.5">
-                    <Input
-                      id="pharmacySearch"
-                      type="text"
-                      placeholder="Enter pharmacy name or ZIP code..."
-                      value={pharmacyQuery}
-                      onChange={(e) => handlePharmacySearch(e.target.value)}
-                      autoComplete="off"
-                    />
-                    {pharmacySearching && (
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                        <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Search error */}
-                {pharmacySearchError && (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{pharmacySearchError}</AlertDescription>
-                  </Alert>
-                )}
-
-                {/* Search results */}
-                {pharmacyResults.length > 0 && (
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
-                    {pharmacyResults.map((pharmacy) => {
-                      const isSelected = selectedPharmacy?.id === pharmacy.id;
-                      return (
-                        <button
-                          key={pharmacy.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedPharmacy(pharmacy);
-                            setValue('preferredPharmacyId', pharmacy.id);
-                            setPharmacyResults([]);
-                            setPharmacyQuery('');
-                            setShowPharmacySearch(false);
-                          }}
-                          className={`w-full text-left p-3 rounded-lg border transition-colors ${
-                            isSelected
-                              ? 'border-ocean-400 bg-ocean-50'
-                              : 'border-gray-200 hover:border-ocean-300 hover:bg-gray-50'
-                          }`}
-                        >
-                          <p className="font-medium text-gray-900 text-sm">{pharmacy.name}</p>
-                          <p className="text-xs text-gray-600">
-                            {[pharmacy.address, pharmacy.city, pharmacy.state, pharmacy.zipCode].filter(Boolean).join(', ')}
-                          </p>
-                          {pharmacy.phone && (
-                            <p className="text-xs text-gray-500 mt-0.5">{pharmacy.phone}</p>
-                          )}
-                          <div className="flex gap-2 mt-1">
-                            {pharmacy.is24Hour && (
-                              <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">24 Hour</span>
-                            )}
-                            {pharmacy.hasDelivery && (
-                              <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded">Delivery</span>
-                            )}
-                            {pharmacy.hasDriveThru && (
-                              <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">Drive-Thru</span>
-                            )}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* No results message */}
-                {pharmacyQuery.trim().length >= 2 && !pharmacySearching && pharmacyResults.length === 0 && !pharmacySearchError && (
-                  <p className="text-sm text-muted-foreground text-center py-2">
-                    No pharmacies found. Try a different search term.
-                  </p>
-                )}
+                <PatientPharmacySearch
+                  onSelect={handlePharmacySelect}
+                  currentPharmacyId={selectedPharmacy?.id}
+                  currentPharmacyName={selectedPharmacy?.name}
+                />
               </>
             )}
 

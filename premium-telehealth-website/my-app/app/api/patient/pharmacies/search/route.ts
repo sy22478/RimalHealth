@@ -1,6 +1,6 @@
 /**
  * GET /api/patient/pharmacies/search
- * Search pharmacies by name, city, or zip code.
+ * Search pharmacies via NPI Registry (primary) with local DB fallback.
  * Available to authenticated patients.
  */
 
@@ -9,6 +9,7 @@ import { requireRole } from '@/lib/auth/require-auth';
 import { prisma } from '@/lib/db/prisma';
 import { Role } from '@prisma/client';
 import { auditLogger, createAuditContext } from '@/lib/audit/index';
+import { searchNpiPharmacies } from '@/lib/integrations/npi-registry';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const auth = await requireRole(request, [Role.PATIENT]);
@@ -22,36 +23,86 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const zipCode = searchParams.get('zip') || '';
     const limit = Math.min(parseInt(searchParams.get('limit') || '20', 10), 50);
 
-    const where: Record<string, unknown> = { isActive: true, state: 'CA' };
-
-    if (query) {
-      where.OR = [
-        { name: { contains: query, mode: 'insensitive' } },
-        { city: { contains: query, mode: 'insensitive' } },
-      ];
-    }
+    // Determine search params: detect if query looks like a ZIP
+    let searchCity: string | undefined;
+    let searchZip: string | undefined;
 
     if (zipCode) {
-      where.zipCode = { startsWith: zipCode.substring(0, 5) };
+      searchZip = zipCode.substring(0, 5);
+    } else if (query && /^\d/.test(query.trim())) {
+      searchZip = query.trim().substring(0, 5);
+    } else if (query) {
+      searchCity = query.trim();
     }
 
-    const pharmacies = await prisma.pharmacy.findMany({
-      where,
-      select: {
-        id: true,
-        name: true,
-        address: true,
-        city: true,
-        state: true,
-        zipCode: true,
-        phone: true,
-        is24Hour: true,
-        hasDelivery: true,
-        hasDriveThru: true,
-      },
-      take: limit,
-      orderBy: { name: 'asc' },
-    });
+    let pharmacies: Array<{
+      id: string;
+      name: string;
+      address: string;
+      city: string;
+      state: string;
+      zipCode: string;
+      phone: string | null;
+      source: 'npi' | 'local';
+      npiNumber?: string;
+    }> = [];
+
+    // Primary: NPI Registry
+    if (searchCity || searchZip) {
+      const npiResult = await searchNpiPharmacies({
+        city: searchCity,
+        zip: searchZip,
+        limit,
+      });
+
+      if (npiResult.success && npiResult.pharmacies.length > 0) {
+        pharmacies = npiResult.pharmacies.map((p) => ({
+          id: `npi-${p.npiNumber}`,
+          name: p.name,
+          address: p.address,
+          city: p.city,
+          state: p.state,
+          zipCode: p.zipCode,
+          phone: p.phone || null,
+          source: 'npi' as const,
+          npiNumber: p.npiNumber,
+        }));
+      } else {
+        // Fallback: local database
+        const where: Record<string, unknown> = { isActive: true, state: 'CA' };
+
+        if (searchCity) {
+          where.OR = [
+            { name: { contains: searchCity, mode: 'insensitive' } },
+            { city: { contains: searchCity, mode: 'insensitive' } },
+          ];
+        }
+
+        if (searchZip) {
+          where.zipCode = { startsWith: searchZip.substring(0, 5) };
+        }
+
+        const localResults = await prisma.pharmacy.findMany({
+          where,
+          select: {
+            id: true,
+            name: true,
+            address: true,
+            city: true,
+            state: true,
+            zipCode: true,
+            phone: true,
+          },
+          take: limit,
+          orderBy: { name: 'asc' },
+        });
+
+        pharmacies = localResults.map((p) => ({
+          ...p,
+          source: 'local' as const,
+        }));
+      }
+    }
 
     // Audit log the pharmacy search
     const auditContext = createAuditContext(request, auth.user.userId, 'PATIENT');

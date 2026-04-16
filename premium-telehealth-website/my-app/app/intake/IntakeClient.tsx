@@ -19,8 +19,6 @@ import {
   Info,
   LogOut,
   ClipboardCheck,
-  Search,
-  MapPin,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,6 +28,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { LoadingButton } from '@/components/ui/LoadingButton';
+import { PatientPharmacySearch, SelectedPharmacy } from '@/components/patient/PharmacySearch';
 
 // ============================================================================
 // Validation Schema -- 8 Sections, 33 Questions + Personal Info (no consent)
@@ -302,85 +301,27 @@ function PersonalInfoStep(): React.ReactElement {
 }
 
 // ============================================================================
-// Pharmacy Search Sub-component
+// Pharmacy Search Sub-component (uses shared PatientPharmacySearch)
 // ============================================================================
-
-interface PharmacyResult {
-  id: string;
-  name: string;
-  address: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  phone: string | null;
-  is24Hour: boolean;
-  hasDelivery: boolean;
-  hasDriveThru: boolean;
-}
 
 function PharmacySearchSection(): React.ReactElement {
   const { register, setValue, formState: { errors } } = useFormContext<IntakeFormData>();
-  const [searchQuery, setSearchQuery] = React.useState('');
-  const [results, setResults] = React.useState<PharmacyResult[]>([]);
-  const [isSearching, setIsSearching] = React.useState(false);
-  const [showResults, setShowResults] = React.useState(false);
   const [manualEntry, setManualEntry] = React.useState(false);
-  const [selectedPharmacy, setSelectedPharmacy] = React.useState<PharmacyResult | null>(null);
-  const searchRef = React.useRef<HTMLDivElement>(null);
-  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [selectedName, setSelectedName] = React.useState<string | null>(null);
 
-  // Close dropdown when clicking outside
-  React.useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
-        setShowResults(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const searchPharmacies = React.useCallback(async (q: string) => {
-    if (q.length < 2) { setResults([]); return; }
-    setIsSearching(true);
-    try {
-      const res = await fetch(`/api/patient/pharmacies/search?q=${encodeURIComponent(q)}`, {
-        credentials: 'include',
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setResults(Array.isArray(data.pharmacies) ? data.pharmacies : []);
-        setShowResults(true);
-      }
-    } catch {
-      // Silently fail — user can use manual entry
-    } finally {
-      setIsSearching(false);
-    }
-  }, []);
-
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const q = e.target.value;
-    setSearchQuery(q);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => searchPharmacies(q), 300);
-  };
-
-  const selectPharmacy = (pharmacy: PharmacyResult) => {
-    setSelectedPharmacy(pharmacy);
+  const handlePharmacySelect = (pharmacy: SelectedPharmacy): void => {
     setValue('pharmacyName', pharmacy.name, { shouldValidate: true, shouldDirty: true });
     setValue('pharmacyAddress', pharmacy.address, { shouldValidate: true, shouldDirty: true });
     setValue('pharmacyCity', pharmacy.city, { shouldValidate: true, shouldDirty: true });
     setValue('pharmacyState', 'CA', { shouldValidate: true, shouldDirty: true });
     setValue('pharmacyZip', pharmacy.zipCode, { shouldValidate: true, shouldDirty: true });
     setValue('pharmacyPhone', pharmacy.phone || '', { shouldDirty: true });
-    setShowResults(false);
-    setSearchQuery('');
+    setSelectedName(pharmacy.name);
     setManualEntry(false);
   };
 
-  const clearSelection = () => {
-    setSelectedPharmacy(null);
+  const clearSelection = (): void => {
+    setSelectedName(null);
     setValue('pharmacyName', '', { shouldDirty: true });
     setValue('pharmacyAddress', '', { shouldDirty: true });
     setValue('pharmacyCity', '', { shouldDirty: true });
@@ -395,56 +336,16 @@ function PharmacySearchSection(): React.ReactElement {
       <p className="text-sm text-gray-500 mb-4">Search for your pharmacy or enter details manually.</p>
 
       {!manualEntry && (
-        <div ref={searchRef} className="relative mb-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Search pharmacies by name or city..."
-              value={searchQuery}
-              onChange={handleSearchChange}
-              onFocus={() => results.length > 0 && setShowResults(true)}
-              className="pl-10"
-            />
-            {isSearching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />}
-          </div>
-          {showResults && results.length > 0 && (
-            <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-              {results.map((pharmacy) => (
-                <button
-                  key={pharmacy.id}
-                  type="button"
-                  onClick={() => selectPharmacy(pharmacy)}
-                  className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-0"
-                >
-                  <p className="font-medium text-sm text-gray-900">{pharmacy.name}</p>
-                  <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-                    <MapPin className="h-3 w-3" />
-                    {pharmacy.address}, {pharmacy.city}, {pharmacy.state} {pharmacy.zipCode}
-                  </p>
-                  {(pharmacy.is24Hour || pharmacy.hasDelivery) && (
-                    <div className="flex gap-2 mt-1">
-                      {pharmacy.is24Hour && <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">24hr</span>}
-                      {pharmacy.hasDelivery && <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Delivery</span>}
-                    </div>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-          {showResults && searchQuery.length >= 2 && results.length === 0 && !isSearching && (
-            <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg p-4 text-center text-sm text-gray-500">
-              No pharmacies found. Try a different search or enter details manually.
-            </div>
-          )}
-        </div>
+        <PatientPharmacySearch
+          onSelect={handlePharmacySelect}
+          currentPharmacyName={selectedName}
+        />
       )}
 
-      {selectedPharmacy && !manualEntry && (
-        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-start justify-between">
+      {selectedName && !manualEntry && (
+        <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg flex items-start justify-between">
           <div>
-            <p className="font-medium text-green-900 text-sm">{selectedPharmacy.name}</p>
-            <p className="text-xs text-green-700">{selectedPharmacy.address}, {selectedPharmacy.city}, {selectedPharmacy.state} {selectedPharmacy.zipCode}</p>
-            {selectedPharmacy.phone && <p className="text-xs text-green-600 mt-0.5">{selectedPharmacy.phone}</p>}
+            <p className="font-medium text-green-900 text-sm">{selectedName}</p>
           </div>
           <button type="button" onClick={clearSelection} className="text-green-600 hover:text-green-800 ml-2">
             <AlertCircle className="h-4 w-4" />
@@ -455,7 +356,7 @@ function PharmacySearchSection(): React.ReactElement {
       <button
         type="button"
         onClick={() => { setManualEntry(!manualEntry); if (!manualEntry) clearSelection(); }}
-        className="text-sm text-ocean-600 hover:text-ocean-700 underline mb-4 inline-block"
+        className="text-sm text-ocean-600 hover:text-ocean-700 underline mb-4 mt-3 inline-block"
       >
         {manualEntry ? 'Search for a pharmacy instead' : "Can't find your pharmacy? Enter manually"}
       </button>
@@ -508,7 +409,7 @@ function PharmacySearchSection(): React.ReactElement {
         </div>
       )}
 
-      {!manualEntry && !selectedPharmacy && (
+      {!manualEntry && !selectedName && (
         <div>
           {errors.pharmacyName && <p className="text-sm text-red-500" role="alert">Please search for and select a pharmacy, or enter details manually.</p>}
         </div>
