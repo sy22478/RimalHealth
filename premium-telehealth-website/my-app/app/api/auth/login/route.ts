@@ -24,7 +24,7 @@ import {
 // SMS MFA for patients
 import { generateSMSCode, storeSMSCode, checkSMSRateLimit, maskPhoneNumber } from '@/lib/auth/sms-mfa';
 import { getRedisClient } from '@/lib/redis/client';
-import { sendSMS } from '@/lib/integrations/twilio';
+import { sendSMS } from '@/lib/integrations/sns';
 
 // Password utilities
 import { verifyPassword } from '@/lib/auth/password';

@@ -22,7 +22,7 @@
 
 import { getRedisClient } from '@/lib/redis/client';
 import { sendEmail } from '@/lib/integrations/sendgrid';
-import { sendSMS } from '@/lib/integrations/twilio';
+import { sendSMS } from '@/lib/integrations/sns';
 import { EmailTemplate, SMSTemplate } from './templates';
 
 /**

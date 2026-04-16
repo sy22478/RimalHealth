@@ -16,7 +16,7 @@ import { z } from 'zod';
 import { jwtVerify } from 'jose';
 import { prisma } from '@/lib/db/prisma';
 import { getRedisClient } from '@/lib/redis/client';
-import { sendSMS } from '@/lib/integrations/twilio';
+import { sendSMS } from '@/lib/integrations/sns';
 import {
   generateSMSCode,
   storeSMSCode,

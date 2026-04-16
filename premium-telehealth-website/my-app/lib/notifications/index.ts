@@ -76,14 +76,11 @@ import {
   sendMultipleEmails,
 } from '@/lib/integrations/sendgrid';
 import {
-  initializeTwilio,
-  processRetryQueue as processSMSRetryQueue,
   sendSMS,
   getSMSTemplate,
   formatPhoneNumber,
   isValidPhoneNumber,
-  getMessageStatus,
-} from '@/lib/integrations/twilio';
+} from '@/lib/integrations/sns';
 import { notificationQueue, NotificationQueue } from './queue';
 
 // Queue
@@ -118,17 +115,14 @@ export {
   type SendEmailOptions,
 } from '@/lib/integrations/sendgrid';
 
-// Twilio Integration
+// SMS Integration (SNS)
 export {
   sendSMS,
   getSMSTemplate,
   formatPhoneNumber,
   isValidPhoneNumber,
-  initializeTwilio,
-  processRetryQueue as processSMSRetryQueue,
-  getMessageStatus,
   type SendSMSOptions,
-} from '@/lib/integrations/twilio';
+} from '@/lib/integrations/sns';
 
 /**
  * Notify a user via email and/or SMS
@@ -302,7 +296,7 @@ export async function notifyPhysician(options: {
  */
 export function initializeNotifications(): void {
   initializeSendGrid();
-  initializeTwilio();
+  // SNS client is initialized at module level — no init call needed
   console.log('[Notifications] All services initialized');
 }
 
@@ -328,8 +322,7 @@ export async function processAllQueues(batchSize: number = 10): Promise<void> {
     notificationQueue.process(batchSize),
     // Process email retry queue (SES)
     processEmailRetryQueue(),
-    // Process Twilio retry queue
-    processSMSRetryQueue(),
+    // SNS handles SMS retries internally — no retry queue to process
   ]);
 }
 
@@ -411,14 +404,11 @@ export default {
   initializeSendGrid,
   processEmailRetryQueue,
   
-  // Twilio
+  // SMS (SNS)
   sendSMS,
   getSMSTemplate,
   formatPhoneNumber,
   isValidPhoneNumber,
-  initializeTwilio,
-  processSMSRetryQueue,
-  getMessageStatus,
   
   // High-level functions
   notifyUser,
