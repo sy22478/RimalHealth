@@ -98,7 +98,38 @@ This document captures product/business decisions made during development — es
 
 ---
 
-## 4. Document Upload
+## 4. SMS MFA (Twilio → Amazon SNS)
+
+### Current behavior
+
+- SMS MFA codes sent via **Amazon SNS** (replaced Twilio)
+- `lib/integrations/sns.ts` — SNS client using ECS task role (no explicit credentials)
+- `lib/integrations/twilio.ts` — kept for reference/rollback, but no longer called
+- SNS uses `Transactional` SMS type for high deliverability
+- Rate limiting: 5 attempts/hour per phone number (Redis-based, unchanged)
+- Code TTL: 5 minutes in Redis (unchanged)
+
+### When expanding to other states
+
+- SNS works nationwide — no changes needed
+- SMS deliverability is consistent across US states
+
+### Environment variables to clean up
+
+- `TWILIO_ACCOUNT_SID` — remove from ECS task definition after SNS verified working
+- `TWILIO_AUTH_TOKEN` — remove from ECS task definition
+- `TWILIO_PHONE_NUMBER` — remove from ECS task definition
+- No new env vars needed — SNS uses task role + `AWS_REGION`
+
+### SNS sandbox
+
+- SNS may be in sandbox mode — can only send to verified phone numbers
+- To exit sandbox: open AWS support case (similar to SES production access)
+- For testing: add test phone numbers via SNS console → Text messaging → Sandbox
+
+---
+
+## 5. Document Upload
 
 ### Current state
 
@@ -111,7 +142,7 @@ This document captures product/business decisions made during development — es
 
 ---
 
-## 5. State Expansion Checklist (use when adding a new state)
+## 6. State Expansion Checklist (use when adding a new state)
 
 When expanding beyond California, update these areas:
 
@@ -128,7 +159,7 @@ When expanding beyond California, update these areas:
 
 ---
 
-## 6. Service Area Configuration
+## 7. Service Area Configuration
 
 ### Current
 
@@ -144,7 +175,7 @@ When expanding beyond California, update these areas:
 
 ---
 
-## 7. Conventions for This File
+## 8. Conventions for This File
 
 - Update when a product/business decision is made that affects future scaling
 - Include the **regulatory reasoning** (not just the technical decision)

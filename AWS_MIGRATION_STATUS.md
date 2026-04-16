@@ -38,6 +38,10 @@ This document is the single source of truth for the RimalHealth AWS migration. U
 | Health check | `/api/health` returns 200, DB + Redis both healthy |
 | **ElastiCache Valkey** | Cluster `rimalhealth-cache`, cache.t4g.micro, engine 8.2, single node, cluster mode disabled, TLS enabled, no-auth, in same VPC as ECS/RDS, subnet group `rimalhealth-cache-subnet-group` (us-east-1a + 1b) |
 | **Upstash → ElastiCache cutover** | `REDIS_URL` updated in task def rev 8 to `rediss://<endpoint>:6379`. No code changes required (`lib/redis/client.ts` auto-detects TLS from `rediss://` scheme). Verified healthy. |
+| **Twilio → SNS migration** | `lib/integrations/sns.ts` created. MFA send-sms route + notifications now use SNS instead of Twilio. `sns:Publish` permission added to `rimalhealth-task-role`. Twilio code kept for reference. |
+| **Address validation** | `lib/integrations/location.ts` created. Profile PUT + intake submit validate via Amazon Location Service. Patient address validate API at `/api/patient/address/validate`. |
+| **Prescription send trigger** | `/api/physician/prescriptions/send` simplified — marks SENT + notifies patient. No DoseSpot dependency. |
+| **Document upload cleanup** | Deleted unused presigned URL flow (`upload-url`, `confirm` routes) and orphaned `DocumentUploader.tsx`. Direct upload path is the single working flow. |
 
 ### Third-party services — migration plan
 
@@ -49,7 +53,7 @@ This document is the single source of truth for the RimalHealth AWS migration. U
 | Database | Neon (PostgreSQL) | Amazon RDS for PostgreSQL | ~$15 | ✅ Done |
 | Email | SendGrid | Amazon SES | ~$0.10 | 🟡 Code done; awaiting production access |
 | Cache / sessions | Upstash (Redis) | Amazon ElastiCache for Redis (or Valkey) | ~$12 | ✅ Done (Valkey) |
-| SMS (MFA) | Twilio | Amazon SNS (**optional**) | ~$0.05 | ⏸ Optional — keep Twilio unless cost/simplification justifies |
+| SMS (MFA) | Twilio | Amazon SNS | ~$0.05 | ✅ Done (SNS) |
 | Payments | Stripe | **No AWS alternative** — keep Stripe | N/A | N/A |
 
 **Cost vs. the alternative:** ~$45/mo on AWS (hosting + all migrated services) vs. **$1,000+/mo** for Netlify Enterprise with HIPAA BAA. Savings drove the entire migration decision.
@@ -67,12 +71,12 @@ This document is the single source of truth for the RimalHealth AWS migration. U
 | 1 | **Check SES production access** | High | Replied to AWS support case with detailed info. Check for follow-up response. |
 | 2 | ~~Verify Stripe webhook URL~~ | ~~Medium~~ | ✅ Already points to `https://rimalhealth.com/api/webhooks/stripe`. Active, 6 events, signing secret set. **Check:** verify live-mode webhook exists too (not just test mode). |
 | 3 | **Delete Upstash** | Medium | ElastiCache cutover verified. Upstash no longer needed — safe to delete. |
-| 4 | **Fix document upload mismatch** | Medium | Frontend Gov ID upload uses old S3 presigned flow; backend uses FormData. Needs audit and consolidation. |
+| 4 | ~~Fix document upload mismatch~~ | ~~Medium~~ | ✅ Cleaned up — removed unused presigned URL flow. Direct upload is the single working path. |
 | 5 | **Delete Neon** | Low | After 2-week safety period (~end of April 2026). Rotate Neon credentials. |
 | 6 | **Delete Netlify** | Low | After 2-week safety period (~end of April 2026). |
 | 7 | **Delete SendGrid** | Low | After SES production access confirmed + first live email send verified. |
 | 8 | **RDS SSL hardening** | Low | Bundle RDS CA cert in Docker image, switch `sslmode=no-verify` → `verify-full`. |
-| 9 | **SNS for SMS MFA (optional)** | Low | Replace Twilio with Amazon SNS if consolidation desired; otherwise keep Twilio. |
+| 9 | ~~SNS for SMS MFA~~ | ~~Low~~ | ✅ Done — `lib/integrations/sns.ts` replaces Twilio. `sns:Publish` added to task role. Remove Twilio env vars from task def after verification. |
 | 10 | **Verify DoseSpot integration** | Low | Currently `DOSESPOT_MOCK_MODE=true`; real credentials pending business decision. |
 
 ---
