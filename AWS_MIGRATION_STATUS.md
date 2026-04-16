@@ -1,6 +1,6 @@
 # AWS Migration Status
 
-**Last updated:** 2026-04-15
+**Last updated:** 2026-04-16
 **AWS Account ID:** `090814040113`
 **Primary region:** `us-east-1`
 
@@ -22,7 +22,7 @@ This document is the single source of truth for the RimalHealth AWS migration. U
 | `buildspec.yml` | At repo root; builds image, tags `latest` + commit SHA, pushes to ECR, emits `imagedefinitions.json` |
 | ECS cluster | `rimalhealth-cluster` (Fargate) |
 | ECS service | `rimalhealth-task-service-u24n1blr` (1 desired, REPLICA, rolling deploy 100/200) |
-| Task definition | `rimalhealth-task` — latest revision: **7** (SSL fix) |
+| Task definition | `rimalhealth-task` — latest revision: **8** (ElastiCache cutover) |
 | Container | `rimalhealth-app`, port 3000, 0.5 vCPU / 1 GB |
 | ALB | `rimalhealth-alb` → DNS `rimalhealth-alb-1901549988.us-east-1.elb.amazonaws.com` |
 | Target group | `rimalhealth-tg`, HTTP:3000, health check `/api/health` |
@@ -58,21 +58,22 @@ This document is the single source of truth for the RimalHealth AWS migration. U
 
 | Item | Status |
 |------|--------|
-| SES production access | Submitted (form didn't have case description — AWS updated it); awaiting AWS approval (≤24h typical) |
+| SES production access | Submitted ~2026-04-14. Check SES Account dashboard for approval. If still sandbox after 48h, re-submit or open support case. |
 
-### Pending
+### Pending — Next Actions (ordered by priority)
 
-| Item | Priority | Notes |
-|------|----------|-------|
-| Update Stripe webhook URL | Medium | Verify it points to `https://rimalhealth.com/api/webhooks/stripe` (not old Netlify URL) |
-| Verify DoseSpot integration | Low | Currently `DOSESPOT_MOCK_MODE=true`; real credentials pending |
-| RDS SSL hardening | Low | Switch `sslmode=no-verify` → `sslmode=verify-full` with RDS CA bundle in Docker image |
-| Delete Netlify | After 2-week safety period | Kept as rollback option until ~end of April 2026 |
-| Delete Neon | After confirming RDS stability | Rotate/revoke Neon credentials |
-| Delete Upstash | After ElastiCache cutover | |
-| Delete SendGrid | After SES production access + full cutover | |
-| Fix document upload | Medium | Frontend ID upload still uses old S3 presigned flow; backend now uses FormData endpoint |
-| SNS for SMS MFA (optional) | Low | Replace Twilio with Amazon SNS if consolidation desired; otherwise keep Twilio — it works fine |
+| # | Item | Priority | Notes |
+|---|------|----------|-------|
+| 1 | **Check SES production access** | High | Check SES → Account dashboard. If approved, SES is fully live. |
+| 2 | **Verify Stripe webhook URL** | Medium | Check Stripe dashboard → Developers → Webhooks. Should point to `https://rimalhealth.com/api/webhooks/stripe` |
+| 3 | **Delete Upstash** | Medium | ElastiCache cutover verified. Upstash no longer needed — safe to delete. |
+| 4 | **Fix document upload mismatch** | Medium | Frontend Gov ID upload uses old S3 presigned flow; backend uses FormData. Needs audit and consolidation. |
+| 5 | **Delete Neon** | Low | After 2-week safety period (~end of April 2026). Rotate Neon credentials. |
+| 6 | **Delete Netlify** | Low | After 2-week safety period (~end of April 2026). |
+| 7 | **Delete SendGrid** | Low | After SES production access confirmed + first live email send verified. |
+| 8 | **RDS SSL hardening** | Low | Bundle RDS CA cert in Docker image, switch `sslmode=no-verify` → `verify-full`. |
+| 9 | **SNS for SMS MFA (optional)** | Low | Replace Twilio with Amazon SNS if consolidation desired; otherwise keep Twilio. |
+| 10 | **Verify DoseSpot integration** | Low | Currently `DOSESPOT_MOCK_MODE=true`; real credentials pending business decision. |
 
 ---
 
