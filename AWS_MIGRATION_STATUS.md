@@ -64,8 +64,8 @@ This document is the single source of truth for the RimalHealth AWS migration. U
 
 | # | Item | Priority | Notes |
 |---|------|----------|-------|
-| 1 | **Check SES production access** | High | Check SES → Account dashboard. If approved, SES is fully live. |
-| 2 | **Verify Stripe webhook URL** | Medium | Check Stripe dashboard → Developers → Webhooks. Should point to `https://rimalhealth.com/api/webhooks/stripe` |
+| 1 | **Check SES production access** | High | Replied to AWS support case with detailed info. Check for follow-up response. |
+| 2 | ~~Verify Stripe webhook URL~~ | ~~Medium~~ | ✅ Already points to `https://rimalhealth.com/api/webhooks/stripe`. Active, 6 events, signing secret set. **Check:** verify live-mode webhook exists too (not just test mode). |
 | 3 | **Delete Upstash** | Medium | ElastiCache cutover verified. Upstash no longer needed — safe to delete. |
 | 4 | **Fix document upload mismatch** | Medium | Frontend Gov ID upload uses old S3 presigned flow; backend uses FormData. Needs audit and consolidation. |
 | 5 | **Delete Neon** | Low | After 2-week safety period (~end of April 2026). Rotate Neon credentials. |
