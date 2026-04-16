@@ -22,7 +22,7 @@ import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { verifyAccessToken } from '@/lib/auth/jwt';
 import { prisma } from '@/lib/db/prisma';
-import { IntakeStatus } from '@prisma/client';
+import { IntakeStatus, SubscriptionStatus } from '@prisma/client';
 import PatientLayoutClient from './PatientLayoutClient';
 
 export const dynamic = 'force-dynamic';
@@ -70,7 +70,28 @@ export default async function PatientLayout({
     }
   }
 
-  // Gate 1: Intake gate — check if patient has a completed/submitted intake
+  // Gate 1a: Payment gate — payment-first flow requires an active or trialing
+  // subscription before any portal access. A patient with a rejected intake,
+  // cancelled subscription, or no subscription at all must return to checkout.
+  let activeSubscription: { id: string } | null = null;
+  try {
+    activeSubscription = await prisma.subscription.findFirst({
+      where: {
+        userId,
+        status: { in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING] },
+      },
+      select: { id: true },
+    });
+  } catch (err) {
+    console.error('[PatientLayout] Failed to check subscription status:', err instanceof Error ? err.message : 'Unknown error');
+    redirect('/error?reason=subscription-check-failed');
+  }
+
+  if (!activeSubscription) {
+    redirect('/checkout/payment');
+  }
+
+  // Gate 1b: Intake gate — check if patient has a completed/submitted intake
   let completedIntake: { id: string } | null = null;
   try {
     completedIntake = await prisma.intake.findFirst({

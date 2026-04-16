@@ -26,6 +26,7 @@ const {
   mockVerifyAccessToken,
   mockIntakeFindFirst,
   mockUserFindUnique,
+  mockSubscriptionFindFirst,
 } = vi.hoisted(() => {
   const _mockRedirect = vi.fn().mockImplementation((url: string) => {
     throw new _RedirectError(url);
@@ -45,6 +46,7 @@ const {
     mockVerifyAccessToken: vi.fn(),
     mockIntakeFindFirst: vi.fn(),
     mockUserFindUnique: vi.fn(),
+    mockSubscriptionFindFirst: vi.fn(),
     RedirectError: _RedirectError,
   };
 });
@@ -74,6 +76,7 @@ vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     intake: { findFirst: mockIntakeFindFirst },
     user: { findUnique: mockUserFindUnique },
+    subscription: { findFirst: mockSubscriptionFindFirst },
   },
 }));
 
@@ -85,6 +88,14 @@ vi.mock('@prisma/client', () => ({
     APPROVED: 'APPROVED',
     REJECTED: 'REJECTED',
     NEEDS_INFO: 'NEEDS_INFO',
+    EXPIRED: 'EXPIRED',
+  },
+  SubscriptionStatus: {
+    ACTIVE: 'ACTIVE',
+    TRIALING: 'TRIALING',
+    CANCELLED: 'CANCELLED',
+    PAST_DUE: 'PAST_DUE',
+    UNPAID: 'UNPAID',
     EXPIRED: 'EXPIRED',
   },
 }));
@@ -142,9 +153,24 @@ describe('Patient Layout Intake Gate', () => {
     expect(mockRedirect).toHaveBeenCalledWith('/login?from=/patient/dashboard');
   });
 
+  it('redirects to /checkout/payment when user has no active subscription', async () => {
+    setCookie('valid-token');
+    mockVerifyAccessToken.mockResolvedValue({ userId: 'user-0', role: 'PATIENT' });
+    mockSubscriptionFindFirst.mockResolvedValue(null);
+
+    await expect(
+      PatientLayout({ children: 'child' as unknown as React.ReactNode })
+    ).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(mockRedirect).toHaveBeenCalledWith('/checkout/payment');
+    // Intake check should not run if subscription gate fails
+    expect(mockIntakeFindFirst).not.toHaveBeenCalled();
+  });
+
   it('redirects to /intake when user has no completed intake', async () => {
     setCookie('valid-token');
     mockVerifyAccessToken.mockResolvedValue({ userId: 'user-1', role: 'PATIENT' });
+    mockSubscriptionFindFirst.mockResolvedValue({ id: 'sub-1' });
     mockIntakeFindFirst.mockResolvedValue(null);
 
     await expect(
@@ -168,6 +194,7 @@ describe('Patient Layout Intake Gate', () => {
   it('renders children (does not redirect) when a completed intake exists', async () => {
     setCookie('valid-token');
     mockVerifyAccessToken.mockResolvedValue({ userId: 'user-2', role: 'PATIENT' });
+    mockSubscriptionFindFirst.mockResolvedValue({ id: 'sub-2' });
     mockIntakeFindFirst.mockResolvedValue({ id: 'intake-1' });
     // MFA gate: user with MFA enabled (passes gate) or within grace period
     mockUserFindUnique.mockResolvedValue({ mfaEnabled: true, createdAt: new Date() });

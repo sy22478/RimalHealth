@@ -112,9 +112,49 @@ function RejectedState() {
   );
 }
 
-function PrescriptionStatusCard({ prescription }: { prescription: PrescriptionSummary }) {
+interface PrescriptionStatusCardProps {
+  prescription: PrescriptionSummary;
+  onRefillRequested: () => void;
+}
+
+function PrescriptionStatusCard({ prescription, onRefillRequested }: PrescriptionStatusCardProps) {
   const statusDisplay = getPrescriptionStatusDisplay(prescription.status);
   const isRefillEligible = canRequestRefill(prescription);
+  const [refillLoading, setRefillLoading] = React.useState(false);
+  const [refillMessage, setRefillMessage] = React.useState<
+    { type: 'success' | 'error'; text: string } | null
+  >(null);
+
+  async function handleRefillRequest() {
+    setRefillLoading(true);
+    setRefillMessage(null);
+    try {
+      const res = await fetch(`/api/patient/prescriptions/${prescription.id}/refill`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setRefillMessage({
+          type: 'error',
+          text: (data as { error?: string }).error || 'Failed to submit refill request. Please try again.',
+        });
+        return;
+      }
+      setRefillMessage({
+        type: 'success',
+        text: 'Refill request submitted. Your physician will review it shortly.',
+      });
+      onRefillRequested();
+    } catch (err) {
+      setRefillMessage({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'Network error. Please try again.',
+      });
+    } finally {
+      setRefillLoading(false);
+    }
+  }
 
   return (
     <motion.div
@@ -211,10 +251,26 @@ function PrescriptionStatusCard({ prescription }: { prescription: PrescriptionSu
               )}
 
               {isRefillEligible && (
-                <Button className="w-full bg-ocean-500 hover:bg-ocean-600 text-white">
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Request Refill
-                </Button>
+                <div className="space-y-2">
+                  <Button
+                    className="w-full bg-ocean-500 hover:bg-ocean-600 text-white"
+                    disabled={refillLoading}
+                    onClick={handleRefillRequest}
+                  >
+                    <RefreshCw className={cn('h-4 w-4 mr-2', refillLoading && 'animate-spin')} />
+                    {refillLoading ? 'Submitting…' : 'Request Refill'}
+                  </Button>
+                  {refillMessage && (
+                    <p
+                      className={cn(
+                        'text-sm',
+                        refillMessage.type === 'success' ? 'text-green-700' : 'text-red-700'
+                      )}
+                    >
+                      {refillMessage.text}
+                    </p>
+                  )}
+                </div>
               )}
             </>
           )}
@@ -244,22 +300,23 @@ export default function PrescriptionsPage() {
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
-  React.useEffect(() => {
-    async function loadPrescriptions() {
-      try {
-        const res = await fetch('/api/patient/prescriptions', { credentials: 'include' });
-        if (!res.ok) throw new Error('Failed to load prescriptions');
-        const data: PrescriptionsApiResponse = await res.json();
-        setPrescriptions(Array.isArray(data.prescriptions) ? data.prescriptions : []);
-        setIntakeStatus(data.intakeStatus);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load prescriptions');
-      } finally {
-        setIsLoading(false);
-      }
+  const loadPrescriptions = React.useCallback(async () => {
+    try {
+      const res = await fetch('/api/patient/prescriptions', { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to load prescriptions');
+      const data: PrescriptionsApiResponse = await res.json();
+      setPrescriptions(Array.isArray(data.prescriptions) ? data.prescriptions : []);
+      setIntakeStatus(data.intakeStatus);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load prescriptions');
+    } finally {
+      setIsLoading(false);
     }
-    loadPrescriptions();
   }, []);
+
+  React.useEffect(() => {
+    loadPrescriptions();
+  }, [loadPrescriptions]);
 
   if (isLoading) {
     return (
@@ -357,7 +414,11 @@ export default function PrescriptionsPage() {
               </h2>
               <div className="grid gap-4">
                 {activePrescriptions.map((prescription) => (
-                  <PrescriptionStatusCard key={prescription.id} prescription={prescription} />
+                  <PrescriptionStatusCard
+                    key={prescription.id}
+                    prescription={prescription}
+                    onRefillRequested={loadPrescriptions}
+                  />
                 ))}
               </div>
             </div>
@@ -374,7 +435,11 @@ export default function PrescriptionsPage() {
               </h2>
               <div className="grid gap-4 opacity-75">
                 {pastPrescriptions.map((prescription) => (
-                  <PrescriptionStatusCard key={prescription.id} prescription={prescription} />
+                  <PrescriptionStatusCard
+                    key={prescription.id}
+                    prescription={prescription}
+                    onRefillRequested={loadPrescriptions}
+                  />
                 ))}
               </div>
             </div>

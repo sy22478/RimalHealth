@@ -15,6 +15,7 @@ import { AuditService } from '@/lib/services/audit-service';
 import { ValidationService } from '@/lib/services/validation-service';
 import { createIntakeSchema } from '@/lib/validation/schemas';
 import { Role, IntakeStatus, PaymentStatus, Prisma } from '@prisma/client';
+import { calculateAge } from '@/lib/utils/date-helpers';
 
 // ============================================================================
 // POST - Create Intake Draft
@@ -48,6 +49,27 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const { primaryConcern, formData } = validation.data!;
+
+    // Reject minors before the draft is stored — prevents a minor from entering
+    // SUD and medical PHI into the 33-question form before /submit rejects them.
+    if (formData && typeof formData === 'object') {
+      const fd = formData as Record<string, unknown>;
+      const dob = typeof fd.dateOfBirth === 'string' && fd.dateOfBirth.length > 0
+        ? fd.dateOfBirth
+        : null;
+      if (dob) {
+        const age = calculateAge(dob);
+        if (age !== null && age < 18) {
+          return NextResponse.json(
+            {
+              error: 'You must be 18 or older to use this service.',
+              code: 'AGE_REQUIREMENT_NOT_MET',
+            },
+            { status: 403 }
+          );
+        }
+      }
+    }
 
     // Check + create atomically inside a transaction to prevent race conditions
     // (concurrent requests from multiple tabs creating duplicate intakes)

@@ -17,6 +17,7 @@ import { ValidationService } from '@/lib/services/validation-service';
 import { updateIntakeSchema } from '@/lib/validation/schemas';
 import { Role, IntakeStatus, Prisma } from '@prisma/client';
 import { DataModificationAction } from '@/lib/audit/index';
+import { calculateAge } from '@/lib/utils/date-helpers';
 
 // ============================================================================
 // GET - Retrieve Intake
@@ -154,6 +155,26 @@ export async function PATCH(
     }
 
     const { formData, isDraft } = validation.data!;
+
+    // Reject minors before the draft is updated with SUD/medical PHI.
+    if (formData && typeof formData === 'object') {
+      const fd = formData as Record<string, unknown>;
+      const dob = typeof fd.dateOfBirth === 'string' && fd.dateOfBirth.length > 0
+        ? fd.dateOfBirth
+        : null;
+      if (dob) {
+        const age = calculateAge(dob);
+        if (age !== null && age < 18) {
+          return NextResponse.json(
+            {
+              error: 'You must be 18 or older to use this service.',
+              code: 'AGE_REQUIREMENT_NOT_MET',
+            },
+            { status: 403 }
+          );
+        }
+      }
+    }
 
     // Get intake
     const intake = await prisma.intake.findUnique({

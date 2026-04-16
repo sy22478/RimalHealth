@@ -13,6 +13,7 @@ import { prisma } from '@/lib/db/prisma';
 import { AuditService } from '@/lib/services/audit-service';
 import { Role } from '@prisma/client';
 import { getPatientPrescriptions } from '@/lib/patient/prescriptions';
+import { auditLogger } from '@/lib/audit/index';
 
 // ============================================================================
 // GET - List Prescriptions
@@ -44,13 +45,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }),
     ]);
 
-    // Log access
-    await AuditService.logPrescriptionAccess(
+    // Log list access. Don't pass 'list' as a prescriptionId — corrupts
+    // disclosure-accounting data (42 CFR Part 2 requirement). Use the resource
+    // type 'prescription_list' with the patient's userId as the resourceId.
+    await auditLogger.logPHIAccess(
+      'VIEW',
       userId,
       'PATIENT',
-      'list',
-      'VIEW',
-      auditContext
+      'prescription_list',
+      userId,
+      auditContext,
+      {
+        accessReason: 'Viewing prescription list',
+        prescriptionCount: prescriptions.length,
+      } as Record<string, unknown>
     );
 
     return NextResponse.json({

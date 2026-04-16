@@ -10,11 +10,37 @@ import { prisma } from '@/lib/db/prisma';
 import { Role } from '@prisma/client';
 import { auditLogger, createAuditContext } from '@/lib/audit/index';
 import { searchNpiPharmacies } from '@/lib/integrations/npi-registry';
+import { rateLimit } from '@/lib/middleware/rate-limit';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const auth = await requireRole(request, [Role.PATIENT]);
   if (auth instanceof NextResponse) {
     return auth;
+  }
+
+  // Cap NPI Registry calls at 10 searches per minute per user so a single
+  // patient can't burn the shared NPI Registry quota.
+  const rl = await rateLimit(`pharmacy-search:${auth.user.userId}`, {
+    requests: 10,
+    windowMs: 60 * 1000,
+    keyPrefix: 'ratelimit:pharmacy-search',
+    useMemoryFallback: true,
+  });
+  if (!rl.success) {
+    return NextResponse.json(
+      {
+        error: 'Too many pharmacy searches. Please wait before searching again.',
+        code: 'RATE_LIMITED',
+      },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': String(rl.retryAfter ?? 60),
+          'X-RateLimit-Limit': String(rl.limit),
+          'X-RateLimit-Remaining': String(rl.remaining),
+        },
+      }
+    );
   }
 
   try {

@@ -134,24 +134,25 @@ export async function DELETE(
       );
     }
 
-    // Delete file from S3 (only for documents with an S3 key)
-    if (document.s3Key) {
-      try {
-        await deleteFile(document.s3Key);
-      } catch (s3Error) {
-        console.error('Error deleting file from S3:', s3Error instanceof Error ? s3Error.message : 'Unknown error');
-        // Continue with DB update even if S3 deletion fails
-        // The file will be orphaned but marked as deleted in DB
-      }
-    }
-
-    // Soft delete in database
+    // Soft-delete in DB first so the document is immediately inaccessible to the
+    // patient, then remove the underlying S3 object. Ordering DB-before-S3 ensures
+    // that if the S3 call fails, the record stays marked DELETED (orphan cleanup
+    // job will reap the S3 object later) rather than leaving a ghost in the UI.
     await prisma.document.update({
       where: { id },
       data: {
         status: DocumentStatus.DELETED,
       },
     });
+
+    if (document.s3Key) {
+      try {
+        await deleteFile(document.s3Key);
+      } catch (s3Error) {
+        console.error('Error deleting file from S3 after DB soft-delete:', s3Error instanceof Error ? s3Error.message : 'Unknown error');
+        // DB record is already DELETED; the S3 object becomes an orphan until cleanup runs.
+      }
+    }
 
     // Audit log - PHI access (document deleted)
     const auditContext = createAuditContext(request);

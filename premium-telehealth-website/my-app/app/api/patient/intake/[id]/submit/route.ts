@@ -272,6 +272,12 @@ export async function POST(
 
     const fd = formData as Record<string, unknown>;
 
+    // Normalize opioidUse to an array before scoring and persistence. Corrupted draft data
+    // (string, object, null) would silently bypass the naltrexone contraindication check in
+    // detectContraindications via its Array.isArray guard — clinical-safety critical.
+    const opioidUse = Array.isArray(fd.opioidUse) ? fd.opioidUse : [];
+    fd.opioidUse = opioidUse;
+
     // Generate provider decision summary (includes DSM-5 scoring + contraindications + withdrawal risk + scores)
     const providerSummary = generateProviderDecisionSummary(fd);
     // Use scores from the provider summary to avoid computing them twice
@@ -382,7 +388,7 @@ export async function POST(
         ...(fd.withdrawalDTs !== undefined ? { withdrawalDTs: fd.withdrawalDTs } : {}),
         ...(fd.withdrawalHospitalized !== undefined ? { withdrawalHospitalized: fd.withdrawalHospitalized } : {}),
         ...(fd.morningDrinking !== undefined ? { morningDrinking: fd.morningDrinking } : {}),
-        ...(fd.opioidUse !== undefined ? { opioidUse: fd.opioidUse } : {}),
+        ...(opioidUse.length > 0 ? { opioidUse } : {}),
         ...(fd.opioidMaintenance !== undefined ? { opioidMaintenance: fd.opioidMaintenance } : {}),
         ...(liverCondition ? { liverCondition } : {}),
         ...(fd.liverTests ? { liverTests: fd.liverTests } : {}),

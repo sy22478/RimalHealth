@@ -7,6 +7,16 @@ export const siteConfig = {
   license: "California Medical License",
 };
 
+/**
+ * US states in which the service is currently available. Used to normalize
+ * patient address state and to gate California-only business rules.
+ * Single-source-of-truth for state expansion.
+ */
+export const ALLOWED_STATES = ['CA'] as const;
+export type AllowedState = (typeof ALLOWED_STATES)[number];
+/** Default state when a patient state needs to be forced to the allowed set. */
+export const DEFAULT_ALLOWED_STATE: AllowedState = ALLOWED_STATES[0];
+
 export const navLinks = [
   { href: "/about", label: "About" },
   { href: "/how-it-works", label: "How It Works" },

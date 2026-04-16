@@ -20,6 +20,7 @@ import { validateCaliforniaZip, validateCaliforniaState } from '@/lib/utils/vali
 import { DataModificationAction } from '@/lib/audit/index';
 import { validateAddress } from '@/lib/integrations/location';
 import { requireCSRF } from '@/lib/security/csrf';
+import { DEFAULT_ALLOWED_STATE } from '@/lib/constants';
 // PHI encryption/decryption is handled automatically by the Prisma encryption extension
 // in lib/db/encryption-extension.ts. Do NOT manually call encryptPHI/decryptPHI on fields
 // that are listed in PHI_FIELDS — doing so causes double-encryption (data corruption).
@@ -347,7 +348,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
       if (!stateValidation.valid) {
         return NextResponse.json({ error: stateValidation.error }, { status: 400 });
       }
-      dataToUpdate.addressState = 'CA';
+      dataToUpdate.addressState = DEFAULT_ALLOWED_STATE;
       changedFields.push('addressState');
     }
 
@@ -364,7 +365,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
         const addrResult = await validateAddress({
           street: addrStreet,
           city: addrCity,
-          state: 'CA',
+          state: DEFAULT_ALLOWED_STATE,
           zip: addrZip,
         });
 
@@ -394,18 +395,20 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
       }
     }
 
+    // JSON fields: pass raw values — the Prisma encryption extension serializes
+    // and encrypts before write. Don't double-serialize with JSON.parse(JSON.stringify()).
     if (updateData.medicalHistory !== undefined && updateData.medicalHistory !== '') {
-      dataToUpdate.medicalHistory = updateData.medicalHistory ? JSON.parse(JSON.stringify(updateData.medicalHistory)) : null;
+      dataToUpdate.medicalHistory = updateData.medicalHistory || null;
       changedFields.push('medicalHistory');
     }
 
     if (updateData.currentMedications !== undefined && updateData.currentMedications !== '') {
-      dataToUpdate.currentMedications = updateData.currentMedications ? JSON.parse(JSON.stringify(updateData.currentMedications)) : null;
+      dataToUpdate.currentMedications = updateData.currentMedications || null;
       changedFields.push('currentMedications');
     }
 
     if (updateData.allergies !== undefined && updateData.allergies !== '') {
-      dataToUpdate.allergies = updateData.allergies ? JSON.parse(JSON.stringify(updateData.allergies)) : null;
+      dataToUpdate.allergies = updateData.allergies || null;
       changedFields.push('allergies');
     }
 
@@ -524,7 +527,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
         treatmentGoal: refreshedProfile.treatmentGoal,
         medicalHistory: extractMedicalConditions(refreshedProfile.medicalHistory),
         currentMedications: extractMedications(refreshedProfile.currentMedications),
-        allergies: refreshedProfile.allergies,
+        allergies: serializePHIField(refreshedProfile.allergies),
         pharmacy: updatedPharmacy,
         notificationPreferences: refreshedProfile.notificationPreferences,
         privacyConsent: {

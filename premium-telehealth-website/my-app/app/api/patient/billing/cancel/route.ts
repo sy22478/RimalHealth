@@ -19,7 +19,7 @@ import { z } from 'zod';
 import { requireRole } from '@/lib/auth/require-auth';
 import { sendEmail } from '@/lib/integrations/sendgrid';
 import { EmailTemplate } from '@/lib/notifications/templates';
-import { Role } from '@prisma/client';
+import { Role, SubscriptionStatus } from '@prisma/client';
 
 // ============================================================================
 // Types & Validation
@@ -105,17 +105,24 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     try {
-      // Fetch subscription from database
+      // Fetch subscription — allow cancellation from ACTIVE, TRIALING, and PAST_DUE.
+      // Trial users and users who missed a payment still need to be able to opt out.
       const subscription = await prisma.subscription.findFirst({
-        where: { 
+        where: {
           userId,
-          status: 'ACTIVE',
+          status: {
+            in: [
+              SubscriptionStatus.ACTIVE,
+              SubscriptionStatus.TRIALING,
+              SubscriptionStatus.PAST_DUE,
+            ],
+          },
         },
       });
 
       if (!subscription) {
         return NextResponse.json(
-          { error: 'No active subscription found' },
+          { error: 'No cancellable subscription found' },
           { status: 404 }
         );
       }

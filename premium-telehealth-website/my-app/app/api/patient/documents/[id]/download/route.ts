@@ -90,9 +90,15 @@ export async function GET(
     const mode = request.nextUrl.searchParams.get('mode');
     const viewableMime = document.mimeType?.startsWith('image/') || document.mimeType === 'application/pdf';
     const isInlineView = mode === 'view' && viewableMime;
-    const disposition = isInlineView
-      ? `inline; filename="${document.fileName}"`
-      : `attachment; filename="${document.fileName}"`;
+
+    // Sanitize filename for the Content-Disposition header to prevent CRLF /
+    // quote injection. Keep ASCII-safe chars only for the `filename=` form and
+    // also emit an RFC 6266 `filename*` token so Unicode names still round-trip.
+    const rawName = document.fileName || 'document';
+    const safeName = rawName.replace(/[^\w.-]/g, '_');
+    const encodedName = encodeURIComponent(rawName).replace(/['()]/g, (c) => `%${c.charCodeAt(0).toString(16)}`);
+    const dispositionType = isInlineView ? 'inline' : 'attachment';
+    const disposition = `${dispositionType}; filename="${safeName}"; filename*=UTF-8''${encodedName}`;
 
     // Audit log - PHI access (document downloaded/viewed)
     const auditContext = createAuditContext(request);
