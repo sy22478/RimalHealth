@@ -103,7 +103,7 @@ const STATUS_CONFIG: Record<PrescriptionStatus, StatusConfig> = {
     variant: 'default',
     icon: Check,
     color: 'text-blue-600 bg-blue-50 border-blue-200',
-    description: 'Sent to pharmacy via Surescripts',
+    description: 'Sent to pharmacy',
   },
   RECEIVED_BY_PHARMACY: {
     label: 'Received',

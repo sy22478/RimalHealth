@@ -1,11 +1,14 @@
 /**
  * POST /api/physician/prescriptions/send
- * Send prescription to pharmacy (DoseSpot integration)
- * 
+ * Mark prescription as sent to pharmacy and notify the patient.
+ *
+ * The physician sends prescriptions manually through a separate app.
+ * This route records the status change and notifies the patient.
+ *
  * HIPAA Compliance:
  * - Requires PHYSICIAN role
- * - Logs prescription sending
- * - Notifies patient
+ * - Logs prescription status change
+ * - Notifies patient (no PHI in notification)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -24,24 +27,12 @@ import { Role, PrescriptionStatus } from '@prisma/client';
 export async function POST(request: NextRequest): Promise<NextResponse> {
   // Require physician role
   const auth = await requireRole(request, [Role.PHYSICIAN]);
-  
+
   if (auth instanceof NextResponse) {
     return auth;
   }
 
   const { userId } = auth.user;
-
-  // DoseSpot integration is not implemented — block in production
-  if (process.env.NODE_ENV === 'production' && !process.env.DOSESPOT_CLIENT_ID) {
-    return NextResponse.json(
-      {
-        error: 'E-prescribing is not yet available. Please send prescriptions manually and use the "Mark as Sent" button.',
-        code: 'EPRESCRIBING_UNAVAILABLE',
-      },
-      { status: 503 }
-    );
-  }
-
   const auditContext = AuditService.createAuditContext(
     request,
     userId,
@@ -66,9 +57,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const { prescriptionId, pharmacyId, pharmacyNcpdpId } = validation.data!;
+    const { prescriptionId } = validation.data!;
 
-    // Get prescription
+    // Get prescription with patient info
     const prescription = await prisma.prescription.findUnique({
       where: { id: prescriptionId },
       include: {
@@ -95,7 +86,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (prescription.status !== PrescriptionStatus.PENDING) {
       return NextResponse.json(
         {
-          error: 'Prescription cannot be sent',
+          error: 'Prescription cannot be sent — only PENDING prescriptions can be sent',
           code: 'PRESCRIPTION_NOT_SENDABLE',
           status: prescription.status,
         },
@@ -103,83 +94,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Get pharmacy details
-    let pharmacyName = 'Unknown Pharmacy';
-    if (pharmacyId) {
-      const pharmacy = await prisma.pharmacy.findUnique({
-        where: { id: pharmacyId },
-      });
-      if (pharmacy) {
-        pharmacyName = pharmacy.name;
-      }
-    }
+    // Use pharmacy info already on the prescription record
+    const pharmacyName = prescription.pharmacyName || 'Unknown Pharmacy';
 
-    // DoseSpot e-prescribing integration with production safety guards
-    const isProduction = process.env.NODE_ENV === 'production';
-    const isMockModeEnabled = process.env.DOSESPOT_MOCK_MODE === 'true';
-    const hasDoseSpotCredentials = !!(
-      process.env.DOSESPOT_CLIENT_ID && process.env.DOSESPOT_CLIENT_SECRET
-    );
+    // TODO: Re-enable when DoseSpot goes live — physician currently sends manually
+    // The physician sends the prescription through their own e-prescribing app,
+    // then clicks "Send" here to record the status change and notify the patient.
 
-    let sendResult: { success: boolean; mock?: boolean };
-
-    if (isProduction && !isMockModeEnabled && !hasDoseSpotCredentials) {
-      // Production without credentials and mock mode not explicitly enabled — block the request
-      // Do NOT silently return success when e-prescribing is not configured
-      await prisma.prescription.update({
-        where: { id: prescriptionId },
-        data: {
-          status: PrescriptionStatus.PENDING,
-        },
-      });
-
-      return NextResponse.json(
-        {
-          error: 'E-prescribing service not configured. Prescriptions cannot be sent at this time.',
-          code: 'SERVICE_UNAVAILABLE',
-        },
-        { status: 503 }
-      );
-    }
-
-    if (isMockModeEnabled || !isProduction) {
-      // Mock mode explicitly enabled OR development/test environment
-      console.warn(
-        `[DoseSpot] WARNING: Using mock prescription sending (env=${process.env.NODE_ENV}, mockMode=${isMockModeEnabled})`
-      );
-      sendResult = { success: true, mock: true };
-    } else {
-      // Production with credentials — attempt real DoseSpot call
-      // TODO: Integrate with DoseSpot for e-prescribing
-      // sendResult = await sendToDoseSpot({ ... });
-      // For now, this path requires credentials to exist but actual API integration is not yet implemented
-      console.warn('[DoseSpot] WARNING: Real DoseSpot API integration not yet implemented, using mock');
-      sendResult = { success: true, mock: true };
-    }
-
-    // Only set status to SENT if the send operation succeeded
-    const prescriptionStatus = sendResult.success
-      ? PrescriptionStatus.SENT
-      : PrescriptionStatus.PENDING;
-
-    if (!sendResult.success) {
-      return NextResponse.json(
-        {
-          error: 'Failed to send prescription to pharmacy',
-          code: 'DOSESPOT_SEND_FAILED',
-        },
-        { status: 502 }
-      );
-    }
-
-    // Update prescription status
+    // Update prescription status to SENT
     const updatedPrescription = await prisma.prescription.update({
       where: { id: prescriptionId },
       data: {
-        status: prescriptionStatus,
+        status: PrescriptionStatus.SENT,
         sentAt: new Date(),
-        pharmacyId: pharmacyId || undefined,
-        pharmacyName,
       },
     });
 
@@ -192,12 +119,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       auditContext
     );
 
-    // Notify patient
-    await NotificationService.notifyPrescriptionSent(
-      prescription.patientId,
-      prescriptionId,
-      pharmacyName
-    );
+    // Notify patient — graceful degradation: don't fail if notification errors
+    try {
+      await NotificationService.notifyPrescriptionSent(
+        prescription.patientId,
+        prescriptionId,
+        pharmacyName
+      );
+    } catch (notifyError) {
+      console.error(
+        'Failed to notify patient of prescription send:',
+        notifyError instanceof Error ? notifyError.message : 'Unknown error'
+      );
+    }
 
     return NextResponse.json({
       success: true,
@@ -205,13 +139,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         id: updatedPrescription.id,
         status: updatedPrescription.status,
         sentAt: updatedPrescription.sentAt?.toISOString(),
+        medicationName: updatedPrescription.medicationName,
         pharmacyName: updatedPrescription.pharmacyName,
       },
-      _mock: 'mock' in sendResult ? sendResult.mock : false,
     });
   } catch (error) {
     console.error('Send prescription error:', error instanceof Error ? error.message : 'Unknown error');
-    
+
     await AuditService.logApiError(
       error instanceof Error ? error : new Error('Unknown error'),
       '/api/physician/prescriptions/send',

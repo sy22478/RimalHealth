@@ -116,28 +116,29 @@ export function PhysicianPrescriptionsClient({ initialPrescriptions }: Physician
       return;
     }
 
-    if (!confirm(`Confirm you have sent this prescription to ${rx.pharmacyName}?`)) {
-      return;
-    }
+    const confirmed = confirm(
+      `This will notify the patient that their prescription has been sent to ${rx.pharmacyName}.\n\nHave you sent the prescription through your e-prescribing app?`
+    );
+    if (!confirmed) return;
 
     try {
-      const res = await fetch(`/api/physician/prescriptions/${prescriptionId}`, {
-        method: 'PUT',
+      const res = await fetch('/api/physician/prescriptions/send', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ status: 'SENT' }),
+        body: JSON.stringify({ prescriptionId }),
       });
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || 'Failed to update prescription');
+        throw new Error(data.error || 'Failed to send prescription');
       }
 
-      setToast({ message: `Prescription marked as sent to ${rx.pharmacyName}`, type: 'success' });
+      setToast({ message: `Prescription marked as sent to ${rx.pharmacyName}. Patient notified.`, type: 'success' });
       await refreshPrescriptions();
     } catch (err) {
       setToast({
-        message: err instanceof Error ? err.message : 'Failed to update prescription',
+        message: err instanceof Error ? err.message : 'Failed to send prescription',
         type: 'error',
       });
     }
