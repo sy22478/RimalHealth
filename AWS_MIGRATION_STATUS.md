@@ -41,7 +41,7 @@ This document is the single source of truth for the RimalHealth AWS migration. U
 | **Twilio → SNS migration** | `lib/integrations/sns.ts` created. MFA send-sms route + notifications now use SNS instead of Twilio. `sns:Publish` permission added to `rimalhealth-task-role`. Twilio code kept for reference. |
 | **Address validation** | `lib/integrations/location.ts` created. Profile PUT + intake submit validate via Amazon Location Service. Patient address validate API at `/api/patient/address/validate`. |
 | **Prescription send trigger** | `/api/physician/prescriptions/send` simplified — marks SENT + notifies patient. No DoseSpot dependency. |
-| **Document upload cleanup** | Deleted unused presigned URL flow (`upload-url`, `confirm` routes) and orphaned `DocumentUploader.tsx`. Direct upload path is the single working flow. |
+| **Production readiness fixes** | 4 fix sessions: Security/HIPAA (63d6a4c), Patient Portal (f8dcf8b), Marketing/Auth (9dad104), Physician Portal (b41217e). 62 files, 2 Prisma migrations, 14 P0/CRITICALs fixed, 20+ P1/HIGHs fixed. All tests passing (386+). |
 
 ### Third-party services — migration plan
 
