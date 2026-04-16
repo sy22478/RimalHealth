@@ -19,6 +19,7 @@ import { submitIntakeSchema, dsm5IntakeFormDataSchema } from '@/lib/validation/s
 import { generateProviderDecisionSummary } from '@/lib/intake/scoring';
 import { Role, IntakeStatus, DocumentType, DocumentStatus, Prisma } from '@prisma/client';
 import { DataModificationAction } from '@/lib/audit/index';
+import { validateAddress } from '@/lib/integrations/location';
 
 // ============================================================================
 // POST - Submit Intake
@@ -155,6 +156,45 @@ export async function POST(
           { error: 'Pharmacy ZIP code must be a valid California ZIP code (90001-96162)', code: 'CA_ONLY' },
           { status: 400 }
         );
+      }
+    }
+
+    // Amazon Location Service address validation (graceful degradation)
+    const intakeStreet = fd_raw.addressStreet as string | undefined;
+    const intakeCity = fd_raw.addressCity as string | undefined;
+    const intakeZip = fd_raw.addressZip as string | undefined;
+    if (intakeStreet && intakeCity && intakeZip) {
+      try {
+        const addrResult = await validateAddress({
+          street: intakeStreet,
+          city: intakeCity,
+          state: 'CA',
+          zip: intakeZip,
+        });
+
+        if (!addrResult.error && !addrResult.valid) {
+          if (addrResult.suggestions.length > 0) {
+            return NextResponse.json(
+              {
+                error: 'Address could not be verified',
+                code: 'ADDRESS_INVALID',
+                suggestions: addrResult.suggestions,
+              },
+              { status: 400 }
+            );
+          }
+          return NextResponse.json(
+            {
+              error: 'Address could not be verified. Please check and try again.',
+              code: 'ADDRESS_INVALID',
+            },
+            { status: 400 }
+          );
+        }
+        // If addrResult.error (Location Service failure), proceed — graceful degradation
+      } catch (addrError) {
+        // Location Service is down — log and proceed, don't block intake submission
+        console.error('Address validation service unavailable:', addrError instanceof Error ? addrError.message : 'Unknown error');
       }
     }
 

@@ -39,6 +39,7 @@
     "health-check": "./scripts/health-check.sh"
   },
   "dependencies": {
+    "@aws-sdk/client-location": "^3.1030.0",
     "@aws-sdk/client-s3": "^3.996.0",
     "@aws-sdk/client-ses": "^3.1030.0",
     "@aws-sdk/s3-request-presigner": "^3.996.0",

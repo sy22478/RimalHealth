@@ -18,6 +18,7 @@ import { updateProfileSchema } from '@/lib/validation/schemas';
 import { Role, IntakeStatus } from '@prisma/client';
 import { validateCaliforniaZip, validateCaliforniaState } from '@/lib/utils/validation-helpers';
 import { DataModificationAction } from '@/lib/audit/index';
+import { validateAddress } from '@/lib/integrations/location';
 // PHI encryption/decryption is handled automatically by the Prisma encryption extension
 // in lib/db/encryption-extension.ts. Do NOT manually call encryptPHI/decryptPHI on fields
 // that are listed in PHI_FIELDS — doing so causes double-encryption (data corruption).
@@ -343,6 +344,49 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
       }
       dataToUpdate.addressState = 'CA';
       changedFields.push('addressState');
+    }
+
+    // Amazon Location Service address validation (graceful degradation)
+    const addrStreet = (dataToUpdate.addressStreet as string) || updateData.addressStreet;
+    const addrCity = (dataToUpdate.addressCity as string) || updateData.addressCity;
+    const addrZip = (dataToUpdate.addressZip as string) || updateData.addressZip;
+    if (
+      hasValue(addrStreet) &&
+      hasValue(addrCity) &&
+      hasValue(addrZip)
+    ) {
+      try {
+        const addrResult = await validateAddress({
+          street: addrStreet,
+          city: addrCity,
+          state: 'CA',
+          zip: addrZip,
+        });
+
+        if (!addrResult.error && !addrResult.valid) {
+          if (addrResult.suggestions.length > 0) {
+            return NextResponse.json(
+              {
+                error: 'Address could not be verified',
+                code: 'ADDRESS_INVALID',
+                suggestions: addrResult.suggestions,
+              },
+              { status: 400 }
+            );
+          }
+          return NextResponse.json(
+            {
+              error: 'Address could not be verified. Please check and try again.',
+              code: 'ADDRESS_INVALID',
+            },
+            { status: 400 }
+          );
+        }
+        // If addrResult.error (Location Service failure), proceed — graceful degradation
+      } catch (addrError) {
+        // Location Service is down — log and proceed, don't block profile saves
+        console.error('Address validation service unavailable:', addrError instanceof Error ? addrError.message : 'Unknown error');
+      }
     }
 
     if (updateData.medicalHistory !== undefined && updateData.medicalHistory !== '') {

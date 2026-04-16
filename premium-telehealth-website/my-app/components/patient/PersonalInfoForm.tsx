@@ -17,6 +17,7 @@ import {
   X,
   ChevronDown,
   Lock,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -482,6 +483,68 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
     setShowPharmacySearch(false);
   }, [setValue]);
 
+  // Address validation state
+  const [addressValidating, setAddressValidating] = React.useState(false);
+  const [addressValid, setAddressValid] = React.useState<boolean | null>(null);
+  const [addressSuggestions, setAddressSuggestions] = React.useState<Array<{
+    label: string;
+    street: string;
+    city: string;
+    state: string;
+    zipCode: string;
+  }>>([]);
+
+  const handleVerifyAddress = async (): Promise<void> => {
+    const street = watch('addressStreet');
+    const city = watch('addressCity');
+    const zip = watch('addressZip');
+
+    if (!street || !city || !zip) return;
+
+    setAddressValidating(true);
+    setAddressValid(null);
+    setAddressSuggestions([]);
+
+    try {
+      const res = await fetch('/api/patient/address/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ street, city, state: 'CA', zip }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (Array.isArray(data.suggestions) && data.suggestions.length > 0) {
+          setAddressValid(false);
+          setAddressSuggestions(data.suggestions);
+        } else {
+          setAddressValid(false);
+        }
+        return;
+      }
+
+      const data = await res.json();
+      setAddressValid(data.valid);
+      if (!data.valid && Array.isArray(data.suggestions)) {
+        setAddressSuggestions(data.suggestions);
+      }
+    } catch {
+      // API failure — silently skip, don't block the user
+      setAddressValid(null);
+    } finally {
+      setAddressValidating(false);
+    }
+  };
+
+  const applySuggestion = (suggestion: { street: string; city: string; zipCode: string }): void => {
+    setValue('addressStreet', suggestion.street, { shouldDirty: true });
+    setValue('addressCity', suggestion.city, { shouldDirty: true });
+    setValue('addressZip', suggestion.zipCode, { shouldDirty: true });
+    setAddressValid(true);
+    setAddressSuggestions([]);
+  };
+
   const onSubmit = async (data: PersonalInfoFormValues): Promise<void> => {
     setSubmitError(null);
     setSubmitSuccess(false);
@@ -806,6 +869,97 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
                 </AnimatePresence>
               </div>
             </div>
+
+            {/* Verify Address Button */}
+            <div className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleVerifyAddress}
+                disabled={addressValidating || !watch('addressStreet') || !watch('addressCity') || !watch('addressZip')}
+                className="text-ocean-600 border-ocean-200 hover:bg-ocean-50"
+              >
+                {addressValidating ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Verifying...
+                  </>
+                ) : (
+                  <>
+                    <MapPin className="mr-2 h-4 w-4" />
+                    Verify Address
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {/* Address verified indicator */}
+            <AnimatePresence>
+              {addressValid === true && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded-md"
+                >
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <span className="text-sm text-green-800">Address verified</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Address invalid — show suggestions */}
+            <AnimatePresence>
+              {addressValid === false && addressSuggestions.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="space-y-2"
+                >
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      We couldn&apos;t verify that address. Did you mean one of these?
+                    </AlertDescription>
+                  </Alert>
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                    {addressSuggestions.map((suggestion, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => applySuggestion(suggestion)}
+                        className="w-full text-left p-2.5 rounded-md border border-gray-200 hover:border-ocean-300 hover:bg-ocean-50 transition-colors text-sm"
+                      >
+                        <span className="font-medium">{suggestion.street}</span>
+                        <span className="text-muted-foreground">
+                          , {suggestion.city}, {suggestion.state} {suggestion.zipCode}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Address invalid — no suggestions */}
+            <AnimatePresence>
+              {addressValid === false && addressSuggestions.length === 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                >
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      Address could not be verified. Please double-check and try again.
+                    </AlertDescription>
+                  </Alert>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </CardContent>
         </Card>
 
