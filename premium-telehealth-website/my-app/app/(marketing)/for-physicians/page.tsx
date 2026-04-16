@@ -35,7 +35,7 @@ const capabilities = [
     icon: Pill,
     title: "Prescribe Naltrexone",
     description:
-      "Send e-prescriptions directly to the patient's pharmacy through our integrated DoseSpot prescribing system. No paper, no fax.",
+      "Use built-in prescription management tools to document treatment decisions and coordinate medication with the patient's pharmacy.",
   },
   {
     icon: MessageSquareLock,

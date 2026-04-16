@@ -60,3 +60,6 @@ website-*.png
 
 # Build artifacts and audit screenshots (anchored to repo root only)
 /audit/
+
+# Code review reports (local-only, may contain sensitive findings)
+reviews/

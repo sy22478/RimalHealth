@@ -160,8 +160,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     if (!user) {
       return NextResponse.json(
-        { error: 'User not found', code: 'USER_NOT_FOUND' },
-        { status: 404 },
+        { error: 'MFA verification failed', code: 'MFA_VERIFICATION_FAILED' },
+        { status: 401 },
       );
     }
 

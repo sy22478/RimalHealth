@@ -64,8 +64,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     if (!user) {
       return NextResponse.json(
-        { error: 'User not found', code: 'NOT_FOUND' },
-        { status: 404 }
+        { error: 'Unauthorized', code: 'UNAUTHORIZED' },
+        { status: 401 }
       );
     }
 

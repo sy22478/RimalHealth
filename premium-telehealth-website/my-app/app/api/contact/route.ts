@@ -63,7 +63,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "Invalid form data" }, { status: 400 });
     }
-    console.error("Contact route error");
+    console.error("Contact route error:", error instanceof Error ? error.message : "Unknown error");
     return NextResponse.json(
       { error: "Failed to send message. Please try again." },
       { status: 500 }

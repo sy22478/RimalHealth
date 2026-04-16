@@ -210,8 +210,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
       return NextResponse.json(
         {
-          error: 'User not found',
-          code: 'USER_NOT_FOUND',
+          error: 'Invalid token',
+          code: 'INVALID_TOKEN',
         },
         { status: 401 }
       );

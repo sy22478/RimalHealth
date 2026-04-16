@@ -136,7 +136,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const code = generateSMSCode();
     await storeSMSCode(redis, mfaPayload.userId, code);
 
-    // Send SMS via Twilio
+    // Send SMS via Amazon SNS
     await sendSMS({
       to: phone,
       body: `Your Rimal Health verification code is: ${code}. It expires in 5 minutes. Do not share this code.`,

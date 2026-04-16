@@ -78,14 +78,14 @@ export default function HowItWorksPage() {
             {/* Step 1 */}
             <StepCard
               number="1"
-              title="Choose your treatment plan"
-              description="Select the Active Treatment Plan ($50/month) or Maintenance Plan ($25/month) based on your needs. Both plans include unlimited messaging with your physician and prescription management."
+              title="Start your treatment plan"
+              description="Our Active Treatment Plan is $50/month — one flat fee that covers physician intake review, prescription management, and unlimited messaging with your doctor."
               icon={Sparkles}
               details={[
-                "Active Treatment: $50/month for patients currently in treatment",
-                "Maintenance: $25/month for completed treatment patients",
+                "Active Treatment: $50/month, everything included",
                 "Cancel anytime — no long-term contracts",
                 "HSA/FSA cards accepted",
+                "30-day money-back guarantee",
               ]}
               delay={0}
             />
