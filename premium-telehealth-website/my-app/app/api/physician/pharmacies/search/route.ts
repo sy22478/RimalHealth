@@ -23,6 +23,7 @@ import { Permission } from '@/lib/auth/rbac';
 import { searchPharmacies } from '@/lib/integrations/dosespot';
 import { auditLogger, AuditEventType } from '@/lib/audit/index';
 import { getClientIp, getUserAgent } from '@/lib/auth/require-auth';
+import { AuditService } from '@/lib/services/audit-service';
 
 // ============================================
 // VALIDATION SCHEMA
@@ -66,6 +67,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   const { user } = authResult;
+  const auditContext = AuditService.createAuditContext(request, user.userId, user.role);
 
   try {
     // Parse and validate query parameters
@@ -93,22 +95,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const validatedParams: SearchParams = validationResult.data;
 
-    // Log the search (no PHI - just the search parameters)
-    await auditLogger.log({
-      eventType: AuditEventType.PATIENT_DATA_VIEWED,
-      userId: user.userId,
-      userRole: user.role,
-      action: 'Pharmacy search',
-      resourceType: 'Pharmacy',
-      ipAddress: getClientIp(request),
-      userAgent: getUserAgent(request),
-      success: true,
-      metadata: {
-        searchZip: validatedParams.zip,
-        searchName: validatedParams.name,
-        searchRadius: validatedParams.radius,
-      },
-    });
+    // Log the search via logPHIAccess for consistency with other physician routes.
+    // The search itself isn't PHI-rich, but logging maintains audit parity.
+    await auditLogger.logPHIAccess(
+      'VIEW',
+      user.userId,
+      user.role,
+      'Pharmacy',
+      `search:${validatedParams.zip}`,
+      auditContext,
+      {
+        accessReason: `Pharmacy search (zip=${validatedParams.zip}, radius=${validatedParams.radius}mi)`,
+      }
+    );
 
     // Search pharmacies via DoseSpot
     const searchResult = await searchPharmacies({

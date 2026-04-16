@@ -67,7 +67,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const { prescriptionId } = validation.data!;
 
-    // Get prescription with patient info
+    // All physicians can manage all patients' prescriptions (business rule: no physician assignment)
+    // If this rule changes, add physician-ownership validation here.
     const prescription = await prisma.prescription.findUnique({
       where: { id: prescriptionId },
       include: {
@@ -102,8 +103,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Use pharmacy info already on the prescription record
-    const pharmacyName = prescription.pharmacyName || 'Unknown Pharmacy';
+    // Require pharmacy info before sending — matches validation in PUT route
+    if (!prescription.pharmacyName || !prescription.pharmacyName.trim()) {
+      return NextResponse.json(
+        {
+          error: 'Pharmacy information is required before sending a prescription.',
+          code: 'PHARMACY_REQUIRED',
+        },
+        { status: 400 }
+      );
+    }
+
+    const pharmacyName = prescription.pharmacyName;
 
     // 42 CFR Part 2: enforce active disclosure restrictions before sending PHI
     // (medication name, pharmacy identifier) outside the program.

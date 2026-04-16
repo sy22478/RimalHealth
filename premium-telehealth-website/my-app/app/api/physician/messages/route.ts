@@ -176,7 +176,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           threadId: msg.threadId,
           patientId: patientIdInThread,
           lastMessage: {
-            body: msg.body,
+            body: msg.body ? msg.body.slice(0, 120) + (msg.body.length > 120 ? '...' : '') : '',
             sentAt: msg.sentAt.toISOString(),
             senderType: msg.senderType,
           },

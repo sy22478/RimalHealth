@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Eye, EyeOff, Loader2, AlertCircle, Stethoscope, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, Loader2, AlertCircle, Stethoscope, ShieldCheck, KeyRound } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,7 @@ interface LoginResponse {
   redirectUrl?: string;
   requiresMFA?: boolean;
   mfaToken?: string;
+  requiresSecretKey?: boolean;
   error?: string;
   code?: string;
 }
@@ -59,6 +60,9 @@ export function PhysicianLoginForm() {
   const [mfaToken, setMfaToken] = React.useState("");
   const [mfaCode, setMfaCode] = React.useState("");
   const [isMFALoading, setIsMFALoading] = React.useState(false);
+  // Secret key state — invited physicians need a first-login secret key
+  const [requiresSecretKey, setRequiresSecretKey] = React.useState(false);
+  const [secretKey, setSecretKey] = React.useState("");
   const router = useRouter();
 
   const {
@@ -75,17 +79,33 @@ export function PhysicianLoginForm() {
     setError("");
 
     try {
+      const payload: { email: string; password: string; secretKey?: string } = {
+        email: data.email,
+        password: data.password,
+      };
+      if (requiresSecretKey && secretKey) {
+        payload.secretKey = secretKey;
+      }
+
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          email: data.email,
-          password: data.password,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const result: LoginResponse = await response.json();
+
+      // Invited physicians need a first-login secret key — re-render with the field
+      if (!response.ok && result.requiresSecretKey) {
+        setRequiresSecretKey(true);
+        setError(
+          requiresSecretKey
+            ? "Invalid secret key. Please check the key from your invitation email."
+            : ""
+        );
+        return;
+      }
 
       if (!response.ok) {
         // Generic error message to prevent email enumeration attacks
@@ -110,7 +130,10 @@ export function PhysicianLoginForm() {
       const redirectUrl = "/physician/queue";
       router.push(redirectUrl);
     } catch (err) {
-      // HIPAA-compliant: Don't log PHI or sensitive details
+      console.error(
+        'Physician login error:',
+        err instanceof Error ? err.message : 'Unknown error'
+      );
       setError("An unexpected error occurred. Please try again later.");
     } finally {
       setIsLoading(false);
@@ -369,16 +392,54 @@ export function PhysicianLoginForm() {
             </AnimatePresence>
           </div>
 
+          {/* Secret Key Field — only shown for invited physicians on first login */}
+          <AnimatePresence>
+            {requiresSecretKey && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="space-y-2 overflow-hidden"
+              >
+                <div className="p-3 rounded-lg bg-ocean-50 border border-ocean-200 flex items-start gap-2">
+                  <KeyRound className="size-4 text-ocean-600 mt-0.5 shrink-0" />
+                  <p className="text-sm text-ocean-800">
+                    First login detected. Enter the secret key from your invitation email to activate your account.
+                  </p>
+                </div>
+                <Label htmlFor="secret-key" className="text-foreground">
+                  Secret Key
+                </Label>
+                <Input
+                  id="secret-key"
+                  type="text"
+                  placeholder="Paste your secret key"
+                  autoComplete="off"
+                  disabled={isLoading}
+                  value={secretKey}
+                  onChange={(e) => setSecretKey(e.target.value)}
+                  className="h-11 font-mono text-sm"
+                  autoFocus
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* Submit Button */}
           <Button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || (requiresSecretKey && !secretKey.trim())}
             className="w-full h-11 bg-gradient-to-r from-navy-600 to-ocean-600 hover:from-navy-700 hover:to-ocean-700 text-white font-semibold"
           >
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 size-4 animate-spin" />
-                Signing in...
+                {requiresSecretKey ? "Activating..." : "Signing in..."}
+              </>
+            ) : requiresSecretKey ? (
+              <>
+                <KeyRound className="mr-2 size-4" />
+                Activate Account
               </>
             ) : (
               <>

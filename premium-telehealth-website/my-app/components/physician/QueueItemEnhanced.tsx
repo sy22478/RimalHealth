@@ -236,6 +236,19 @@ export function QueueItemEnhanced({
                   Overdue
                 </Badge>
               </>
+            ) : item.waitTimeHours > 20 ? (
+              <>
+                <Clock className="size-4 text-warning-600" />
+                <span className="font-medium text-warning-700">
+                  {waitTimeFormatted}
+                </span>
+                <Badge
+                  variant="outline"
+                  className="text-xs h-5 bg-warning-100 text-warning-700 border-warning-200"
+                >
+                  Due Soon
+                </Badge>
+              </>
             ) : (
               <>
                 <Clock className="size-4 text-muted-foreground" />
