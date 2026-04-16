@@ -174,7 +174,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     if (!verified) {
       // Record failed attempt
-      await recordFailedAttempt(lockoutKey).catch(() => {});
+      await recordFailedAttempt(lockoutKey).catch((err) => console.error('[auth:mfa:verify] audit/rate-limit failed:', err instanceof Error ? err.message : 'Unknown error'));
 
       await auditLogger.log({
         eventType: AuditEventType.MFA_FAILED,
@@ -186,7 +186,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         userAgent,
         success: false,
         errorMessage: isTOTP ? 'Invalid TOTP code' : 'Invalid backup code',
-      }).catch(() => {});
+      }).catch((err) => console.error('[auth:mfa:verify] audit/rate-limit failed:', err instanceof Error ? err.message : 'Unknown error'));
 
       return NextResponse.json(
         { error: 'Invalid verification code', code: 'INVALID_MFA_CODE' },
@@ -195,7 +195,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Clear failed attempts
-    await clearFailedAttempts(lockoutKey).catch(() => {});
+    await clearFailedAttempts(lockoutKey).catch((err) => console.error('[auth:mfa:verify] audit/rate-limit failed:', err instanceof Error ? err.message : 'Unknown error'));
 
     // Generate real token pair
     const { accessToken, refreshToken } = await generateTokenPair(
@@ -223,7 +223,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     await prisma.user.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
-    }).catch(() => {});
+    }).catch((err) => console.error('[auth:mfa:verify] audit/rate-limit failed:', err instanceof Error ? err.message : 'Unknown error'));
 
     // Audit successful MFA verification
     await auditLogger.log({
@@ -236,7 +236,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       userAgent,
       success: true,
       metadata: { method: isTOTP ? 'totp' : 'backup_code' },
-    }).catch(() => {});
+    }).catch((err) => console.error('[auth:mfa:verify] audit/rate-limit failed:', err instanceof Error ? err.message : 'Unknown error'));
 
     // Set cookies
     const cookieStore = await cookies();

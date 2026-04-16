@@ -186,7 +186,7 @@ export class NotificationQueue {
 
       return jobId;
     } catch (error) {
-      console.error('[NotificationQueue] Failed to add job:', error);
+      console.error('[NotificationQueue] Failed to add job:', error instanceof Error ? error.message : 'Unknown error');
       throw error;
     }
   }
@@ -299,7 +299,7 @@ export class NotificationQueue {
         }
       }
     } catch (error) {
-      console.error('[NotificationQueue] Error processing queue:', error);
+      console.error('[NotificationQueue] Error processing queue:', error instanceof Error ? error.message : 'Unknown error');
     }
   }
 
@@ -364,7 +364,7 @@ export class NotificationQueue {
         console.log(`[NotificationQueue] Moved ${jobIds.length} scheduled jobs to pending`);
       }
     } catch (error) {
-      console.error('[NotificationQueue] Error processing scheduled jobs:', error);
+      console.error('[NotificationQueue] Error processing scheduled jobs:', error instanceof Error ? error.message : 'Unknown error');
     }
   }
 
@@ -391,7 +391,7 @@ export class NotificationQueue {
 
       return jobData.status as JobStatus;
     } catch (error) {
-      console.error('[NotificationQueue] Error getting job status:', error);
+      console.error('[NotificationQueue] Error getting job status:', error instanceof Error ? error.message : 'Unknown error');
       return null;
     }
   }
@@ -413,7 +413,7 @@ export class NotificationQueue {
 
       return this.deserializeJob(jobData);
     } catch (error) {
-      console.error('[NotificationQueue] Error getting job:', error);
+      console.error('[NotificationQueue] Error getting job:', error instanceof Error ? error.message : 'Unknown error');
       return null;
     }
   }
@@ -461,7 +461,7 @@ export class NotificationQueue {
 
       console.log(`[NotificationQueue] Job ${jobId} queued for retry`);
     } catch (error) {
-      console.error('[NotificationQueue] Error retrying job:', error);
+      console.error('[NotificationQueue] Error retrying job:', error instanceof Error ? error.message : 'Unknown error');
       throw error;
     }
   }
@@ -503,7 +503,7 @@ export class NotificationQueue {
       console.log(`[NotificationQueue] Job ${jobId} cancelled`);
       return true;
     } catch (error) {
-      console.error('[NotificationQueue] Error cancelling job:', error);
+      console.error('[NotificationQueue] Error cancelling job:', error instanceof Error ? error.message : 'Unknown error');
       return false;
     }
   }
@@ -557,7 +557,7 @@ export class NotificationQueue {
       console.log(`[NotificationQueue] Cleaned up ${cleaned} old jobs`);
       return cleaned;
     } catch (error) {
-      console.error('[NotificationQueue] Error cleaning up jobs:', error);
+      console.error('[NotificationQueue] Error cleaning up jobs:', error instanceof Error ? error.message : 'Unknown error');
       return cleaned;
     }
   }
@@ -613,7 +613,7 @@ export class NotificationQueue {
         smsFailed: parseInt(stats.sms_failed || '0', 10),
       };
     } catch (error) {
-      console.error('[NotificationQueue] Error getting stats:', error);
+      console.error('[NotificationQueue] Error getting stats:', error instanceof Error ? error.message : 'Unknown error');
       return {
         pending: 0,
         processing: 0,

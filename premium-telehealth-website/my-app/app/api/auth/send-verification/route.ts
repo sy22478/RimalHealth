@@ -101,7 +101,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       user.id,
       auditContext,
       true
-    ).catch(() => {});
+    ).catch((err) => console.error('[auth:send-verification] audit/rate-limit failed:', err instanceof Error ? err.message : 'Unknown error'));
 
     return NextResponse.json({
       success: true,

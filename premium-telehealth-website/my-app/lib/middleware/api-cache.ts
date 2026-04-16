@@ -146,7 +146,7 @@ export async function withCache<T>(
     }
   } catch (error) {
     // Log but don't fail on cache error
-    console.warn("[API Cache] Get error:", error);
+    console.warn("[API Cache] Get error:", error instanceof Error ? error.message : 'Unknown error');
   }
 
   // Execute handler
@@ -184,7 +184,7 @@ export async function withCache<T>(
       response.headers.set("X-Cache-Key", cacheKey);
     } catch (error) {
       // Log but don't fail on cache error
-      console.warn("[API Cache] Set error:", error);
+      console.warn("[API Cache] Set error:", error instanceof Error ? error.message : 'Unknown error');
     }
   }
 
@@ -200,7 +200,7 @@ export async function invalidateCachePattern(pattern: string): Promise<void> {
     const { clearCachePattern } = await import("@/lib/redis/cache");
     await clearCachePattern(`api:${pattern}*`);
   } catch (error) {
-    console.warn("[API Cache] Invalidation error:", error);
+    console.warn("[API Cache] Invalidation error:", error instanceof Error ? error.message : 'Unknown error');
   }
 }
 
@@ -213,7 +213,7 @@ export async function invalidateUserCache(userId: string, prefix?: string): Prom
     const pattern = prefix ? `api:user:${userId}:${prefix}*` : `api:user:${userId}*`;
     await clearCachePattern(pattern);
   } catch (error) {
-    console.warn("[API Cache] User invalidation error:", error);
+    console.warn("[API Cache] User invalidation error:", error instanceof Error ? error.message : 'Unknown error');
   }
 }
 

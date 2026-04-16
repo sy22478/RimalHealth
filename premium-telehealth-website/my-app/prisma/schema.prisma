@@ -43,6 +43,9 @@ model User {
   consentRecords         ConsentRecord[]
   disclosureRestrictions DisclosureRestriction[]
   deletionRequests       AccountDeletionRequest[]
+  prescriptions          Prescription[]           @relation("PatientPrescriptions")
+  refillRequests         RefillRequest[]          @relation("PatientRefillRequests")
+  physicianNotes         PhysicianNote[]          @relation("PatientPhysicianNotes")
 
   @@index([email])
   @@index([role])
@@ -145,7 +148,8 @@ model PatientProfile {
   deletedAt DateTime?
 
   // Relations
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // onDelete: Restrict — Part 2 SUD records must be retained per 42 CFR §2.13(b)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Restrict)
   documents Document[]
 
   @@index([userId])
@@ -255,7 +259,8 @@ model Intake {
   deletedAt DateTime?
 
   // Relations
-  patient      User          @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  // onDelete: Restrict — Part 2 SUD intake records must be retained per 42 CFR §2.13(b)
+  patient      User          @relation(fields: [patientId], references: [id], onDelete: Restrict)
   review       Review?
   prescription Prescription?
 
@@ -322,7 +327,8 @@ model Review {
   reviewDurationSec Int?
 
   // Relations
-  intake    Intake    @relation(fields: [intakeId], references: [id], onDelete: Cascade)
+  // onDelete: Restrict — physician clinical notes must be retained per 42 CFR §2.13(b)
+  intake    Intake    @relation(fields: [intakeId], references: [id], onDelete: Restrict)
   physician Physician @relation(fields: [physicianId], references: [id])
 
   @@index([intakeId])
@@ -383,7 +389,9 @@ model Prescription {
   deletedAt DateTime?
 
   // Relations
-  intake         Intake          @relation(fields: [intakeId], references: [id], onDelete: Cascade)
+  // onDelete: Restrict — DEA / 42 CFR Part 2 prescription retention
+  intake         Intake          @relation(fields: [intakeId], references: [id], onDelete: Restrict)
+  patient        User            @relation("PatientPrescriptions", fields: [patientId], references: [id], onDelete: Restrict)
   refillRequests RefillRequest[]
   pharmacy       Pharmacy?       @relation("PharmacyPrescriptions", fields: [pharmacyId], references: [id])
 
@@ -418,7 +426,9 @@ model RefillRequest {
   respondedAt DateTime?
 
   // Relations
-  prescription Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  // onDelete: Restrict — controlled-substance refill audit retention
+  prescription Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Restrict)
+  patient      User         @relation("PatientRefillRequests", fields: [patientId], references: [id], onDelete: Restrict)
 
   @@index([prescriptionId])
   @@index([status])
@@ -779,7 +789,9 @@ model PhysicianNote {
   updatedAt DateTime @updatedAt
 
   // Relations
-  physician Physician @relation(fields: [physicianId], references: [id], onDelete: Cascade)
+  // onDelete: Restrict — physician chart annotations retention
+  physician Physician @relation(fields: [physicianId], references: [id], onDelete: Restrict)
+  patient   User      @relation("PatientPhysicianNotes", fields: [patientId], references: [id], onDelete: Restrict)
 
   @@index([patientId])
   @@index([physicianId])
@@ -952,7 +964,8 @@ model ConsentRecord {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // onDelete: Restrict — 42 CFR §2.31 consent of record retention
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@index([userId])
   @@index([consentType])

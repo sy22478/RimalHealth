@@ -24,6 +24,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import Stripe from 'stripe';
+import { Prisma } from '@prisma/client';
 
 // Import from new stripe module
 import { getStripe, constructWebhookEvent } from '@/lib/stripe/stripe-server';
@@ -444,7 +445,9 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
   );
 
   // ========================================================================
-  // 6. Link consent record to user (Task 3.4)
+  // 6. Link consent record to user + reconcile into ConsentRecord row
+  //    (42 CFR §2.31 requires a queryable consent of record, not just an
+  //    audit-log entry)
   // ========================================================================
   const consentRecordId = session.metadata?.consentRecordId;
   if (consentRecordId) {
@@ -461,6 +464,55 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
           targetUserId: userId,
         },
       });
+
+      // Pull the original consent metadata so we can populate ConsentRecord.
+      const consentAuditEntry = await prisma.auditLog.findFirst({
+        where: {
+          eventType: 'CONSENT_RECORDED',
+          resourceType: 'CONSENT',
+          resourceId: consentRecordId,
+        },
+        orderBy: { timestamp: 'desc' },
+      });
+
+      const meta =
+        (consentAuditEntry?.metadata as Record<string, unknown> | null) ?? {};
+      const signature = (meta.signature as Record<string, unknown> | undefined) ?? {};
+      const consentVersion = (meta.consentVersion as string | undefined) ?? '2.1';
+      const patientName = (meta.patientName as string | undefined) ?? null;
+      const consentTimestamp =
+        (meta.consentTimestamp as string | undefined) ?? null;
+
+      // Create the queryable ConsentRecord. Use the in-flight consentRecordId
+      // as the row id so disclosure-restriction lookups can reference it.
+      const existingRecord = await prisma.consentRecord.findUnique({
+        where: { id: consentRecordId },
+      });
+
+      if (!existingRecord) {
+        const consentMetadata = {
+          consentRecordId,
+          stripeSessionId: session.id,
+          patientName,
+          consentItems: (meta.consentItems as string[] | undefined) ?? [],
+          signature,
+          consents: meta.consents ?? {},
+        };
+        await prisma.consentRecord.create({
+          data: {
+            id: consentRecordId,
+            userId,
+            consentType: 'PART2_DISCLOSURE',
+            consentText:
+              '42 CFR Part 2 SUD treatment + HIPAA + Telehealth + Naltrexone informed consent (8 items)',
+            consentVersion,
+            grantedAt: consentTimestamp ? new Date(consentTimestamp) : new Date(),
+            ipAddress: (signature.ipAddress as string | undefined) ?? null,
+            userAgent: (signature.userAgent as string | undefined) ?? null,
+            metadata: consentMetadata as Prisma.InputJsonValue,
+          },
+        });
+      }
 
       // Also create a linkage audit entry for traceability
       await prisma.auditLog.create({
@@ -484,7 +536,10 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
       });
     } catch (error) {
       // Don't fail checkout if consent linkage fails — it's logged for compliance
-      console.warn('[Stripe Webhook] Failed to link consent record to user:', error instanceof Error ? error.message : 'Unknown error');
+      console.warn(
+        '[Stripe Webhook] Failed to link consent record to user:',
+        error instanceof Error ? error.message : 'Unknown error'
+      );
     }
   }
 

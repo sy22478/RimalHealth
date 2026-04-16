@@ -48,7 +48,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       userAgent: request.headers.get('user-agent') ?? 'unknown',
       success: true,
       metadata: { step: 'initiate' },
-    }).catch(() => {});
+    }).catch((err) => console.error('[auth:mfa:setup] audit/rate-limit failed:', err instanceof Error ? err.message : 'Unknown error'));
 
     // Only return the otpauth URI — never expose the secret to the client
     return NextResponse.json({

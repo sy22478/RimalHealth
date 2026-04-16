@@ -73,9 +73,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
   } catch (error) {
     console.error('Get queue error:', error instanceof Error ? error.message : 'Unknown error');
-    if (error instanceof Error && error.stack) {
-      console.error('Stack:', error.stack);
-    }
 
     try {
       await AuditService.logApiError(

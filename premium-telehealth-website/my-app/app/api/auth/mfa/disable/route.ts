@@ -74,7 +74,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         userAgent,
         success: false,
         errorMessage: 'Invalid TOTP code when disabling MFA',
-      }).catch(() => {});
+      }).catch((err) => console.error('[auth:mfa:disable] audit/rate-limit failed:', err instanceof Error ? err.message : 'Unknown error'));
 
       return NextResponse.json(
         { error: 'Invalid verification code', code: 'INVALID_MFA_CODE' },
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       ipAddress,
       userAgent,
       success: true,
-    }).catch(() => {});
+    }).catch((err) => console.error('[auth:mfa:disable] audit/rate-limit failed:', err instanceof Error ? err.message : 'Unknown error'));
 
     return NextResponse.json({
       success: true,

@@ -131,7 +131,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         success: false,
         errorMessage: 'Invalid SMS code',
         metadata: { method: 'sms', attempts },
-      }).catch(() => {});
+      }).catch((err) => console.error('[auth:mfa:verify-sms] audit/rate-limit failed:', err instanceof Error ? err.message : 'Unknown error'));
 
       const remaining = Math.max(0, 5 - attempts);
       return NextResponse.json(
@@ -193,7 +193,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     await prisma.user.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
-    }).catch(() => {});
+    }).catch((err) => console.error('[auth:mfa:verify-sms] audit/rate-limit failed:', err instanceof Error ? err.message : 'Unknown error'));
 
     // Audit successful verification
     await auditLogger.log({
@@ -206,7 +206,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       userAgent,
       success: true,
       metadata: { method: 'sms' },
-    }).catch(() => {});
+    }).catch((err) => console.error('[auth:mfa:verify-sms] audit/rate-limit failed:', err instanceof Error ? err.message : 'Unknown error'));
 
     // Set cookies
     const cookieStore = await cookies();

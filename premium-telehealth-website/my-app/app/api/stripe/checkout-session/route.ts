@@ -28,10 +28,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { PlanType } from '@prisma/client';
+import { PlanType, Role } from '@prisma/client';
 
-// JWT verification - safe to import at top level (no external deps)
-import { verifyAccessToken } from '@/lib/auth/jwt';
+import { requireRole } from '@/lib/auth/require-auth';
 
 // Audit logging - safe to import at top level
 import { auditLogger } from '@/lib/audit/logger';
@@ -52,35 +51,6 @@ type CheckoutSessionInput = z.infer<typeof checkoutSessionSchema>;
 // ============================================
 // Helper Functions
 // ============================================
-
-/**
- * Extract and verify access token from request.
- * Accepts Bearer token (Authorization header) or middleware-injected
- * x-user-id / x-user-role headers (set when the request passes through
- * the Next.js middleware with a valid httpOnly accessToken cookie).
- */
-async function getAuthenticatedUser(request: NextRequest) {
-  // 1. Try middleware-injected headers (cookie-based auth via middleware)
-  const userId = request.headers.get('x-user-id');
-  const userRole = request.headers.get('x-user-role');
-  const userEmail = request.headers.get('x-user-email');
-  if (userId && userRole) {
-    return { userId, role: userRole as string, email: userEmail ?? '' };
-  }
-
-  // 2. Fall back to explicit Authorization: Bearer header
-  const authHeader = request.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
-    return null;
-  }
-  const token = authHeader.substring(7);
-  try {
-    const payload = await verifyAccessToken(token);
-    return payload;
-  } catch {
-    return null;
-  }
-}
 
 /**
  * Get audit context from request
@@ -139,30 +109,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const auditContext = getAuditContext(request);
 
-  try {
-    // Authenticate user
-    const userPayload = await getAuthenticatedUser(request);
-    
-    if (!userPayload) {
-      await auditLogger.log({
-        eventType: AuditEventType.USER_LOGIN_FAILED,
-        severity: AuditSeverity.WARNING,
-        action: 'Unauthorized checkout attempt',
-        ipAddress: auditContext.ipAddress,
-        userAgent: auditContext.userAgent,
-        success: false,
-        errorMessage: 'Missing or invalid authentication',
-      });
-      
-      return NextResponse.json(
-        {
-          error: 'Authentication required',
-          code: 'UNAUTHORIZED',
-        },
-        { status: 401 }
-      );
-    }
+  // Verify JWT — reject header-trust spoofing.
+  const auth = await requireRole(request, [Role.PATIENT]);
+  if (auth instanceof NextResponse) return auth;
+  const userPayload = auth.user;
 
+  try {
     // Parse and validate request body
     const body = await request.json();
     const validationResult = checkoutSessionSchema.safeParse(body);
@@ -345,19 +297,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   // ========================================================================
-  // Authentication: require a valid user session
+  // Authentication: require a valid user session (JWT-verified, not header-trust)
   // ========================================================================
-  const userPayload = await getAuthenticatedUser(request);
-
-  if (!userPayload) {
-    return NextResponse.json(
-      {
-        error: 'Authentication required',
-        code: 'UNAUTHORIZED',
-      },
-      { status: 401 }
-    );
-  }
+  const auth = await requireRole(request, [Role.PATIENT]);
+  if (auth instanceof NextResponse) return auth;
+  const userPayload = auth.user;
 
   try {
     // Get session ID from query params

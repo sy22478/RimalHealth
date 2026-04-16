@@ -131,9 +131,45 @@ function generateEmailFooter(): string {
 }
 
 /**
- * Wrap content in standard email layout
+ * 42 CFR Part 2 §2.32 redisclosure notice — required on any communication
+ * that conveys substance use disorder treatment information.
  */
-function wrapEmail(content: string): string {
+const PART2_REDISCLOSURE_TEXT =
+  'This information has been disclosed to you from records protected by federal confidentiality rules (42 CFR Part 2). The federal rules prohibit you from making any further disclosure of this information unless further disclosure is expressly permitted by the written consent of the individual to whom it pertains or as otherwise permitted by 42 CFR Part 2. A general authorization for the release of medical or other information is NOT sufficient for this purpose.';
+
+function generatePart2RedisclosureNotice(): string {
+  return `
+    <div style="background: #fef3c7; border-top: 3px solid #f59e0b; padding: 16px 20px; margin-top: 24px; border-radius: 0 0 6px 6px;">
+      <p style="margin: 0 0 6px 0; color: #92400e; font-size: 12px; font-weight: 600; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; text-transform: uppercase; letter-spacing: 0.5px;">
+        42 CFR Part 2 — Confidentiality Notice
+      </p>
+      <p style="margin: 0; color: #78350f; font-size: 12px; line-height: 1.5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+        ${PART2_REDISCLOSURE_TEXT}
+      </p>
+    </div>
+  `;
+}
+
+function appendPart2NoticeToText(text: string): string {
+  return `${text}
+
+---
+42 CFR PART 2 — CONFIDENTIALITY NOTICE
+${PART2_REDISCLOSURE_TEXT}`;
+}
+
+/**
+ * Wrap content in standard email layout
+ *
+ * @param content - Inner HTML body content
+ * @param options.includePart2Notice - Append the 42 CFR Part 2 §2.32 redisclosure
+ *   notice. Required on SUD-treatment communications (intake notifications,
+ *   prescription notifications, refill notifications).
+ */
+function wrapEmail(
+  content: string,
+  options: { includePart2Notice?: boolean } = {}
+): string {
   return `
     <!DOCTYPE html>
     <html>
@@ -156,6 +192,7 @@ function wrapEmail(content: string): string {
                   ${content}
                 </td>
               </tr>
+              ${options.includePart2Notice ? `<tr><td style="padding: 0 30px;">${generatePart2RedisclosureNotice()}</td></tr>` : ''}
               <tr>
                 <td>
                   ${generateEmailFooter()}
@@ -292,7 +329,7 @@ Questions? Contact us at ${siteConfig.supportEmail}`;
           <strong>Next Step:</strong> A California-licensed physician will review your information and create your personalized treatment plan.
         </p>
       </div>
-    `);
+    `, { includePart2Notice: true });
     const text = `Intake Form Submitted
 
 Hi ${data.firstName || 'there'},
@@ -308,7 +345,7 @@ Questions? Contact us at ${siteConfig.supportEmail}`;
     return {
       subject: 'Intake Form Submitted - Under Review',
       html: interpolateTemplate(html, data),
-      text: interpolateTemplate(text, data),
+      text: appendPart2NoticeToText(interpolateTemplate(text, data)),
     };
   },
 
@@ -325,7 +362,7 @@ Questions? Contact us at ${siteConfig.supportEmail}`;
       <p style="color: #6b7280; font-size: 14px; margin-top: 16px;">
         For your privacy and security, details about your care are only available within your secure portal.
       </p>
-    `);
+    `, { includePart2Notice: true });
     const text = `You Have a New Update
 
 Hi ${data.firstName || 'there'},
@@ -341,7 +378,7 @@ Questions? Contact us at ${siteConfig.supportEmail}`;
     return {
       subject: 'You Have a New Update on Your Rimal Health Portal',
       html: interpolateTemplate(html, data),
-      text: interpolateTemplate(text, data),
+      text: appendPart2NoticeToText(interpolateTemplate(text, data)),
     };
   },
 
@@ -359,7 +396,7 @@ Questions? Contact us at ${siteConfig.supportEmail}`;
         For your privacy and security, details about your care are only available within your secure portal.
       </p>
       <p>If you have questions, please contact our support team.</p>
-    `);
+    `, { includePart2Notice: true });
     const text = `You Have a New Update
 
 Hi ${data.firstName || 'there'},
@@ -375,7 +412,7 @@ If you have questions, please contact our support team at ${siteConfig.supportEm
     return {
       subject: 'You Have a New Update on Your Rimal Health Portal',
       html: interpolateTemplate(html, data),
-      text: interpolateTemplate(text, data),
+      text: appendPart2NoticeToText(interpolateTemplate(text, data)),
     };
   },
 
@@ -390,7 +427,7 @@ If you have questions, please contact our support team at ${siteConfig.supportEm
         </p>
       </div>
       <p>You will receive an email notification once your intake has been reviewed.</p>
-    `);
+    `, { includePart2Notice: true });
     const text = `Intake Confirmation
 
 Hi ${data.firstName || 'there'},
@@ -406,7 +443,7 @@ Questions? Contact us at ${siteConfig.supportEmail}`;
     return {
       subject: 'Intake Confirmation - Payment Received',
       html: interpolateTemplate(html, data),
-      text: interpolateTemplate(text, data),
+      text: appendPart2NoticeToText(interpolateTemplate(text, data)),
     };
   },
 
@@ -424,7 +461,7 @@ Questions? Contact us at ${siteConfig.supportEmail}`;
       <p style="color: #6b7280; font-size: 14px; margin-top: 16px;">
         For your privacy and security, details about your care are only available within your secure portal.
       </p>
-    `);
+    `, { includePart2Notice: true });
     const text = `Refill Request Received
 
 Hi ${data.firstName || 'there'},
@@ -442,7 +479,7 @@ Questions? Contact us at ${siteConfig.supportEmail}`;
     return {
       subject: 'Prescription Refill Request Received',
       html: interpolateTemplate(html, data),
-      text: interpolateTemplate(text, data),
+      text: appendPart2NoticeToText(interpolateTemplate(text, data)),
     };
   },
 
@@ -459,7 +496,7 @@ Questions? Contact us at ${siteConfig.supportEmail}`;
       <p style="color: #6b7280; font-size: 14px; margin-top: 16px;">
         For your privacy and security, details about your care are only available within your secure portal.
       </p>
-    `);
+    `, { includePart2Notice: true });
     const text = `You Have a New Update
 
 Hi ${data.firstName || 'there'},
@@ -475,7 +512,7 @@ Questions? Contact us at ${siteConfig.supportEmail}`;
     return {
       subject: 'You Have a New Update on Your Rimal Health Portal',
       html: interpolateTemplate(html, data),
-      text: interpolateTemplate(text, data),
+      text: appendPart2NoticeToText(interpolateTemplate(text, data)),
     };
   },
 
@@ -492,7 +529,7 @@ Questions? Contact us at ${siteConfig.supportEmail}`;
       <p style="color: #6b7280; font-size: 14px; margin-top: 16px;">
         For your privacy and security, message content is only available within your secure portal.
       </p>
-    `);
+    `, { includePart2Notice: true });
     const text = `You Have a New Message
 
 Hi ${data.firstName || 'there'},
@@ -508,7 +545,7 @@ Questions? Contact us at ${siteConfig.supportEmail}`;
     return {
       subject: 'You Have a New Message on Your Rimal Health Portal',
       html: interpolateTemplate(html, data),
-      text: interpolateTemplate(text, data),
+      text: appendPart2NoticeToText(interpolateTemplate(text, data)),
     };
   },
 
@@ -617,7 +654,7 @@ Questions? Contact us at ${siteConfig.supportEmail}`;
       <p style="color: #6b7280; font-size: 14px; margin-top: 16px;">
         For your privacy and security, details about your care are only available within your secure portal.
       </p>
-    `);
+    `, { includePart2Notice: true });
     const text = `Your Physician Has a Question
 
 Hi ${data.firstName || 'there'},
@@ -633,7 +670,7 @@ Questions? Contact us at ${siteConfig.supportEmail}`;
     return {
       subject: 'Your Physician Has a Question - Please Log In',
       html: interpolateTemplate(html, data),
-      text: interpolateTemplate(text, data),
+      text: appendPart2NoticeToText(interpolateTemplate(text, data)),
     };
   },
 
@@ -646,7 +683,7 @@ Questions? Contact us at ${siteConfig.supportEmail}`;
           Review Intake
         </a>
       </p>
-    `);
+    `, { includePart2Notice: true });
     const text = `New Intake Pending Review
 
 A new ${data.concernType || ''} intake is waiting for your review.
@@ -658,7 +695,7 @@ This is a notification for physicians.`;
     return {
       subject: 'New Intake Pending Review',
       html: interpolateTemplate(html, data),
-      text: interpolateTemplate(text, data),
+      text: appendPart2NoticeToText(interpolateTemplate(text, data)),
     };
   },
 
@@ -673,7 +710,7 @@ This is a notification for physicians.`;
           View Prescriptions
         </a>
       </p>
-    `);
+    `, { includePart2Notice: true });
     const text = `Refill Request Approved
 
 Hi ${data.firstName || 'there'},
@@ -689,7 +726,7 @@ Questions? Contact us at ${siteConfig.supportEmail}`;
     return {
       subject: 'Your Refill Request Has Been Approved',
       html: interpolateTemplate(html, data),
-      text: interpolateTemplate(text, data),
+      text: appendPart2NoticeToText(interpolateTemplate(text, data)),
     };
   },
 

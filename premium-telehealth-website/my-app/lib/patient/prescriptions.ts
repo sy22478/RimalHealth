@@ -258,7 +258,7 @@ export async function createRefillRequest(
     });
   } catch (error) {
     // Log but don't fail - the refill request was created successfully
-    console.error('Failed to queue refill notification:', error);
+    console.error('Failed to queue refill notification:', error instanceof Error ? error.message : 'Unknown error');
   }
 
   return {

@@ -714,7 +714,7 @@ export async function resetRateLimit(
     await redis.del(key);
     return true;
   } catch (error) {
-    console.error('[RateLimit] Error resetting rate limit:', error);
+    console.error('[RateLimit] Error resetting rate limit:', error instanceof Error ? error.message : 'Unknown error');
     return false;
   }
 }
@@ -780,7 +780,7 @@ export async function getRateLimitStatus(
       reset: resetTime,
     };
   } catch (error) {
-    console.error('[RateLimit] Error getting rate limit status:', error);
+    console.error('[RateLimit] Error getting rate limit status:', error instanceof Error ? error.message : 'Unknown error');
     return null;
   }
 }

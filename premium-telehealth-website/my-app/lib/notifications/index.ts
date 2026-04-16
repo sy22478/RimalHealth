@@ -212,7 +212,7 @@ export async function notifyUser(options: {
       }
     }
   } catch (error) {
-    console.error(`[notifyUser] Failed to notify user ${userId}:`, error);
+    console.error(`[notifyUser] Failed to notify user ${userId}:`, error instanceof Error ? error.message : 'Unknown error');
   }
 }
 
@@ -277,7 +277,7 @@ export async function notifyPhysician(options: {
       console.log(`[notifyPhysician] SMS skipped for physician ${physicianId} (no phone on record)`);
     }
   } catch (error) {
-    console.error(`[notifyPhysician] Failed to notify physician ${physicianId}:`, error);
+    console.error(`[notifyPhysician] Failed to notify physician ${physicianId}:`, error instanceof Error ? error.message : 'Unknown error');
   }
 }
 

@@ -44,11 +44,13 @@ describe('PHI_FIELDS model registration', () => {
     'PhysicianMessage',
     'PhysicianNote',
     'User',
+    'AccountDeletionRequest',
+    'DisclosureRestriction',
   ];
 
-  it('should have exactly 8 models registered', () => {
+  it('should have exactly 10 models registered', () => {
     const modelNames = Object.keys(PHI_FIELDS);
-    expect(modelNames).toHaveLength(8);
+    expect(modelNames).toHaveLength(10);
   });
 
   it.each(expectedModels)('should include model "%s"', (model) => {

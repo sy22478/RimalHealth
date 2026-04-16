@@ -159,7 +159,7 @@ export async function requireAuth(
     return { user };
   } catch (error) {
     // Log error for monitoring but don't expose details to client
-    console.error('Authentication error:', error);
+    console.error('Authentication error:', error instanceof Error ? error.message : 'Unknown error');
 
     // Check for specific error types from JWT verification
     const errorMessage = error instanceof Error ? error.message : '';

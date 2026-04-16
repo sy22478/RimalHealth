@@ -12,8 +12,9 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
 import { auditLogger, AuditEventType } from '@/lib/audit/index';
 import { getClientIP } from '@/lib/audit/utils';
-import { verifyAccessToken } from '@/lib/auth/jwt';
+import { requireAuth } from '@/lib/auth/require-auth';
 import { verifyPassword, hashPassword } from '@/lib/auth/password';
+import { requireCSRF } from '@/lib/security/csrf';
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
@@ -30,42 +31,21 @@ const changePasswordSchema = z.object({
   path: ['confirmPassword'],
 });
 
-async function getAuthenticatedUser(request: NextRequest): Promise<{ userId: string; role: string } | null> {
-  // Try middleware-injected headers first
-  const userId = request.headers.get('x-user-id');
-  const userRole = request.headers.get('x-user-role');
-  if (userId && userRole) {
-    return { userId, role: userRole };
-  }
-
-  // Fall back to token
-  const authHeader = request.headers.get('authorization');
-  const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
-  const cookieToken = request.cookies.get('accessToken')?.value ?? null;
-  const token = bearerToken ?? cookieToken;
-  if (!token) return null;
-
-  try {
-    const payload = await verifyAccessToken(token);
-    return payload ? { userId: payload.userId, role: payload.role } : null;
-  } catch {
-    return null;
-  }
-}
-
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const ipAddress = getClientIP(request);
   const userAgent = request.headers.get('user-agent') || '';
 
-  try {
-    const auth = await getAuthenticatedUser(request);
-    if (!auth) {
-      return NextResponse.json(
-        { error: 'Authentication required', code: 'UNAUTHORIZED' },
-        { status: 401 }
-      );
-    }
+  // CSRF guard before any state change
+  const csrfError = requireCSRF(request);
+  if (csrfError) return csrfError;
 
+  // Verify JWT directly — never trust x-user-id/x-user-role headers from
+  // potentially-misconfigured proxies.
+  const auth = await requireAuth(request);
+  if (auth instanceof NextResponse) return auth;
+  const { userId, role } = auth.user;
+
+  try {
     const body = await request.json();
     const validation = changePasswordSchema.safeParse(body);
     if (!validation.success) {
@@ -78,7 +58,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const { currentPassword, newPassword } = validation.data;
 
     const user = await prisma.user.findUnique({
-      where: { id: auth.userId },
+      where: { id: userId },
       select: { id: true, passwordHash: true },
     });
 
@@ -93,8 +73,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (!isValid) {
       await auditLogger.log({
         eventType: AuditEventType.PASSWORD_CHANGE_FAILED,
-        userId: auth.userId,
-        userRole: auth.role,
+        userId,
+        userRole: role,
         action: 'Password change failed - incorrect current password',
         ipAddress,
         userAgent,
@@ -109,14 +89,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const newHash = await hashPassword(newPassword);
     await prisma.user.update({
-      where: { id: auth.userId },
+      where: { id: userId },
       data: { passwordHash: newHash },
     });
 
     await auditLogger.log({
       eventType: AuditEventType.PASSWORD_CHANGED,
-      userId: auth.userId,
-      userRole: auth.role,
+      userId,
+      userRole: role,
       action: 'Password changed successfully',
       ipAddress,
       userAgent,

@@ -167,31 +167,28 @@ let s3Client: S3Client | null = null;
 /**
  * Create a new S3 client instance
  * Supports both AWS S3 and MinIO for local development
- * 
- * @param config - Optional configuration overrides
+ *
+ * Credentials: defaults to the AWS SDK DefaultProviderChain (ECS task role,
+ * EC2 instance profile, env vars, ~/.aws/credentials, etc.). In ECS/Amplify
+ * the task role provides credentials automatically — never set static
+ * AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY in production.
+ *
+ * @param config - Optional configuration overrides (used by tests / MinIO)
  * @returns Configured S3Client instance
- * @throws Error if AWS credentials are not configured
  */
 export function createS3Client(config?: S3Config): S3Client {
   const region = config?.region || process.env.AWS_REGION || DEFAULT_REGION;
-  const accessKeyId = config?.accessKeyId || process.env.AWS_ACCESS_KEY_ID;
-  const secretAccessKey =
-    config?.secretAccessKey || process.env.AWS_SECRET_ACCESS_KEY;
 
-  if (!accessKeyId || !secretAccessKey) {
-    throw new Error(
-      'AWS credentials not configured. ' +
-        'Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables.'
-    );
+  const clientConfig: S3ClientConfig = { region };
+
+  // Only set static credentials if explicitly passed (e.g., MinIO in tests).
+  // Otherwise, the AWS SDK resolves credentials via DefaultProviderChain.
+  if (config?.accessKeyId && config?.secretAccessKey) {
+    clientConfig.credentials = {
+      accessKeyId: config.accessKeyId,
+      secretAccessKey: config.secretAccessKey,
+    };
   }
-
-  const clientConfig: S3ClientConfig = {
-    region,
-    credentials: {
-      accessKeyId,
-      secretAccessKey,
-    },
-  };
 
   // Support MinIO for local development/testing
   if (config?.endpoint) {

@@ -353,7 +353,7 @@ export async function resumeSubscription(userId: string): Promise<boolean> {
 
     return true;
   } catch (error) {
-    console.error('Error resuming subscription:', error);
+    console.error('Error resuming subscription:', error instanceof Error ? error.message : 'Unknown error');
     return false;
   }
 }
@@ -542,7 +542,7 @@ export async function syncSubscriptionWithStripe(
 
     return true;
   } catch (error) {
-    console.error('Error syncing subscription:', error);
+    console.error('Error syncing subscription:', error instanceof Error ? error.message : 'Unknown error');
     return false;
   }
 }

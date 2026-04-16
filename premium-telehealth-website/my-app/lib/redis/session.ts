@@ -95,7 +95,7 @@ export async function storeSession(
     
     console.log(`[Session] Stored session ${sessionId.slice(0, 8)}... for user ${data.userId.slice(0, 8)}...`);
   } catch (error) {
-    console.error('[Session] Store error:', error);
+    console.error('[Session] Store error:', error instanceof Error ? error.message : 'Unknown error');
     throw error;
   }
 }
@@ -125,7 +125,7 @@ export async function getSession(sessionId: string): Promise<SessionData | null>
     
     return session;
   } catch (error) {
-    console.error('[Session] Get error:', error);
+    console.error('[Session] Get error:', error instanceof Error ? error.message : 'Unknown error');
     return null;
   }
 }
@@ -151,7 +151,7 @@ export async function deleteSession(sessionId: string): Promise<void> {
     
     console.log(`[Session] Deleted session ${sessionId.slice(0, 8)}...`);
   } catch (error) {
-    console.error('[Session] Delete error:', error);
+    console.error('[Session] Delete error:', error instanceof Error ? error.message : 'Unknown error');
     throw error;
   }
 }
@@ -182,7 +182,7 @@ export async function extendSession(
     
     return true;
   } catch (error) {
-    console.error('[Session] Extend error:', error);
+    console.error('[Session] Extend error:', error instanceof Error ? error.message : 'Unknown error');
     return false;
   }
 }
@@ -212,7 +212,7 @@ export async function getUserSessions(userId: string): Promise<string[]> {
     
     return activeSessions;
   } catch (error) {
-    console.error('[Session] Get user sessions error:', error);
+    console.error('[Session] Get user sessions error:', error instanceof Error ? error.message : 'Unknown error');
     return [];
   }
 }
@@ -241,7 +241,7 @@ export async function invalidateAllUserSessions(userId: string): Promise<number>
     console.log(`[Session] Invalidated ${sessionIds.length} sessions for user ${userId.slice(0, 8)}...`);
     return sessionIds.length;
   } catch (error) {
-    console.error('[Session] Invalidate all error:', error);
+    console.error('[Session] Invalidate all error:', error instanceof Error ? error.message : 'Unknown error');
     throw error;
   }
 }
@@ -273,7 +273,7 @@ export async function getSessionMetadata(sessionId: string): Promise<SessionMeta
       createdAt: session.createdAt,
     };
   } catch (error) {
-    console.error('[Session] Get metadata error:', error);
+    console.error('[Session] Get metadata error:', error instanceof Error ? error.message : 'Unknown error');
     return null;
   }
 }
@@ -288,7 +288,7 @@ export async function isSessionValid(sessionId: string): Promise<boolean> {
     const exists = await client.exists(key);
     return exists === 1;
   } catch (error) {
-    console.error('[Session] Valid check error:', error);
+    console.error('[Session] Valid check error:', error instanceof Error ? error.message : 'Unknown error');
     return false;
   }
 }
@@ -303,7 +303,7 @@ export async function touchSession(sessionId: string): Promise<void> {
     const key = buildSessionKey(sessionId);
     await client.expire(key, DEFAULT_SESSION_TTL);
   } catch (error) {
-    console.error('[Session] Touch error:', error);
+    console.error('[Session] Touch error:', error instanceof Error ? error.message : 'Unknown error');
   }
 }
 
@@ -331,7 +331,7 @@ export async function getActiveSessionCount(): Promise<number> {
     
     return count;
   } catch (error) {
-    console.error('[Session] Count error:', error);
+    console.error('[Session] Count error:', error instanceof Error ? error.message : 'Unknown error');
     return -1;
   }
 }

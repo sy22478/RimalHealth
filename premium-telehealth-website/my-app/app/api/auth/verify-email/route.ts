@@ -88,7 +88,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         auditContext,
         false,
         'Invalid verification token'
-      ).catch(() => {});
+      ).catch((err) => console.error('[auth:verify-email] audit/rate-limit failed:', err instanceof Error ? err.message : 'Unknown error'));
 
       return NextResponse.json(
         { error: 'Invalid or expired verification link', code: 'INVALID_TOKEN' },
@@ -114,7 +114,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         auditContext,
         false,
         'Verification token expired'
-      ).catch(() => {});
+      ).catch((err) => console.error('[auth:verify-email] audit/rate-limit failed:', err instanceof Error ? err.message : 'Unknown error'));
 
       return NextResponse.json(
         { error: 'This verification link has expired. Please request a new one.', code: 'TOKEN_EXPIRED' },
@@ -130,7 +130,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         auditContext,
         false,
         'Verification token already used'
-      ).catch(() => {});
+      ).catch((err) => console.error('[auth:verify-email] audit/rate-limit failed:', err instanceof Error ? err.message : 'Unknown error'));
 
       return NextResponse.json(
         { error: 'This verification link has already been used.', code: 'TOKEN_USED' },

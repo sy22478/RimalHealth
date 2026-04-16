@@ -59,6 +59,7 @@ export enum AuditEventType {
 
   // Consent events
   CONSENT_RECORDED = 'CONSENT_RECORDED',
+  CONSENT_LINKED = 'CONSENT_LINKED',
 
   // MFA events
   MFA_SETUP = 'mfa_setup',
@@ -72,6 +73,7 @@ export enum AuditEventType {
 
   // 42 CFR Part 2 — Disclosure events
   PHI_DISCLOSURE = 'phi_disclosure',
+  DISCLOSURE_BLOCKED = 'disclosure_blocked',
   CONSENT_REVOKED = 'consent_revoked',
   DISCLOSURE_RESTRICTION_REQUESTED = 'disclosure_restriction_requested',
   DISCLOSURE_RESTRICTION_REVIEWED = 'disclosure_restriction_reviewed',

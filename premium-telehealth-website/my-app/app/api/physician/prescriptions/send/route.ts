@@ -19,12 +19,20 @@ import { ValidationService } from '@/lib/services/validation-service';
 import { NotificationService } from '@/lib/services/notification-service';
 import { sendPrescriptionSchema } from '@/lib/validation/schemas';
 import { Role, PrescriptionStatus } from '@prisma/client';
+import { auditLogger } from '@/lib/audit/logger';
+import { AuditEventType, AuditSeverity } from '@/lib/audit/types';
+import { checkRestrictions } from '@/lib/compliance/disclosure-restrictions';
+import { requireCSRF } from '@/lib/security/csrf';
 
 // ============================================================================
 // POST - Send Prescription
 // ============================================================================
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  // CSRF guard before any state change (sends PHI to pharmacy)
+  const csrfError = requireCSRF(request);
+  if (csrfError) return csrfError;
+
   // Require physician role
   const auth = await requireRole(request, [Role.PHYSICIAN]);
 
@@ -97,6 +105,43 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Use pharmacy info already on the prescription record
     const pharmacyName = prescription.pharmacyName || 'Unknown Pharmacy';
 
+    // 42 CFR Part 2: enforce active disclosure restrictions before sending PHI
+    // (medication name, pharmacy identifier) outside the program.
+    const patientId = prescription.patientId;
+    const activeRestrictions = await checkRestrictions(patientId, 'PHARMACY');
+    if (activeRestrictions.length > 0) {
+      await auditLogger.log({
+        eventType: AuditEventType.DISCLOSURE_BLOCKED,
+        userId,
+        userRole: auth.user.role,
+        targetUserId: patientId,
+        resourceType: 'PRESCRIPTION',
+        resourceId: prescriptionId,
+        ipAddress: auditContext.ipAddress,
+        userAgent: auditContext.userAgent,
+        success: false,
+        severity: AuditSeverity.WARNING,
+        metadata: {
+          recipient: 'PHARMACY',
+          pharmacyName,
+          restrictions: activeRestrictions.map((r) => ({
+            id: r.id,
+            type: r.restrictionType,
+            requestedAt: r.requestedAt.toISOString(),
+          })),
+          reason: 'Patient has active 42 CFR Part 2 restriction on pharmacy disclosure',
+        },
+      });
+      return NextResponse.json(
+        {
+          error:
+            'Disclosure to pharmacy blocked: patient has an active 42 CFR Part 2 disclosure restriction. Resolve the restriction before sending.',
+          code: 'DISCLOSURE_RESTRICTED',
+        },
+        { status: 409 }
+      );
+    }
+
     // TODO: Re-enable when DoseSpot goes live — physician currently sends manually
     // The physician sends the prescription through their own e-prescribing app,
     // then clicks "Send" here to record the status change and notify the patient.
@@ -117,6 +162,29 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       prescriptionId,
       'UPDATE',
       auditContext
+    );
+
+    // 42 CFR Part 2: log the external disclosure of SUD treatment records
+    // to the pharmacy. This is the §2.13 accounting-of-disclosures entry
+    // surfaced to the patient via /patient/disclosures.
+    await auditLogger.logDisclosure(
+      userId,
+      auth.user.role,
+      patientId,
+      auditContext,
+      {
+        recipientDescription: `Pharmacy: ${pharmacyName}`,
+        dataCategories: [
+          'medication_name',
+          'dosage',
+          'quantity',
+          'refills',
+          'prescriber_identity',
+          'patient_identity',
+        ],
+        purpose: 'Treatment — fulfillment of Naltrexone prescription',
+        legalBasis: '42 CFR §2.31 patient consent (treatment/payment/operations)',
+      }
     );
 
     // Notify patient — graceful degradation: don't fail if notification errors

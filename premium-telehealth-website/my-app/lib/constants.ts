@@ -264,7 +264,6 @@ export const CSP_DIRECTIVES: Record<string, string[]> = {
     'https://js.stripe.com',
     'https://checkout.stripe.com',
     'https://hooks.stripe.com',
-    'https://*.dosespot.com',
   ],
   'object-src': ["'none'"],
   'frame-ancestors': ["'none'"],

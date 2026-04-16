@@ -64,7 +64,7 @@ export async function getCache<T>(key: string): Promise<T | null> {
     return JSON.parse(data) as T;
   } catch (error) {
     recordFailure();
-    console.error('[Cache] Get error:', error);
+    console.error('[Cache] Get error:', error instanceof Error ? error.message : 'Unknown error');
     return null;
   }
 }
@@ -92,7 +92,7 @@ export async function setCache<T>(
     recordSuccess();
   } catch (error) {
     recordFailure();
-    console.error('[Cache] Set error:', error);
+    console.error('[Cache] Set error:', error instanceof Error ? error.message : 'Unknown error');
     // Graceful degradation — don't throw, cache is best-effort
   }
 }
@@ -121,7 +121,7 @@ export async function setCacheNX<T>(
     return result === 'OK';
   } catch (error) {
     recordFailure();
-    console.error('[Cache] SetNX error:', error);
+    console.error('[Cache] SetNX error:', error instanceof Error ? error.message : 'Unknown error');
     return false;
   }
 }
@@ -142,7 +142,7 @@ export async function deleteCache(key: string): Promise<void> {
     recordSuccess();
   } catch (error) {
     recordFailure();
-    console.error('[Cache] Delete error:', error);
+    console.error('[Cache] Delete error:', error instanceof Error ? error.message : 'Unknown error');
     // Graceful degradation — don't throw, cache is best-effort
   }
 }
@@ -187,7 +187,7 @@ export async function clearCachePattern(pattern: string): Promise<number> {
     return deletedCount;
   } catch (error) {
     recordFailure();
-    console.error('[Cache] Clear pattern error:', error);
+    console.error('[Cache] Clear pattern error:', error instanceof Error ? error.message : 'Unknown error');
     return 0;
   }
 }
@@ -209,7 +209,7 @@ export async function existsCache(key: string): Promise<boolean> {
     return result === 1;
   } catch (error) {
     recordFailure();
-    console.error('[Cache] Exists error:', error);
+    console.error('[Cache] Exists error:', error instanceof Error ? error.message : 'Unknown error');
     return false;
   }
 }
@@ -231,7 +231,7 @@ export async function getCacheTTL(key: string): Promise<number> {
     return ttl;
   } catch (error) {
     recordFailure();
-    console.error('[Cache] TTL error:', error);
+    console.error('[Cache] TTL error:', error instanceof Error ? error.message : 'Unknown error');
     return -2;
   }
 }
@@ -265,7 +265,7 @@ export async function incrementCache(
     return newValue;
   } catch (error) {
     recordFailure();
-    console.error('[Cache] Increment error:', error);
+    console.error('[Cache] Increment error:', error instanceof Error ? error.message : 'Unknown error');
     return -1;
   }
 }

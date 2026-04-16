@@ -68,6 +68,13 @@ export const PHI_FIELDS: Record<string, string[]> = {
     'mfaSecret',
     'mfaBackupCodes',
   ],
+  AccountDeletionRequest: [
+    'details',
+  ],
+  DisclosureRestriction: [
+    'description',
+    'reviewNotes',
+  ],
 };
 
 // JSON fields that need special handling (serialized before encryption)
@@ -104,6 +111,8 @@ const NULLABLE_FIELDS: Record<string, Set<string>> = {
   Message: new Set(['subject']),
   PhysicianMessage: new Set(['subject']),
   User: new Set(['mfaSecret', 'mfaBackupCodes']),
+  AccountDeletionRequest: new Set(['details']),
+  DisclosureRestriction: new Set(['reviewNotes']),
 };
 
 /**

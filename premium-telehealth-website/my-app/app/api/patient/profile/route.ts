@@ -19,6 +19,7 @@ import { Role, IntakeStatus } from '@prisma/client';
 import { validateCaliforniaZip, validateCaliforniaState } from '@/lib/utils/validation-helpers';
 import { DataModificationAction } from '@/lib/audit/index';
 import { validateAddress } from '@/lib/integrations/location';
+import { requireCSRF } from '@/lib/security/csrf';
 // PHI encryption/decryption is handled automatically by the Prisma encryption extension
 // in lib/db/encryption-extension.ts. Do NOT manually call encryptPHI/decryptPHI on fields
 // that are listed in PHI_FIELDS — doing so causes double-encryption (data corruption).
@@ -258,6 +259,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 // ============================================================================
 
 export async function PUT(request: NextRequest): Promise<NextResponse> {
+  // CSRF guard before any state change
+  const csrfError = requireCSRF(request);
+  if (csrfError) return csrfError;
+
   // Require patient role
   const auth = await requireRole(request, [Role.PATIENT]);
 

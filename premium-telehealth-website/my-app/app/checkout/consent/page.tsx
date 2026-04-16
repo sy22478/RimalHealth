@@ -320,11 +320,15 @@ function ConsentContent(): React.ReactElement {
   const searchParams = useSearchParams();
 
   const [consents, setConsents] = React.useState<Record<string, boolean>>({});
+  const [patientName, setPatientName] = React.useState<string>('');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   const checkedCount = CONSENT_ITEMS.filter((item) => consents[item.id]).length;
   const allConsentsChecked = checkedCount === CONSENT_ITEMS.length;
+  const trimmedName = patientName.trim();
+  const nameValid = trimmedName.length >= 2;
+  const canSubmit = allConsentsChecked && nameValid;
 
   const handleConsentToggle = (id: string, checked: boolean): void => {
     setConsents((prev) => ({ ...prev, [id]: checked }));
@@ -332,7 +336,7 @@ function ConsentContent(): React.ReactElement {
   };
 
   const handleContinue = async (): Promise<void> => {
-    if (!allConsentsChecked || isSubmitting) return;
+    if (!canSubmit || isSubmitting) return;
 
     setIsSubmitting(true);
     setError(null);
@@ -353,26 +357,32 @@ function ConsentContent(): React.ReactElement {
             telehealth: consents.telehealth ?? false,
             informed: consents.informed ?? false,
           },
+          patientName: trimmedName,
           timestamp: new Date().toISOString(),
         }),
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        // Store consent record ID in sessionStorage for reference during checkout
-        if (data.consentRecordId) {
-          try {
-            sessionStorage.setItem('consentRecordId', data.consentRecordId);
-          } catch {
-            // sessionStorage may be unavailable; proceed anyway
-          }
+      if (!response.ok) {
+        const data = (await response.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        setError(data.error ?? 'Unable to record your consent. Please try again.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      const data = (await response.json()) as { consentRecordId?: string };
+      if (data.consentRecordId) {
+        try {
+          sessionStorage.setItem('consentRecordId', data.consentRecordId);
+        } catch {
+          // sessionStorage may be unavailable; proceed anyway
         }
       }
-      // Even if the API call fails, allow the user to proceed to payment.
-      // The consent was recorded client-side and the API logs it for compliance.
     } catch {
-      // Network error -- still allow user to proceed
-      console.warn('[consent] Failed to submit consent record; proceeding to payment.');
+      setError('Network error. Please check your connection and try again.');
+      setIsSubmitting(false);
+      return;
     }
 
     // Preserve any query params (e.g., ?plan=active-treatment) and pass consentId
@@ -490,6 +500,36 @@ function ConsentContent(): React.ReactElement {
 
           <Separator className="mt-4" />
 
+          {/* Electronic signature — typed full name (42 CFR §2.31(a)(8)) */}
+          <div className="px-6 pt-6 pb-2">
+            <Label
+              htmlFor="patient-signature"
+              className="text-sm font-semibold text-navy mb-1 block"
+            >
+              Electronic signature
+            </Label>
+            <p className="text-xs text-muted-foreground mb-3">
+              Type your full legal name below. This serves as your electronic
+              signature for the agreements above and is required by 42 CFR Part 2
+              for substance use disorder treatment consent.
+            </p>
+            <input
+              id="patient-signature"
+              type="text"
+              value={patientName}
+              onChange={(e) => {
+                setPatientName(e.target.value);
+                setError(null);
+              }}
+              placeholder="Your full legal name"
+              autoComplete="name"
+              required
+              aria-required="true"
+              aria-invalid={patientName.length > 0 && !nameValid}
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-base text-gray-900 shadow-sm transition-colors focus:border-ocean focus:outline-none focus:ring-2 focus:ring-ocean/30"
+            />
+          </div>
+
           <CardFooter className="flex flex-col gap-4 pt-6">
             {error && (
               <p className="text-sm text-destructive text-center">{error}</p>
@@ -498,7 +538,7 @@ function ConsentContent(): React.ReactElement {
               className="w-full rounded-full h-12 text-base font-semibold bg-gradient-to-r from-navy-500 to-ocean-500 hover:from-navy-600 hover:to-ocean-500 shadow-lg shadow-ocean/20 transition-all duration-200 hover:shadow-xl hover:shadow-ocean/30"
               size="lg"
               onClick={handleContinue}
-              disabled={!allConsentsChecked || isSubmitting}
+              disabled={!canSubmit || isSubmitting}
             >
               {isSubmitting ? (
                 <>

@@ -26,6 +26,7 @@ import { getClientIp, getUserAgent } from '@/lib/auth/require-auth';
 import { verifyPassword } from '@/lib/auth/password';
 import { getStripe } from '@/lib/stripe/stripe-server';
 import { auditLogger, AuditEventType } from '@/lib/audit/index';
+import { requireCSRF } from '@/lib/security/csrf';
 
 // ============================================================================
 // Validation Schema
@@ -60,6 +61,10 @@ const deleteAccountSchema = z.object({
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const ipAddress = getClientIp(request);
   const userAgent = getUserAgent(request);
+
+  // CSRF guard before any state change
+  const csrfError = requireCSRF(request);
+  if (csrfError) return csrfError;
 
   try {
     // 1. Require PATIENT role

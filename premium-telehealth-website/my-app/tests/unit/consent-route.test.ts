@@ -76,7 +76,7 @@ function rateLimitDeny(): void {
   });
 }
 
-/** All 7 consent booleans set to true */
+/** All 8 consent booleans set to true (includes part2_sud_consent) */
 function allConsentsTrue(): Record<string, boolean> {
   return {
     age: true,
@@ -84,12 +84,28 @@ function allConsentsTrue(): Record<string, boolean> {
     terms: true,
     privacy: true,
     hipaa: true,
+    part2_sud_consent: true,
     telehealth: true,
     informed: true,
   };
 }
 
+const VALID_PATIENT_NAME = 'Test Patient';
+
 function makeRequest(body: unknown): NextRequest {
+  // If caller passed an object with `consents` and `timestamp`, default the
+  // patientName so tests written against the old schema still pass when they
+  // intentionally exercise other validation paths.
+  let payload = body;
+  if (
+    body &&
+    typeof body === 'object' &&
+    !Array.isArray(body) &&
+    'consents' in (body as Record<string, unknown>) &&
+    !('patientName' in (body as Record<string, unknown>))
+  ) {
+    payload = { ...(body as Record<string, unknown>), patientName: VALID_PATIENT_NAME };
+  }
   return new NextRequest(new URL('http://localhost:3000/api/checkout/consent'), {
     method: 'POST',
     headers: {
@@ -97,7 +113,7 @@ function makeRequest(body: unknown): NextRequest {
       'x-forwarded-for': '10.0.0.1',
       'user-agent': 'vitest',
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify(payload),
   });
 }
 
@@ -195,7 +211,7 @@ describe('POST /api/checkout/consent', () => {
   });
 
   // Test every single consent boolean -- each must be true
-  const consentKeys = ['age', 'california', 'terms', 'privacy', 'hipaa', 'telehealth', 'informed'];
+  const consentKeys = ['age', 'california', 'terms', 'privacy', 'hipaa', 'part2_sud_consent', 'telehealth', 'informed'];
 
   for (const key of consentKeys) {
     it(`returns 400 when consents.${key} is false`, async () => {
@@ -251,21 +267,42 @@ describe('POST /api/checkout/consent', () => {
     expect(createArg.data.severity).toBe('INFO');
     expect(createArg.data.resourceType).toBe('CONSENT');
     expect(createArg.data.success).toBe(true);
-    // metadata should contain consentTimestamp and consentVersion
     expect(createArg.data.metadata.consentTimestamp).toBe(ts);
-    expect(createArg.data.metadata.consentVersion).toBe('2.0');
+    expect(createArg.data.metadata.consentVersion).toBe('2.1');
+    // §2.31(a)(8) typed-name signature must be persisted
+    expect(createArg.data.metadata.patientName).toBe(VALID_PATIENT_NAME);
+    expect(createArg.data.metadata.signature.typedName).toBe(VALID_PATIENT_NAME);
   });
 
-  it('returns success even when AuditLog persistence fails (non-blocking)', async () => {
+  it('returns 503 when ConsentRecord persistence fails (must surface to client for retry)', async () => {
     mockAuditLogCreate.mockRejectedValue(new Error('DB write failed'));
 
     const req = makeRequest({ consents: allConsentsTrue(), timestamp: new Date().toISOString() });
     const res = await consentPOST(req);
     const body = await res.json();
 
-    // Should still return 200 -- audit failure is non-blocking
-    expect(res.status).toBe(200);
-    expect(body.success).toBe(true);
-    expect(body.consentRecordId).toBeDefined();
+    // 42 CFR §2.31 requires a queryable consent of record — DB failures
+    // can no longer be silently swallowed.
+    expect(res.status).toBe(503);
+    expect(body.code).toBe('CONSENT_PERSIST_FAILED');
+  });
+
+  it('returns 400 when patientName is missing (typed-name signature required)', async () => {
+    const req = new NextRequest(new URL('http://localhost:3000/api/checkout/consent'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-forwarded-for': '10.0.0.1',
+        'user-agent': 'vitest',
+      },
+      body: JSON.stringify({
+        consents: allConsentsTrue(),
+        timestamp: new Date().toISOString(),
+      }),
+    });
+    const res = await consentPOST(req);
+    const body = await res.json();
+    expect(res.status).toBe(400);
+    expect(body.code).toBe('VALIDATION_ERROR');
   });
 });

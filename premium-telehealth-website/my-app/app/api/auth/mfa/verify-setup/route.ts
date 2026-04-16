@@ -91,7 +91,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         userAgent,
         success: false,
         errorMessage: 'Invalid TOTP code during setup',
-      }).catch(() => {});
+      }).catch((err) => console.error('[auth:mfa:verify-setup] audit/rate-limit failed:', err instanceof Error ? err.message : 'Unknown error'));
 
       return NextResponse.json(
         { error: 'Invalid verification code', code: 'INVALID_MFA_CODE' },
@@ -125,7 +125,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       userAgent,
       success: true,
       metadata: { step: 'complete', backupCodesGenerated: backupCodes.length },
-    }).catch(() => {});
+    }).catch((err) => console.error('[auth:mfa:verify-setup] audit/rate-limit failed:', err instanceof Error ? err.message : 'Unknown error'));
 
     return NextResponse.json({
       success: true,

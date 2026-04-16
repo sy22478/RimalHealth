@@ -76,7 +76,7 @@ export function initializeTwilio(): void {
     isInitialized = true;
     console.log('[Twilio] Initialized successfully');
   } catch (error) {
-    console.error('[Twilio] Failed to initialize:', error);
+    console.error('[Twilio] Failed to initialize:', error instanceof Error ? error.message : 'Unknown error');
   }
 }
 
@@ -182,7 +182,7 @@ async function queueForRetry(job: RetryQueueJob): Promise<void> {
     await redis.zadd('notifications:sms:retry', score, jobData);
     console.log(`[Twilio] SMS queued for retry ${job.attempt}/${job.maxRetries}, jobId: ${jobId}`);
   } catch (error) {
-    console.error('[Twilio] Failed to queue for retry:', error);
+    console.error('[Twilio] Failed to queue for retry:', error instanceof Error ? error.message : 'Unknown error');
   }
 }
 
@@ -429,7 +429,7 @@ export async function getMessageStatus(messageSid: string): Promise<{
       price: message.price,
     };
   } catch (error) {
-    console.error('[Twilio] Failed to fetch message status:', error);
+    console.error('[Twilio] Failed to fetch message status:', error instanceof Error ? error.message : 'Unknown error');
     return null;
   }
 }

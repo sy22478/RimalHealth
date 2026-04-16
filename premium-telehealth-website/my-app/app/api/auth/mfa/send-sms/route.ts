@@ -116,7 +116,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         userAgent,
         success: false,
         errorMessage: 'Redis unavailable',
-      }).catch(() => {});
+      }).catch((err) => console.error('[auth:mfa:send-sms] audit/rate-limit failed:', err instanceof Error ? err.message : 'Unknown error'));
 
       return NextResponse.json(
         { error: 'Verification service temporarily unavailable. Please try again.', code: 'SERVICE_UNAVAILABLE' },
@@ -153,7 +153,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       userAgent,
       success: true,
       metadata: { method: 'sms' },
-    }).catch(() => {});
+    }).catch((err) => console.error('[auth:mfa:send-sms] audit/rate-limit failed:', err instanceof Error ? err.message : 'Unknown error'));
 
     return NextResponse.json({
       success: true,

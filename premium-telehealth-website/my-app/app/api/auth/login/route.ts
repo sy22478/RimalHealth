@@ -203,15 +203,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // If user not found, record failed attempt and return generic error
     if (!user) {
       // Fail-safe: Redis may be unavailable
-      await recordFailedAttempt(email.toLowerCase()).catch(() => {});
-      await recordIpAttempt(clientIp).catch(() => {});
+      await recordFailedAttempt(email.toLowerCase()).catch((err) => console.error('[auth:login] audit/rate-limit failed:', err instanceof Error ? err.message : 'Unknown error'));
+      await recordIpAttempt(clientIp).catch((err) => console.error('[auth:login] audit/rate-limit failed:', err instanceof Error ? err.message : 'Unknown error'));
 
       const authMetadata: AuthenticationMetadata = {
         authMethod: 'password',
         failureReason: 'User not found',
       };
 
-      await auditLogin(undefined, false, auditContext, authMetadata).catch(() => {});
+      await auditLogin(undefined, false, auditContext, authMetadata).catch((err) => console.error('[auth:login] audit/rate-limit failed:', err instanceof Error ? err.message : 'Unknown error'));
 
       return NextResponse.json(INVALID_CREDENTIALS_ERROR, { status: 401 });
     }
@@ -237,7 +237,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         },
       };
 
-      await auditLogin(user.id, false, auditContext, authMetadata).catch(() => {});
+      await auditLogin(user.id, false, auditContext, authMetadata).catch((err) => console.error('[auth:login] audit/rate-limit failed:', err instanceof Error ? err.message : 'Unknown error'));
 
       // Return error with lockout warning if approaching limit
       if (lockoutStatus.attempts >= 3) {
@@ -256,7 +256,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Clear failed attempts on successful login (fail-safe)
-    await clearFailedAttempts(email.toLowerCase()).catch(() => {});
+    await clearFailedAttempts(email.toLowerCase()).catch((err) => console.error('[auth:login] audit/rate-limit failed:', err instanceof Error ? err.message : 'Unknown error'));
 
     // Handle physician-specific authorization checks
     if (user.role === 'PHYSICIAN') {
@@ -462,7 +462,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         mfaVerified: false,
       };
 
-      await auditLogin(user.id, true, auditContext, authMetadataMfa).catch(() => {});
+      await auditLogin(user.id, true, auditContext, authMetadataMfa).catch((err) => console.error('[auth:login] audit/rate-limit failed:', err instanceof Error ? err.message : 'Unknown error'));
 
       // For patients, automatically send SMS code
       if (user.role === 'PATIENT') {
@@ -539,7 +539,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       authMethod: 'password',
     };
 
-    await auditLogin(user.id, true, auditContext, authMetadata).catch(() => {});
+    await auditLogin(user.id, true, auditContext, authMetadata).catch((err) => console.error('[auth:login] audit/rate-limit failed:', err instanceof Error ? err.message : 'Unknown error'));
 
     // Determine redirect URL based on user role
     const redirectUrl = user.role === 'PHYSICIAN' ? '/physician/queue' : 

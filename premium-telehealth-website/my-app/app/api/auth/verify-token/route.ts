@@ -79,7 +79,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         auditContext,
         false,
         'Invalid token'
-      ).catch(() => {});
+      ).catch((err) => console.error('[auth:verify-token] audit/rate-limit failed:', err instanceof Error ? err.message : 'Unknown error'));
 
       return NextResponse.json(
         { error: 'Invalid or expired link', code: 'INVALID_TOKEN' },
@@ -106,7 +106,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         auditContext,
         false,
         'Token expired'
-      ).catch(() => {});
+      ).catch((err) => console.error('[auth:verify-token] audit/rate-limit failed:', err instanceof Error ? err.message : 'Unknown error'));
 
       return NextResponse.json(
         { error: 'This link has expired. Please contact support.', code: 'TOKEN_EXPIRED' },
@@ -122,7 +122,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         auditContext,
         false,
         'Token already used'
-      ).catch(() => {});
+      ).catch((err) => console.error('[auth:verify-token] audit/rate-limit failed:', err instanceof Error ? err.message : 'Unknown error'));
 
       return NextResponse.json(
         { error: 'This link has already been used. Please log in instead.', code: 'TOKEN_USED' },
@@ -136,7 +136,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       resetRecord.userId,
       auditContext,
       true
-    ).catch(() => {});
+    ).catch((err) => console.error('[auth:verify-token] audit/rate-limit failed:', err instanceof Error ? err.message : 'Unknown error'));
 
     return NextResponse.json({
       email: resetRecord.user.email,
