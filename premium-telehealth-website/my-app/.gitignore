@@ -67,3 +67,6 @@ website-*.png
 # Build artifacts and audit screenshots
 .netlify/
 /audit/
+
+# Production readiness review reports
+/reviews/
