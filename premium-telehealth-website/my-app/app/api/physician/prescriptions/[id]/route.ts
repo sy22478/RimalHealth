@@ -173,18 +173,21 @@ export async function PUT(
       );
     }
 
-    // Validate transition
-    const allowed = VALID_TRANSITIONS[prescription.status];
-    if (!allowed || !allowed.includes(newStatus)) {
-      return NextResponse.json(
-        {
-          error: `Cannot transition from ${prescription.status} to ${newStatus}`,
-          code: 'INVALID_TRANSITION',
-          currentStatus: prescription.status,
-          allowedTransitions: allowed,
-        },
-        { status: 409 }
-      );
+    // Validate transition. Same-status is treated as a pharmacy-info-only update
+    // (used when setting/updating the pharmacy on a PENDING prescription).
+    if (newStatus !== prescription.status) {
+      const allowed = VALID_TRANSITIONS[prescription.status];
+      if (!allowed || !allowed.includes(newStatus)) {
+        return NextResponse.json(
+          {
+            error: `Cannot transition from ${prescription.status} to ${newStatus}`,
+            code: 'INVALID_TRANSITION',
+            currentStatus: prescription.status,
+            allowedTransitions: allowed,
+          },
+          { status: 409 }
+        );
+      }
     }
 
     // If marking as SENT, pharmacy info is required

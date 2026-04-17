@@ -31,6 +31,8 @@ interface IntakeReviewProps {
   physicianId: string;
   physicianName: string;
   isDeactivated?: boolean;
+  /** When true, hide the decision form (e.g. viewing an already-decided intake from the review history). */
+  isReadOnly?: boolean;
 }
 
 interface SubmissionState {
@@ -47,7 +49,7 @@ interface SubmissionState {
  * 
  * HIPAA: All PHI handling follows strict access controls
  */
-export function IntakeReview({ intake, physicianId, physicianName, isDeactivated = false }: IntakeReviewProps) {
+export function IntakeReview({ intake, physicianId, physicianName, isDeactivated = false, isReadOnly = false }: IntakeReviewProps) {
   const router = useRouter();
   const [submission, setSubmission] = React.useState<SubmissionState>({ status: 'idle' });
   const [decisionData, setDecisionData] = React.useState<DecisionFormData>({
@@ -261,8 +263,8 @@ export function IntakeReview({ intake, physicianId, physicianName, isDeactivated
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Status Alerts */}
-        {slaStatus?.isOverdue && (
+        {/* Status Alerts (hidden for already-reviewed intakes) */}
+        {!isReadOnly && slaStatus?.isOverdue && (
           <Alert variant="destructive" className="mb-6">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>SLA Overdue</AlertTitle>
@@ -272,7 +274,7 @@ export function IntakeReview({ intake, physicianId, physicianName, isDeactivated
           </Alert>
         )}
 
-        {slaStatus?.isUrgent && (
+        {!isReadOnly && slaStatus?.isUrgent && (
           <Alert className="mb-6 border-warning bg-warning/10">
             <Clock className="h-4 w-4 text-warning" />
             <AlertTitle className="text-warning-foreground">SLA Warning</AlertTitle>
@@ -453,43 +455,68 @@ export function IntakeReview({ intake, physicianId, physicianName, isDeactivated
             </Card>
           </div>
 
-          {/* Right Sidebar - Decision Form */}
+          {/* Right Sidebar - Decision Form (hidden when viewing an already-reviewed intake) */}
           <div className="md:col-span-12 lg:col-span-3">
-            <Card className="lg:sticky lg:top-24">
-              <CardHeader>
-                <CardTitle className="text-base">Review Decision</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <DecisionForm
-                  value={decisionData}
-                  onChange={setDecisionData}
-                  concernType={concernType}
-                  formData={intake.formData as IntakeFormData}
-                  disabled={submission.status === 'submitting' || submission.status === 'success'}
-                  errors={validationErrors}
-                />
-              </CardContent>
-              <CardFooter className="flex-col gap-3">
-                <LoadingButton
-                  onClick={() => {
-                    if (decisionData.decision === 'APPROVE') {
-                      if (!validateForm()) return;
-                      setApproveConfirmOpen(true);
-                      return;
-                    }
-                    handleSubmit();
-                  }}
-                  loading={submission.status === 'submitting'}
-                  disabled={submission.status === 'success'}
-                  className="w-full"
-                >
-                  Submit Review
-                </LoadingButton>
-                <p className="text-xs text-muted-foreground text-center">
-                  This action is logged and cannot be undone.
-                </p>
-              </CardFooter>
-            </Card>
+            {isReadOnly ? (
+              <Card className="lg:sticky lg:top-24 bg-gray-50">
+                <CardHeader>
+                  <CardTitle className="text-base">Review Status</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Badge variant="secondary" className="text-sm">
+                    {intake.status.replace(/_/g, ' ')}
+                  </Badge>
+                  <p className="text-sm text-muted-foreground">
+                    This intake has already been reviewed. See the Review History
+                    page for the physician&apos;s decision and clinical notes.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => router.push('/physician/reviews')}
+                  >
+                    Back to Review History
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="lg:sticky lg:top-24">
+                <CardHeader>
+                  <CardTitle className="text-base">Review Decision</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <DecisionForm
+                    value={decisionData}
+                    onChange={setDecisionData}
+                    concernType={concernType}
+                    formData={intake.formData as IntakeFormData}
+                    disabled={submission.status === 'submitting' || submission.status === 'success'}
+                    errors={validationErrors}
+                  />
+                </CardContent>
+                <CardFooter className="flex-col gap-3">
+                  <LoadingButton
+                    onClick={() => {
+                      if (decisionData.decision === 'APPROVE') {
+                        if (!validateForm()) return;
+                        setApproveConfirmOpen(true);
+                        return;
+                      }
+                      handleSubmit();
+                    }}
+                    loading={submission.status === 'submitting'}
+                    disabled={submission.status === 'success'}
+                    className="w-full"
+                  >
+                    Submit Review
+                  </LoadingButton>
+                  <p className="text-xs text-muted-foreground text-center">
+                    This action is logged and cannot be undone.
+                  </p>
+                </CardFooter>
+              </Card>
+            )}
           </div>
         </div>
       </main>

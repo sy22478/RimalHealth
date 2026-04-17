@@ -77,10 +77,10 @@ export default async function IntakeReviewPage({ params }: IntakeReviewPageProps
 
   const intake = result.data;
 
-  // Only allow review of submitted or under-review intakes
-  if (intake.status !== 'SUBMITTED' && intake.status !== 'UNDER_REVIEW') {
-    redirect('/physician/dashboard');
-  }
+  // Intakes that have already been decided are shown in read-only mode so
+  // physicians can review the form and decision from the review history.
+  const isReadOnly =
+    intake.status !== 'SUBMITTED' && intake.status !== 'UNDER_REVIEW';
 
   // Run independent queries in parallel
   const [patientUser, physicianName] = await Promise.all([
@@ -98,6 +98,7 @@ export default async function IntakeReviewPage({ params }: IntakeReviewPageProps
       physicianId={user.userId}
       physicianName={physicianName}
       isDeactivated={isDeactivated}
+      isReadOnly={isReadOnly}
     />
   );
 }

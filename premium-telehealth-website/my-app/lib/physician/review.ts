@@ -232,19 +232,13 @@ export async function getIntakeForReview(
     const firstName = formFirstName || (typeof profile?.firstName === 'string' ? profile.firstName : '') || 'Not provided';
     const lastName = formLastName || (typeof profile?.lastName === 'string' ? profile.lastName : '') || '';
 
-    // Prefer formData DOB (patient-entered during intake) over profile DOB
+    // Prefer formData DOB (patient-entered during intake) over profile DOB.
+    // Keep DOB as a raw YYYY-MM-DD string — Date objects serialize as UTC
+    // timestamps across the RSC boundary and render a day early in negative-
+    // offset timezones like PST. Empty string is the "unknown" sentinel.
     const formDob = typeof formDataRecord.dateOfBirth === 'string' ? formDataRecord.dateOfBirth : '';
     const profileDob = typeof profile?.dateOfBirth === 'string' ? profile.dateOfBirth : '';
-    const dobString = formDob || profileDob;
-    // Use a past sentinel date (epoch) when DOB is missing so the UI can detect "unknown"
-    // instead of defaulting to today which would compute age as 0
-    let dateOfBirth: Date;
-    if (dobString && /^\d{4}-\d{2}-\d{2}/.test(dobString)) {
-      const [y, m, d] = dobString.split('-').map(Number);
-      dateOfBirth = new Date(y, m - 1, d);
-    } else {
-      dateOfBirth = dobString ? new Date(dobString) : new Date(0);
-    }
+    const dateOfBirth = formDob || profileDob || '';
 
     const data: IntakeWithPatient = {
       id: intake.id,

@@ -46,7 +46,10 @@ export interface IntakeWithPatient {
     id: string;
     firstName: string;
     lastName: string;
-    dateOfBirth: Date;
+    /** Raw YYYY-MM-DD string — kept as string to avoid UTC serialization bug
+     *  where a Date constructed from YYYY-MM-DD on a UTC server renders a day
+     *  early in negative-offset timezones like PST. */
+    dateOfBirth: string;
     email: string;
     phone: string;
     address?: {

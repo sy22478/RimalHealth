@@ -256,8 +256,8 @@ export interface PatientDocument {
  * Patient detail for physician view
  */
 export interface PhysicianPatientDetail extends PhysicianPatientListItem {
-  /** Date of birth */
-  dateOfBirth?: Date;
+  /** Date of birth as raw YYYY-MM-DD string (not Date, to avoid UTC serialization bug) */
+  dateOfBirth?: string;
   /** Full address */
   address?: {
     street: string;

@@ -35,7 +35,6 @@ export default function PatientMFASetupPage(): React.ReactElement {
   const [loading, setLoading] = useState(false);
   const [phoneHint, setPhoneHint] = useState('');
   const [code, setCode] = useState('');
-  const [mfaToken, setMfaToken] = useState('');
   const [noPhone, setNoPhone] = useState(false);
 
   // Step 1: Request SMS code for setup
@@ -44,25 +43,10 @@ export default function PatientMFASetupPage(): React.ReactElement {
     setError(null);
 
     try {
-      // First, initiate MFA setup to get an mfaToken
-      const setupRes = await fetch('/api/auth/mfa/setup', {
+      const sendRes = await fetch('/api/patient/mfa/setup-sms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-      });
-
-      if (!setupRes.ok) {
-        const data = await setupRes.json();
-        throw new Error(data.error || 'Failed to initiate MFA setup');
-      }
-
-      // Now send the SMS code — we need a temporary token
-      // Use a dedicated endpoint that accepts auth cookies instead of mfaToken
-      const sendRes = await fetch('/api/auth/mfa/send-sms', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ mfaToken: 'setup' }),
       });
 
       const sendData = await sendRes.json();
@@ -92,7 +76,7 @@ export default function PatientMFASetupPage(): React.ReactElement {
     setError(null);
 
     try {
-      const response = await fetch('/api/auth/mfa/verify-setup', {
+      const response = await fetch('/api/patient/mfa/verify-sms-setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

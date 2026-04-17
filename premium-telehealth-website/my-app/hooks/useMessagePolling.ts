@@ -41,7 +41,7 @@ interface LastMessageInfo {
  * Options for useMessagePolling hook
  */
 interface UseMessagePollingOptions {
-  /** Polling interval in milliseconds (default: 30000) */
+  /** Polling interval in milliseconds (default: 60000) */
   interval?: number;
   /** Whether polling is enabled (default: true) */
   enabled?: boolean;
@@ -80,7 +80,7 @@ interface UseMessagePollingReturn {
 export function useMessagePolling(
   options: UseMessagePollingOptions = {}
 ): UseMessagePollingReturn {
-  const { interval = 30000, enabled = true } = options;
+  const { interval = 60000, enabled = true } = options;
 
   const [unreadCount, setUnreadCount] = React.useState(0);
   const [lastMessage, setLastMessage] = React.useState<LastMessageInfo | undefined>();

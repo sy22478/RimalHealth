@@ -64,6 +64,8 @@ interface PrescriptionListProps {
   onRefresh?: () => void;
   /** Callback to send prescription to pharmacy */
   onSendToPharmacy?: (prescriptionId: string) => void | Promise<void>;
+  /** Callback to set/update the pharmacy on a prescription that has none */
+  onSetPharmacy?: (prescriptionId: string) => void;
   /** Whether data is loading */
   isLoading?: boolean;
   /** Additional CSS classes */
@@ -160,6 +162,7 @@ export function PrescriptionList({
   onPrescriptionClick,
   onRefresh,
   onSendToPharmacy,
+  onSetPharmacy,
   isLoading = false,
   className,
   compact = false,
@@ -485,7 +488,19 @@ export function PrescriptionList({
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        {rx.status === 'PENDING' && onSendToPharmacy && (
+                        {rx.status === 'PENDING' && rx.pharmacyName === 'Pending' && onSetPharmacy && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSetPharmacy(rx.id);
+                            }}
+                          >
+                            Set Pharmacy
+                          </Button>
+                        )}
+                        {rx.status === 'PENDING' && rx.pharmacyName !== 'Pending' && onSendToPharmacy && (
                           <Button
                             size="sm"
                             disabled={sendingIds.has(rx.id)}

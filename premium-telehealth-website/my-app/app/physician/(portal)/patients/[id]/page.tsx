@@ -80,11 +80,10 @@ function mapApiResponseToPatientDetail(raw: Record<string, unknown>): PhysicianP
     riskLevel: (raw.riskLevel as string) || 'LOW',
     emailMasked: maskEmail(email),
     phoneMasked: (raw.phone as string) || 'No phone',
-    dateOfBirth: dob
-      ? (typeof dob === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dob)
-        ? new Date(parseInt(dob.split('-')[0]), parseInt(dob.split('-')[1]) - 1, parseInt(dob.split('-')[2]))
-        : new Date(dob))
-      : undefined,
+    // Pass through raw YYYY-MM-DD string to avoid UTC serialization (Date objects
+    // serialize as UTC timestamps across the RSC boundary and render a day early
+    // in negative-offset timezones like PST).
+    dateOfBirth: dob || undefined,
     address: address && address.street ? {
       street: address.street || '',
       city: address.city || '',

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PrescriptionList } from '@/components/physician/PrescriptionList';
+import { PharmacySearch, type Pharmacy } from '@/components/physician/PharmacySearch';
 import { Pill, Plus, Clock, CheckCircle } from 'lucide-react';
 import type { PhysicianPrescriptionListItem } from '@/types/physician-dashboard';
 import { PrescriptionStatus } from '@prisma/client';
@@ -19,6 +20,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 type PendingAction =
   | { type: 'send'; prescriptionId: string; pharmacyName: string }
@@ -97,6 +105,8 @@ export function PhysicianPrescriptionsClient({ initialPrescriptions }: Physician
   const [toast, setToast] = React.useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [pendingAction, setPendingAction] = React.useState<PendingAction | null>(null);
   const [actionLoading, setActionLoading] = React.useState(false);
+  const [pharmacyDialogRxId, setPharmacyDialogRxId] = React.useState<string | null>(null);
+  const [settingPharmacy, setSettingPharmacy] = React.useState(false);
 
   // Auto-dismiss toast
   React.useEffect(() => {
@@ -125,14 +135,60 @@ export function PhysicianPrescriptionsClient({ initialPrescriptions }: Physician
     if (!rx) return;
 
     if (rx.pharmacyName === 'Pending') {
-      setToast({
-        message: 'This prescription has no pharmacy assigned. Please update the pharmacy before sending.',
-        type: 'error',
-      });
+      // Prompt the physician to set a pharmacy first instead of just erroring.
+      setPharmacyDialogRxId(prescriptionId);
       return;
     }
 
     setPendingAction({ type: 'send', prescriptionId, pharmacyName: rx.pharmacyName });
+  };
+
+  const requestSetPharmacy = (prescriptionId: string) => {
+    setPharmacyDialogRxId(prescriptionId);
+  };
+
+  const handlePharmacySelected = async (pharmacy: Pharmacy) => {
+    if (!pharmacyDialogRxId) return;
+    setSettingPharmacy(true);
+    try {
+      const res = await fetch(`/api/physician/prescriptions/${pharmacyDialogRxId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          // Keep status unchanged — the update endpoint requires a valid transition,
+          // and setting the same status (PENDING -> PENDING) is not allowed. Instead,
+          // pass the current status so the server only updates pharmacy fields.
+          // The PUT handler only applies status transitions when they differ.
+          status: 'PENDING',
+          pharmacyName: pharmacy.name,
+          pharmacyAddress: pharmacy.address,
+          pharmacyCity: pharmacy.city,
+          pharmacyState: pharmacy.state,
+          pharmacyNcpdpId: pharmacy.ncpdpId,
+          pharmacyPhone: pharmacy.phone,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to update pharmacy');
+      }
+
+      setToast({
+        message: `Pharmacy set to ${pharmacy.name}. You can now send the prescription.`,
+        type: 'success',
+      });
+      setPharmacyDialogRxId(null);
+      await refreshPrescriptions();
+    } catch (err) {
+      setToast({
+        message: err instanceof Error ? err.message : 'Failed to update pharmacy',
+        type: 'error',
+      });
+    } finally {
+      setSettingPharmacy(false);
+    }
   };
 
   const requestMarkActive = (prescriptionId: string) => {
@@ -281,6 +337,7 @@ export function PhysicianPrescriptionsClient({ initialPrescriptions }: Physician
       <PrescriptionList
         prescriptions={prescriptions}
         onSendToPharmacy={requestSendToPharmacy}
+        onSetPharmacy={requestSetPharmacy}
         onRefresh={refreshPrescriptions}
       />
 
@@ -342,6 +399,25 @@ export function PhysicianPrescriptionsClient({ initialPrescriptions }: Physician
           </CardContent>
         </Card>
       )}
+
+      {/* Pharmacy Search Dialog */}
+      <Dialog
+        open={pharmacyDialogRxId !== null}
+        onOpenChange={(open) => {
+          if (!open && !settingPharmacy) setPharmacyDialogRxId(null);
+        }}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Set pharmacy for prescription</DialogTitle>
+            <DialogDescription>
+              Search for the patient&apos;s preferred pharmacy. The prescription cannot be
+              sent until a pharmacy is assigned.
+            </DialogDescription>
+          </DialogHeader>
+          <PharmacySearch onSelect={handlePharmacySelected} />
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog
         open={pendingAction !== null}
