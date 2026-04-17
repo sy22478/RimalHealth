@@ -12,6 +12,7 @@
 
 import * as React from 'react';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -662,8 +663,11 @@ function StatsCard({
 // Main Page Component
 // ============================================================================
 
-export default function PhysicianMessagingPage() {
+function PhysicianMessagingPageContent() {
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const patientIdParam = searchParams.get('patient');
+  const [autoSelectedPatientId, setAutoSelectedPatientId] = useState<string | null>(null);
 
   const [threads, setThreads] = useState<Thread[]>([]);
   const [messages, setMessages] = useState<Record<string, Message[]>>({});
@@ -979,6 +983,37 @@ export default function PhysicianMessagingPage() {
   }, [fetchThreads]);
 
   // -----------------------------------------------------------------------
+  // Auto-select thread for ?patient=<id> deep-links
+  // -----------------------------------------------------------------------
+  useEffect(() => {
+    if (!patientIdParam) return;
+    if (autoSelectedPatientId === patientIdParam) return;
+    if (threads.length === 0) return;
+
+    const match = threads.find((t) => t.participant.id === patientIdParam);
+    if (match) {
+      void handleSelectThread(match);
+      setAutoSelectedPatientId(patientIdParam);
+      return;
+    }
+
+    // No existing thread — open the compose dialog and pre-load patients
+    if (patients.length === 0 && !isLoadingPatients) {
+      void fetchPatients();
+    }
+    setIsComposeOpen(true);
+    setAutoSelectedPatientId(patientIdParam);
+  }, [
+    patientIdParam,
+    threads,
+    autoSelectedPatientId,
+    handleSelectThread,
+    patients.length,
+    isLoadingPatients,
+    fetchPatients,
+  ]);
+
+  // -----------------------------------------------------------------------
   // Poll for new messages every 30 seconds
   // -----------------------------------------------------------------------
   useEffect(() => {
@@ -1121,5 +1156,13 @@ export default function PhysicianMessagingPage() {
         isLoading={isLoadingPatients}
       />
     </div>
+  );
+}
+
+export default function PhysicianMessagingPage() {
+  return (
+    <React.Suspense fallback={<div className="p-6 text-muted-foreground">Loading messages…</div>}>
+      <PhysicianMessagingPageContent />
+    </React.Suspense>
   );
 }

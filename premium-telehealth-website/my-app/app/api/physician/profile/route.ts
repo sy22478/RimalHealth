@@ -41,6 +41,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         user: {
           select: {
             email: true,
+            mfaEnabled: true,
           },
         },
       },
@@ -71,6 +72,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       physician: {
         ...physicianData,
         email: user.email,
+        mfaEnabled: user.mfaEnabled,
       },
     });
   } catch (error) {

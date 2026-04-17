@@ -239,41 +239,6 @@ export function IntakeDataView({ formData: rawFormData, scores, riskAssessment, 
         </AlertDescription>
       </Alert>
 
-      {/* Risk Assessment Banner */}
-      {riskAssessment && (
-        <Card
-          className={cn(
-            'border-l-4',
-            riskAssessment.level === 'LOW' && 'border-l-success bg-success/5',
-            riskAssessment.level === 'MODERATE' && 'border-l-warning bg-warning/5',
-            riskAssessment.level === 'HIGH' && 'border-l-orange-500 bg-orange-50',
-            riskAssessment.level === 'SEVERE' && 'border-l-destructive bg-destructive/5'
-          )}
-        >
-          <CardContent className="py-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Risk Assessment</p>
-                <p className="text-lg font-semibold">{riskAssessment.level} RISK</p>
-                <p className="text-sm mt-1">{riskAssessment.description}</p>
-              </div>
-              <Badge
-                variant={
-                  riskAssessment.level === 'LOW'
-                    ? 'default'
-                    : riskAssessment.level === 'MODERATE'
-                    ? 'secondary'
-                    : 'destructive'
-                }
-                className="text-base px-3 py-1"
-              >
-                {scores?.riskScore ?? '-'} / 100
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Provider Decision Summary */}
       {providerSummary && (
         <Card className="border-2 border-navy-200 bg-navy-50/50">
@@ -395,7 +360,7 @@ export function IntakeDataView({ formData: rawFormData, scores, riskAssessment, 
         </Card>
       )}
 
-      <Accordion type="multiple" defaultValue={['personal', 'medical']} className="space-y-4">
+      <Accordion type="multiple" defaultValue={['alcohol', 'withdrawal', 'medical']} className="space-y-4">
         {/* Personal Information */}
         <AccordionItem value="personal" className="border rounded-lg px-4">
           <AccordionTrigger className="hover:no-underline py-3">

@@ -9,6 +9,21 @@ import { PrescriptionList } from '@/components/physician/PrescriptionList';
 import { Pill, Plus, Clock, CheckCircle } from 'lucide-react';
 import type { PhysicianPrescriptionListItem } from '@/types/physician-dashboard';
 import { PrescriptionStatus } from '@prisma/client';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+
+type PendingAction =
+  | { type: 'send'; prescriptionId: string; pharmacyName: string }
+  | { type: 'active'; prescriptionId: string; patientName: string }
+  | { type: 'completed'; prescriptionId: string; patientName: string };
 
 // ============================================================================
 // Types
@@ -80,6 +95,8 @@ function PrescriptionStats({
 export function PhysicianPrescriptionsClient({ initialPrescriptions }: PhysicianPrescriptionsClientProps) {
   const [prescriptions, setPrescriptions] = React.useState(initialPrescriptions);
   const [toast, setToast] = React.useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [pendingAction, setPendingAction] = React.useState<PendingAction | null>(null);
+  const [actionLoading, setActionLoading] = React.useState(false);
 
   // Auto-dismiss toast
   React.useEffect(() => {
@@ -103,11 +120,10 @@ export function PhysicianPrescriptionsClient({ initialPrescriptions }: Physician
     }
   };
 
-  const handleSendToPharmacy = async (prescriptionId: string) => {
+  const requestSendToPharmacy = (prescriptionId: string) => {
     const rx = prescriptions.find((p) => p.id === prescriptionId);
     if (!rx) return;
 
-    // If pharmacy is 'Pending', show error — physician needs to assign pharmacy first via review
     if (rx.pharmacyName === 'Pending') {
       setToast({
         message: 'This prescription has no pharmacy assigned. Please update the pharmacy before sending.',
@@ -116,90 +132,75 @@ export function PhysicianPrescriptionsClient({ initialPrescriptions }: Physician
       return;
     }
 
-    const confirmed = confirm(
-      `This will notify the patient that their prescription has been sent to ${rx.pharmacyName}.\n\nHave you sent the prescription through your e-prescribing app?`
-    );
-    if (!confirmed) return;
-
-    try {
-      const res = await fetch('/api/physician/prescriptions/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ prescriptionId }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to send prescription');
-      }
-
-      setToast({ message: `Prescription marked as sent to ${rx.pharmacyName}. Patient notified.`, type: 'success' });
-      await refreshPrescriptions();
-    } catch (err) {
-      setToast({
-        message: err instanceof Error ? err.message : 'Failed to send prescription',
-        type: 'error',
-      });
-    }
+    setPendingAction({ type: 'send', prescriptionId, pharmacyName: rx.pharmacyName });
   };
 
-  const handleMarkActive = async (prescriptionId: string) => {
+  const requestMarkActive = (prescriptionId: string) => {
     const rx = prescriptions.find((p) => p.id === prescriptionId);
     if (!rx) return;
-
-    if (!confirm('Confirm this patient has started their medication?')) {
-      return;
-    }
-
-    try {
-      const res = await fetch(`/api/physician/prescriptions/${prescriptionId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ status: 'ACTIVE' }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to update prescription');
-      }
-
-      setToast({ message: 'Prescription marked as active', type: 'success' });
-      await refreshPrescriptions();
-    } catch (err) {
-      setToast({
-        message: err instanceof Error ? err.message : 'Failed to update prescription',
-        type: 'error',
-      });
-    }
+    setPendingAction({ type: 'active', prescriptionId, patientName: rx.patientName });
   };
 
-  const handleMarkCompleted = async (prescriptionId: string) => {
-    if (!confirm('Confirm this treatment course is complete?')) {
-      return;
-    }
+  const requestMarkCompleted = (prescriptionId: string) => {
+    const rx = prescriptions.find((p) => p.id === prescriptionId);
+    if (!rx) return;
+    setPendingAction({ type: 'completed', prescriptionId, patientName: rx.patientName });
+  };
+
+  const runPendingAction = async () => {
+    if (!pendingAction) return;
+    setActionLoading(true);
 
     try {
-      const res = await fetch(`/api/physician/prescriptions/${prescriptionId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ status: 'COMPLETED' }),
-      });
+      if (pendingAction.type === 'send') {
+        const res = await fetch('/api/physician/prescriptions/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ prescriptionId: pendingAction.prescriptionId }),
+        });
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to update prescription');
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Failed to send prescription');
+        }
+
+        setToast({
+          message: `Prescription marked as sent to ${pendingAction.pharmacyName}. Patient notified.`,
+          type: 'success',
+        });
+      } else {
+        const nextStatus = pendingAction.type === 'active' ? 'ACTIVE' : 'COMPLETED';
+        const res = await fetch(`/api/physician/prescriptions/${pendingAction.prescriptionId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ status: nextStatus }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Failed to update prescription');
+        }
+
+        setToast({
+          message:
+            nextStatus === 'ACTIVE'
+              ? 'Prescription marked as active'
+              : 'Treatment marked as completed',
+          type: 'success',
+        });
       }
 
-      setToast({ message: 'Treatment marked as completed', type: 'success' });
       await refreshPrescriptions();
+      setPendingAction(null);
     } catch (err) {
       setToast({
         message: err instanceof Error ? err.message : 'Failed to update prescription',
         type: 'error',
       });
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -279,7 +280,7 @@ export function PhysicianPrescriptionsClient({ initialPrescriptions }: Physician
       {/* Prescription List */}
       <PrescriptionList
         prescriptions={prescriptions}
-        onSendToPharmacy={handleSendToPharmacy}
+        onSendToPharmacy={requestSendToPharmacy}
         onRefresh={refreshPrescriptions}
       />
 
@@ -306,7 +307,7 @@ export function PhysicianPrescriptionsClient({ initialPrescriptions }: Physician
                       size="sm"
                       variant="outline"
                       className="border-green-300 text-green-700 hover:bg-green-50"
-                      onClick={() => handleMarkActive(rx.id)}
+                      onClick={() => requestMarkActive(rx.id)}
                     >
                       <CheckCircle className="w-4 h-4 mr-1" />
                       Mark Active
@@ -330,7 +331,7 @@ export function PhysicianPrescriptionsClient({ initialPrescriptions }: Physician
                       size="sm"
                       variant="outline"
                       className="border-gray-300 text-gray-700 hover:bg-gray-50"
-                      onClick={() => handleMarkCompleted(rx.id)}
+                      onClick={() => requestMarkCompleted(rx.id)}
                     >
                       <CheckCircle className="w-4 h-4 mr-1" />
                       Mark Completed
@@ -341,6 +342,88 @@ export function PhysicianPrescriptionsClient({ initialPrescriptions }: Physician
           </CardContent>
         </Card>
       )}
+
+      <AlertDialog
+        open={pendingAction !== null}
+        onOpenChange={(open) => {
+          if (!open && !actionLoading) setPendingAction(null);
+        }}
+      >
+        <AlertDialogContent>
+          {pendingAction?.type === 'send' && (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Send prescription to pharmacy?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This marks the prescription as sent to <strong>{pendingAction.pharmacyName}</strong>{' '}
+                  and notifies the patient. Only confirm after you have actually transmitted the
+                  prescription via your e-prescribing app, phone, or fax.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={actionLoading}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={(e) => {
+                    e.preventDefault();
+                    runPendingAction();
+                  }}
+                  disabled={actionLoading}
+                >
+                  {actionLoading ? 'Sending…' : 'Confirm sent'}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </>
+          )}
+
+          {pendingAction?.type === 'active' && (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Mark prescription as active?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Confirm that {pendingAction.patientName} has picked up their medication and
+                  started treatment. This updates the prescription status to ACTIVE.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={actionLoading}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={(e) => {
+                    e.preventDefault();
+                    runPendingAction();
+                  }}
+                  disabled={actionLoading}
+                >
+                  {actionLoading ? 'Updating…' : 'Mark active'}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </>
+          )}
+
+          {pendingAction?.type === 'completed' && (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Mark treatment as completed?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Confirm that {pendingAction.patientName}&apos;s treatment course is complete. This
+                  updates the prescription status to COMPLETED.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={actionLoading}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={(e) => {
+                    e.preventDefault();
+                    runPendingAction();
+                  }}
+                  disabled={actionLoading}
+                >
+                  {actionLoading ? 'Updating…' : 'Mark completed'}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </>
+          )}
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

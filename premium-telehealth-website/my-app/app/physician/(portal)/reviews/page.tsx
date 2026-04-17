@@ -165,7 +165,7 @@ export default function ReviewHistoryPage() {
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Link href={`/physician/queue/${review.intakeId}`}>
+                          <Link href={`/physician/intake/${review.intakeId}`}>
                             <Button variant="ghost" size="sm">
                               View Intake
                             </Button>

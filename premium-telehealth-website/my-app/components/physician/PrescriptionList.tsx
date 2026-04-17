@@ -63,7 +63,7 @@ interface PrescriptionListProps {
   /** Callback when refresh is requested */
   onRefresh?: () => void;
   /** Callback to send prescription to pharmacy */
-  onSendToPharmacy?: (prescriptionId: string) => Promise<void>;
+  onSendToPharmacy?: (prescriptionId: string) => void | Promise<void>;
   /** Whether data is loading */
   isLoading?: boolean;
   /** Additional CSS classes */
@@ -499,10 +499,7 @@ export function PrescriptionList({
                           </Button>
                         )}
                         {rx.status !== 'PENDING' && (
-                          <Button variant="ghost" size="sm">
-                            View
-                            <ChevronRight className="w-4 h-4 ml-1" />
-                          </Button>
+                          <ChevronRight className="w-4 h-4 text-muted-foreground" />
                         )}
                       </TableCell>
                     </TableRow>

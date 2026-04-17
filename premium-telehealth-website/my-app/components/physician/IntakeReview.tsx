@@ -10,6 +10,16 @@ import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { LoadingButton } from '@/components/ui/LoadingButton';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { IntakeDataView } from './IntakeDataView';
 import { DecisionForm, DecisionFormData } from './DecisionForm';
 import { IntakeWithPatient } from '@/lib/physician/review-types';
@@ -49,6 +59,7 @@ export function IntakeReview({ intake, physicianId, physicianName, isDeactivated
     requestedInfo: '',
   });
   const [validationErrors, setValidationErrors] = React.useState<Record<string, string>>({});
+  const [approveConfirmOpen, setApproveConfirmOpen] = React.useState(false);
 
   // Calculate patient age
   const patientAge = React.useMemo(() => {
@@ -304,9 +315,9 @@ export function IntakeReview({ intake, physicianId, physicianName, isDeactivated
           </Alert>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 lg:gap-8">
           {/* Left Sidebar - Patient Summary */}
-          <div className="lg:col-span-3 space-y-6">
+          <div className="md:col-span-4 lg:col-span-3 space-y-6">
             <Card>
               <CardHeader className="pb-4">
                 <CardTitle className="text-base">Patient Summary</CardTitle>
@@ -425,7 +436,7 @@ export function IntakeReview({ intake, physicianId, physicianName, isDeactivated
           </div>
 
           {/* Main Content */}
-          <div className="lg:col-span-6 space-y-6">
+          <div className="md:col-span-8 lg:col-span-6 space-y-6">
             {/* Intake Data */}
             <Card>
               <CardHeader>
@@ -443,8 +454,8 @@ export function IntakeReview({ intake, physicianId, physicianName, isDeactivated
           </div>
 
           {/* Right Sidebar - Decision Form */}
-          <div className="lg:col-span-3">
-            <Card className="sticky top-24">
+          <div className="md:col-span-12 lg:col-span-3">
+            <Card className="lg:sticky lg:top-24">
               <CardHeader>
                 <CardTitle className="text-base">Review Decision</CardTitle>
               </CardHeader>
@@ -460,7 +471,14 @@ export function IntakeReview({ intake, physicianId, physicianName, isDeactivated
               </CardContent>
               <CardFooter className="flex-col gap-3">
                 <LoadingButton
-                  onClick={handleSubmit}
+                  onClick={() => {
+                    if (decisionData.decision === 'APPROVE') {
+                      if (!validateForm()) return;
+                      setApproveConfirmOpen(true);
+                      return;
+                    }
+                    handleSubmit();
+                  }}
                   loading={submission.status === 'submitting'}
                   disabled={submission.status === 'success'}
                   className="w-full"
@@ -475,6 +493,39 @@ export function IntakeReview({ intake, physicianId, physicianName, isDeactivated
           </div>
         </div>
       </main>
+
+      <AlertDialog
+        open={approveConfirmOpen}
+        onOpenChange={(open) => {
+          if (!open && submission.status !== 'submitting') setApproveConfirmOpen(false);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Approve this intake?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Approving this intake will charge the patient&apos;s saved payment method, create a
+              prescription record for the selected medication, and notify the patient. This action
+              is logged and cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={submission.status === 'submitting'}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                setApproveConfirmOpen(false);
+                void handleSubmit();
+              }}
+              disabled={submission.status === 'submitting'}
+            >
+              {submission.status === 'submitting' ? 'Submitting…' : 'Confirm & Approve'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

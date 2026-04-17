@@ -43,7 +43,6 @@ import {
   ArrowDown,
   Eye,
   Filter,
-  Download,
 } from 'lucide-react';
 import type { PhysicianPatientListItem, PatientFilters } from '@/types/physician-dashboard';
 import { PatientStatusBadge, RiskBadge } from '@/components/shared/StatusBadge';
@@ -313,9 +312,6 @@ export function PatientTable({
               </SelectContent>
             </Select>
 
-            <Button variant="outline" size="icon">
-              <Download className="w-4 h-4" />
-            </Button>
           </div>
         </div>
 

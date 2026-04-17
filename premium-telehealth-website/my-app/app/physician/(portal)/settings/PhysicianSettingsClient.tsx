@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CheckCircle, AlertCircle, Lock, User, Shield } from 'lucide-react';
+import { MFASettingsCard } from './MFASettingsCard';
 
 // ============================================================================
 // Types
@@ -39,6 +40,7 @@ interface PhysicianProfile {
   isActive: boolean;
   maxDailyReviews: number;
   totalReviews: number;
+  mfaEnabled?: boolean;
 }
 
 // ============================================================================
@@ -273,6 +275,8 @@ export function PhysicianSettingsClient({ physician }: { physician: PhysicianPro
           <ChangePasswordForm />
         </CardContent>
       </Card>
+
+      <MFASettingsCard mfaEnabled={Boolean(physician.mfaEnabled)} />
 
       {/* HIPAA Notice */}
       <Card className="border-blue-200 bg-blue-50">

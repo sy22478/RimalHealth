@@ -10,6 +10,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import {
@@ -54,8 +55,8 @@ interface StatCardProps {
   secondaryValue?: string;
   /** Whether to show an alert indicator */
   alert?: boolean;
-  /** Click handler for the card */
-  onClick?: () => void;
+  /** Navigation target — when set, the card renders as a link */
+  href?: string;
 }
 
 function StatCard({
@@ -66,15 +67,14 @@ function StatCard({
   iconColor,
   secondaryValue,
   alert,
-  onClick,
+  href,
 }: StatCardProps) {
-  return (
+  const card = (
     <Card
       className={cn(
         'transition-all duration-200',
-        onClick && 'cursor-pointer hover:shadow-md hover:-translate-y-0.5'
+        href && 'cursor-pointer hover:shadow-md hover:-translate-y-0.5'
       )}
-      onClick={onClick}
     >
       <CardContent className="p-6">
         <div className="flex items-start justify-between">
@@ -102,6 +102,15 @@ function StatCard({
       </CardContent>
     </Card>
   );
+
+  if (href) {
+    return (
+      <Link href={href} className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-xl">
+        {card}
+      </Link>
+    );
+  }
+  return card;
 }
 
 // ============================================================================
@@ -145,6 +154,7 @@ export function DashboardStats({ stats, className }: DashboardStatsProps) {
             : 'All caught up!'
         }
         alert={hasOverdue}
+        href="/physician/queue?filter=pending"
       />
 
       {/* Patients Today */}
@@ -155,6 +165,7 @@ export function DashboardStats({ stats, className }: DashboardStatsProps) {
         iconBgColor="bg-green-100"
         iconColor="text-green-600"
         secondaryValue="Active today"
+        href="/physician/patients"
       />
 
       {/* Unread Messages */}
@@ -166,6 +177,7 @@ export function DashboardStats({ stats, className }: DashboardStatsProps) {
         iconColor={stats.unreadMessages > 0 ? 'text-amber-600' : 'text-purple-600'}
         secondaryValue={stats.unreadMessages > 0 ? 'Needs attention' : 'All read'}
         alert={stats.unreadMessages > 5}
+        href="/physician/messages"
       />
 
       {/* Prescriptions This Month */}
@@ -176,6 +188,7 @@ export function DashboardStats({ stats, className }: DashboardStatsProps) {
         iconBgColor="bg-teal-100"
         iconColor="text-teal-600"
         secondaryValue={`Avg ${stats.averageReviewTime.toFixed(1)}h review time`}
+        href="/physician/prescriptions"
       />
     </div>
   );

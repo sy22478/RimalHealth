@@ -34,8 +34,6 @@ import {
   FolderOpen,
   ClipboardList,
   ChevronRight,
-  ExternalLink,
-  Download,
 } from 'lucide-react';
 import type { PhysicianPatientDetail } from '@/types/physician-dashboard';
 import { IntakeStatus, PrescriptionStatus, SenderType } from '@prisma/client';
@@ -109,7 +107,13 @@ function getInitials(name: string | undefined | null): string {
 /**
  * Patient Header Component
  */
-function PatientHeader({ patient }: { patient: PhysicianPatientDetail }) {
+function PatientHeader({
+  patient,
+  onAddNote,
+}: {
+  patient: PhysicianPatientDetail;
+  onAddNote: () => void;
+}) {
   const displayName = patient.name || 'Unknown Patient';
   const initials = getInitials(displayName);
   const isHighRisk = patient.riskLevel === 'HIGH' || patient.riskLevel === 'SEVERE';
@@ -161,13 +165,9 @@ function PatientHeader({ patient }: { patient: PhysicianPatientDetail }) {
             Message Patient
           </Link>
         </Button>
-        <Button variant="outline" size="sm">
+        <Button variant="outline" size="sm" onClick={onAddNote}>
           <StickyNote className="w-4 h-4 mr-2" />
           Add Note
-        </Button>
-        <Button size="sm">
-          <FileText className="w-4 h-4 mr-2" />
-          New Prescription
         </Button>
       </div>
     </div>
@@ -414,9 +414,10 @@ function IntakesTab({ intakes }: { intakes: PhysicianPatientDetail['intakes'] })
         ) : (
           <div className="space-y-3">
             {intakes.map((intake) => (
-              <div
+              <Link
                 key={intake.id}
-                className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors"
+                href={`/physician/intake/${intake.id}`}
+                className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
               >
                 <div className="flex items-center gap-4">
                   <div className="p-2 bg-muted rounded-full">
@@ -434,23 +435,26 @@ function IntakesTab({ intakes }: { intakes: PhysicianPatientDetail['intakes'] })
                     )}
                   </div>
                 </div>
-                <div className="text-right">
-                  <Badge
-                    variant="outline"
-                    className={statusConfig[intake.status]?.className || ''}
-                  >
-                    {statusConfig[intake.status]?.label || intake.status}
-                  </Badge>
-                  {intake.riskScore !== undefined && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Risk Score: {intake.riskScore}
-                    </p>
-                  )}
-                  {intake.outcome && (
-                    <p className="text-sm font-medium mt-1">{intake.outcome}</p>
-                  )}
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <Badge
+                      variant="outline"
+                      className={statusConfig[intake.status]?.className || ''}
+                    >
+                      {statusConfig[intake.status]?.label || intake.status}
+                    </Badge>
+                    {intake.riskScore !== undefined && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Risk Score: {intake.riskScore}
+                      </p>
+                    )}
+                    {intake.outcome && (
+                      <p className="text-sm font-medium mt-1">{intake.outcome}</p>
+                    )}
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}
@@ -495,10 +499,6 @@ function PrescriptionsTab({
             </CardTitle>
             <CardDescription>Current and past prescriptions</CardDescription>
           </div>
-          <Button size="sm">
-            <Pill className="w-4 h-4 mr-2" />
-            New Prescription
-          </Button>
         </div>
       </CardHeader>
       <CardContent>
@@ -595,10 +595,6 @@ function DocumentsTab({ documents: docsProp }: { documents: PhysicianPatientDeta
             </CardTitle>
             <CardDescription>Uploaded documents and records</CardDescription>
           </div>
-          <Button size="sm">
-            <Download className="w-4 h-4 mr-2" />
-            Download All
-          </Button>
         </div>
       </CardHeader>
       <CardContent>
@@ -638,13 +634,6 @@ function DocumentsTab({ documents: docsProp }: { documents: PhysicianPatientDeta
                       Uploaded {formatDate(doc.uploadedAt)}
                     </p>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                  </Button>
                 </div>
               </div>
             ))}
@@ -748,16 +737,18 @@ function MessagesTab({ messages }: { messages: PhysicianPatientDetail['recentMes
  * - Documents: Uploaded documents
  */
 export function PatientDetailView({ patient, physicianName }: PatientDetailViewProps): React.ReactElement {
+  const [activeTab, setActiveTab] = useState('overview');
+
   return (
     <div className="space-y-6">
       {/* Patient Header */}
-      <PatientHeader patient={patient} />
+      <PatientHeader patient={patient} onAddNote={() => setActiveTab('notes')} />
 
       {/* Info Cards */}
       <InfoCards patient={patient} />
 
       {/* Main Content Tabs */}
-      <Tabs defaultValue="overview" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="w-full justify-start flex-wrap h-auto gap-1">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="intakes">Intakes</TabsTrigger>

@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUnreadMessageCount } from '@/hooks/useUnreadMessageCount';
+import { usePhysicianQueueCount } from '@/hooks/usePhysicianQueueCount';
 
 interface NavItem {
   href: string;
@@ -36,13 +37,63 @@ interface NavItem {
   badge?: number;
 }
 
+const QUEUE_HREF = '/physician/queue';
+
 const navItems: NavItem[] = [
   { href: '/physician/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/physician/queue', label: 'Patient Queue', icon: ListChecks },
   { href: '/physician/reviews', label: 'Review History', icon: History },
   { href: '/physician/patients', label: 'Patients', icon: Users },
   { href: '/physician/prescriptions', label: 'Prescriptions', icon: Pill },
 ];
+
+/**
+ * Queue Nav Link with Pending Badge
+ *
+ * Shows pending-review count. If any are overdue, the badge pulses red.
+ */
+function QueueNavLink({
+  currentPath,
+  variant,
+  onClick,
+}: {
+  currentPath: string;
+  variant: 'desktop' | 'mobile';
+  onClick?: () => void;
+}) {
+  const { pending, overdue } = usePhysicianQueueCount();
+  const isActive = currentPath === QUEUE_HREF || currentPath.startsWith(`${QUEUE_HREF}/`);
+
+  return (
+    <Link
+      href={QUEUE_HREF}
+      onClick={onClick}
+      className={cn(
+        'flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors',
+        isActive
+          ? 'bg-ocean-50 text-ocean-700'
+          : variant === 'desktop'
+            ? 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+            : 'text-gray-600 hover:bg-gray-50'
+      )}
+    >
+      <ListChecks className={cn('h-5 w-5', isActive ? 'text-ocean-600' : 'text-gray-400')} />
+      Patient Queue
+      {pending > 0 && (
+        <span
+          className={cn(
+            'ml-auto text-xs font-semibold px-2 py-0.5 rounded-full',
+            overdue > 0
+              ? 'bg-red-100 text-red-600 animate-pulse'
+              : 'bg-red-100 text-red-600'
+          )}
+          aria-label={`${pending} pending review${pending === 1 ? '' : 's'}${overdue > 0 ? `, ${overdue} overdue` : ''}`}
+        >
+          {pending}
+        </span>
+      )}
+    </Link>
+  );
+}
 
 const bottomNavItems: NavItem[] = [
   { href: '/physician/settings', label: 'Settings', icon: Settings },
@@ -146,9 +197,9 @@ export function Sidebar() {
 
       {/* Main Navigation */}
       <nav className="flex-1 p-4 space-y-1">
-        {navItems.map((item) => {
+        {navItems.map((item, index) => {
           const isActive = currentPath === item.href || currentPath.startsWith(`${item.href}/`);
-          return (
+          const link = (
             <Link
               key={item.href}
               href={item.href}
@@ -168,8 +219,19 @@ export function Sidebar() {
               )}
             </Link>
           );
+
+          // Insert Queue link (with live badge) after Dashboard
+          if (index === 0) {
+            return (
+              <React.Fragment key="dashboard-and-queue">
+                {link}
+                <QueueNavLink currentPath={currentPath} variant="desktop" />
+              </React.Fragment>
+            );
+          }
+          return link;
         })}
-        
+
         {/* Messages with live badge */}
         <MessagesNavLink currentPath={currentPath} />
       </nav>
@@ -236,9 +298,9 @@ export function MobileHeader() {
       {/* Mobile Menu */}
       {menuOpen && (
         <nav className="border-t border-gray-100 px-4 py-3 space-y-1">
-          {navItems.map((item) => {
+          {navItems.map((item, index) => {
             const isActive = currentPath === item.href || currentPath.startsWith(`${item.href}/`);
-            return (
+            const link = (
               <Link
                 key={item.href}
                 href={item.href}
@@ -259,12 +321,26 @@ export function MobileHeader() {
                 )}
               </Link>
             );
+
+            if (index === 0) {
+              return (
+                <React.Fragment key="dashboard-and-queue-mobile">
+                  {link}
+                  <QueueNavLink
+                    currentPath={currentPath}
+                    variant="mobile"
+                    onClick={() => setMenuOpen(false)}
+                  />
+                </React.Fragment>
+              );
+            }
+            return link;
           })}
-          
+
           {/* Messages with live badge */}
-          <MobileMessagesNavLink 
-            currentPath={currentPath} 
-            onClick={() => setMenuOpen(false)} 
+          <MobileMessagesNavLink
+            currentPath={currentPath}
+            onClick={() => setMenuOpen(false)}
           />
           
           <div className="border-t border-gray-100 pt-2 mt-2">
@@ -282,6 +358,41 @@ export function MobileHeader() {
         </nav>
       )}
     </header>
+  );
+}
+
+/**
+ * Mobile Queue Nav Item with Pending Badge
+ */
+function MobileQueueNavItem({ currentPath }: { currentPath: string }) {
+  const { pending, overdue } = usePhysicianQueueCount();
+  const href = QUEUE_HREF;
+  const isActive = currentPath === href || currentPath.startsWith(`${href}/`);
+
+  return (
+    <Link
+      href={href}
+      className={cn(
+        'flex flex-col items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors relative',
+        isActive ? 'text-ocean-600' : 'text-gray-500 hover:text-gray-700'
+      )}
+    >
+      <div className="relative">
+        <ListChecks className={cn('h-5 w-5', isActive ? 'text-ocean-600' : 'text-gray-400')} />
+        {pending > 0 && (
+          <span
+            className={cn(
+              'absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-[10px] text-white font-medium',
+              overdue > 0 && 'animate-pulse'
+            )}
+            aria-label={`${pending} pending${overdue > 0 ? `, ${overdue} overdue` : ''}`}
+          >
+            {pending > 9 ? '9+' : pending}
+          </span>
+        )}
+      </div>
+      Queue
+    </Link>
   );
 }
 
@@ -318,31 +429,33 @@ function MobileMessagesNavItem({ currentPath }: { currentPath: string }) {
 
 export function MobileNav() {
   const currentPath = usePathname();
-  const mainItems = navItems.slice(0, 3); // Dashboard, Queue, Patients on mobile bottom bar
+  // Mobile bottom bar: Dashboard, Queue (with badge), Patients
+  const dashboardItem = navItems[0];
+  const patientsItem = navItems.find((i) => i.href === '/physician/patients');
+
+  const renderStaticItem = (item: NavItem) => {
+    const isActive = currentPath === item.href || currentPath.startsWith(`${item.href}/`);
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        className={cn(
+          'flex flex-col items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors',
+          isActive ? 'text-ocean-600' : 'text-gray-500 hover:text-gray-700'
+        )}
+      >
+        <item.icon className={cn('h-5 w-5', isActive ? 'text-ocean-600' : 'text-gray-400')} />
+        {item.label}
+      </Link>
+    );
+  };
 
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
       <div className="flex items-center justify-around py-2">
-        {mainItems.map((item) => {
-          const isActive = currentPath === item.href || currentPath.startsWith(`${item.href}/`);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                'flex flex-col items-center gap-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors',
-                isActive
-                  ? 'text-ocean-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              )}
-            >
-              <item.icon className={cn('h-5 w-5', isActive ? 'text-ocean-600' : 'text-gray-400')} />
-              {item.label}
-            </Link>
-          );
-        })}
-        
-        {/* Messages with badge */}
+        {dashboardItem && renderStaticItem(dashboardItem)}
+        <MobileQueueNavItem currentPath={currentPath} />
+        {patientsItem && renderStaticItem(patientsItem)}
         <MobileMessagesNavItem currentPath={currentPath} />
       </div>
     </nav>
