@@ -5,9 +5,6 @@ const nextConfig: NextConfig = {
   // Standalone output for Docker/ECS deployment
   output: 'standalone',
 
-  // Allow requests with these Host headers (Next.js 16 host validation)
-  allowedHosts: ['rimalhealth.com', 'www.rimalhealth.com'],
-
   // Turbopack configuration
   turbopack: {
     resolveExtensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
