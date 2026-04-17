@@ -2,8 +2,11 @@ import type { NextConfig } from "next";
 import { SECURITY_HEADERS } from "./lib/constants";
 
 const nextConfig: NextConfig = {
-  // Standalone output for AWS Amplify SSR
+  // Standalone output for Docker/ECS deployment
   output: 'standalone',
+
+  // Allow requests with these Host headers (Next.js 16 host validation)
+  allowedHosts: ['rimalhealth.com', 'www.rimalhealth.com'],
 
   // Turbopack configuration
   turbopack: {
