@@ -75,7 +75,7 @@ export function Navigation() {
             <div className="hidden lg:flex items-center gap-3">
               <Link
                 href="/physician/login"
-                className="text-xs text-gray-400 hover:text-ocean-500 transition-colors"
+                className="text-xs text-gray-600 hover:text-ocean-500 transition-colors"
               >
                 Physician Login
               </Link>

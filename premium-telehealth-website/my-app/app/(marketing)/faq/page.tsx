@@ -22,7 +22,7 @@ const faqData: FAQSection[] = [
       {
         question: "Do I need to schedule a video call?",
         answer:
-          "No. Our model is completely asynchronous. Fill out your intake when convenient — doctor reviews within 24 hours. No scheduling needed.",
+          "No. Our model is completely asynchronous. Fill out your intake when convenient — physician reviews within 24 hours. No scheduling needed.",
       },
       {
         question: "How quickly do I get my prescription?",
@@ -37,12 +37,12 @@ const faqData: FAQSection[] = [
       {
         question: "What if I have questions after I submit my intake?",
         answer:
-          "Message your doctor anytime through your dashboard. Responses within 24 hours, usually faster.",
+          "Message your physician anytime through your dashboard. Responses within 24 hours, usually faster.",
       },
       {
         question: "How do refills work?",
         answer:
-          "Automatic reminders sent 7 days before you run out. One-click request, doctor approves, prescription sent to pharmacy.",
+          "Automatic reminders sent 7 days before you run out. One-click request, physician approves, prescription sent to pharmacy.",
       },
     ],
   },
@@ -53,17 +53,17 @@ const faqData: FAQSection[] = [
       {
         question: "What medications do you prescribe for alcohol addiction?",
         answer:
-          "Naltrexone is our primary medication. It blocks the rewarding effects of alcohol and reduces cravings. Your doctor may also recommend Acamprosate or Disulfiram based on your specific situation.",
+          "Naltrexone is our primary medication. It blocks the rewarding effects of alcohol and reduces cravings. Your physician may also recommend Acamprosate or Disulfiram based on your specific situation.",
       },
       {
         question: "Are these medications safe?",
         answer:
-          "Yes. All are FDA-approved with well-established safety profiles. Your doctor reviews your medical history for contraindications.",
+          "Yes. All are FDA-approved with well-established safety profiles. Your physician reviews your medical history for contraindications.",
       },
       {
         question: "Will I have side effects?",
         answer:
-          "Some people experience mild side effects that usually resolve within a week. Your doctor monitors you and can adjust if needed.",
+          "Some people experience mild side effects that usually resolve within a week. Your physician monitors you and can adjust if needed.",
       },
       {
         question: "How do I pick up my medication?",
@@ -99,7 +99,7 @@ const faqData: FAQSection[] = [
       {
         question: "What does the $50/month include?",
         answer:
-          "Doctor review, prescription management, unlimited messaging, refills, adjustments — everything except the medication itself.",
+          "Physician review, prescription management, unlimited messaging, refills, adjustments — everything except the medication itself.",
       },
       {
         question: "Do you accept insurance?",
@@ -145,7 +145,7 @@ const faqData: FAQSection[] = [
       {
         question: "What if I relapse?",
         answer:
-          "Relapse is common and not a failure. Message your doctor and we'll adjust your treatment. No judgment.",
+          "Relapse is common and not a failure. Message your physician and we'll adjust your treatment. No judgment.",
       },
       {
         question: "How long does treatment last?",
@@ -174,14 +174,14 @@ const faqData: FAQSection[] = [
           '"Rimal Health" or discrete merchant name — not "addiction treatment."',
       },
       {
-        question: "Is messaging with the doctor secure?",
+        question: "Is messaging with the physician secure?",
         answer:
           "Yes. All messages encrypted and HIPAA-compliant.",
       },
       {
         question: "What shows up on my prescription at pharmacy?",
         answer:
-          'Just medication name and doctor\'s name. Nothing about "addiction treatment."',
+          'Just medication name and physician\'s name. Nothing about "addiction treatment."',
       },
     ],
   },
@@ -202,7 +202,7 @@ const faqData: FAQSection[] = [
       {
         question: "How do I know if I'm a good fit?",
         answer:
-          "Fill out the intake form. Doctor will review and let you know if our program is appropriate or recommend alternatives.",
+          "Fill out the intake form. Physician will review and let you know if our program is appropriate or recommend alternatives.",
       },
       {
         question: "Do you treat other addictions?",
@@ -216,12 +216,12 @@ const faqData: FAQSection[] = [
       {
         question: "Can I use this if I'm pregnant?",
         answer:
-          "Some medications aren't safe during pregnancy. Fill out intake — doctor will advise.",
+          "Some medications aren't safe during pregnancy. Fill out intake — physician will advise.",
       },
       {
         question: "Do I need to live in California?",
         answer:
-          "Yes. Our doctor is licensed in California, so you must be a California resident.",
+          "Yes. Our physician is licensed in California, so you must be a California resident.",
       },
     ],
   },
@@ -280,7 +280,7 @@ export default function FAQPage() {
       : faqData.filter((section) => section.id === activeCategory);
 
   return (
-    <main className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white">
         {/* Hero Section */}
         <section className="pt-28 pb-12 text-center px-6">
           <div className="max-w-3xl mx-auto">
@@ -392,6 +392,6 @@ export default function FAQPage() {
             </a>
           </div>
         </section>
-    </main>
+    </div>
   );
 }

@@ -55,7 +55,7 @@ export default function AboutPage() {
   ];
 
   return (
-    <main>
+    <>
         {/* Hero Section */}
         <section className="pt-28 pb-16 px-4">
           <div className="max-w-3xl mx-auto text-center">
@@ -72,8 +72,9 @@ export default function AboutPage() {
               viewport={{ once: true }}
               transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.6, delay: 0.2, ease: "easeOut" as const }}
             >
-              2.9 million Californians struggle with substance use disorder.
-              Only 10% get treatment. We&apos;re changing that.
+              {/* Source: SAMHSA NSDUH 2022 State Tables — California */}
+              2.1 million Californians have alcohol use disorder. Less than 8%
+              currently receive treatment. We&apos;re changing that.
             </motion.p>
           </div>
         </section>
@@ -317,6 +318,6 @@ export default function AboutPage() {
             </Link>
           </motion.div>
         </section>
-    </main>
+    </>
   );
 }

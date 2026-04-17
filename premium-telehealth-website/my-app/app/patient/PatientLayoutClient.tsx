@@ -306,12 +306,12 @@ export default function PatientLayoutClient({
         <Sidebar currentPath={pathname} unreadCount={unreadCount} />
 
         {/* Main Content */}
-        <main className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0">
           {/* Page Content */}
           <div className="pb-20 lg:pb-0">
             {children}
           </div>
-        </main>
+        </div>
       </div>
     </div>
   );

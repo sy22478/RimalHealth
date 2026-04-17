@@ -1,11 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle, Send } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const contactSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -35,6 +44,7 @@ export function ContactForm() {
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<ContactFormValues>({
     resolver: zodResolver(contactSchema),
@@ -89,16 +99,13 @@ export function ContactForm() {
         >
           Full name <span className="text-ocean-500">*</span>
         </label>
-        <input
+        <Input
           id="name"
           type="text"
           autoComplete="name"
           placeholder="Jane Smith"
           aria-invalid={!!errors.name}
           aria-describedby={errors.name ? "name-error" : undefined}
-          className={`w-full px-4 py-3 border rounded-lg text-base bg-white transition-colors focus:outline-none focus:ring-2 focus:ring-ocean-500/20 focus:border-ocean-500 ${
-            errors.name ? "border-red-400" : "border-gray-200"
-          }`}
           {...register("name")}
         />
         <AnimatePresence>
@@ -125,16 +132,13 @@ export function ContactForm() {
         >
           Email address <span className="text-ocean-500">*</span>
         </label>
-        <input
+        <Input
           id="email"
           type="email"
           autoComplete="email"
           placeholder="jane@example.com"
           aria-invalid={!!errors.email}
           aria-describedby={errors.email ? "email-error" : undefined}
-          className={`w-full px-4 py-3 border rounded-lg text-base bg-white transition-colors focus:outline-none focus:ring-2 focus:ring-ocean-500/20 focus:border-ocean-500 ${
-            errors.email ? "border-red-400" : "border-gray-200"
-          }`}
           {...register("email")}
         />
         <AnimatePresence>
@@ -161,22 +165,28 @@ export function ContactForm() {
         >
           Subject <span className="text-ocean-500">*</span>
         </label>
-        <select
-          id="subject"
-          aria-invalid={!!errors.subject}
-          aria-describedby={errors.subject ? "subject-error" : undefined}
-          className={`w-full px-4 py-3 border rounded-lg text-base bg-white transition-colors focus:outline-none focus:ring-2 focus:ring-ocean-500/20 focus:border-ocean-500 ${
-            errors.subject ? "border-red-400" : "border-gray-200"
-          }`}
-          {...register("subject")}
-        >
-          <option value="">Select a subject…</option>
-          {subjectOptions.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
+        <Controller
+          control={control}
+          name="subject"
+          render={({ field }) => (
+            <Select value={field.value} onValueChange={field.onChange}>
+              <SelectTrigger
+                id="subject"
+                aria-invalid={!!errors.subject}
+                aria-describedby={errors.subject ? "subject-error" : undefined}
+              >
+                <SelectValue placeholder="Select a subject…" />
+              </SelectTrigger>
+              <SelectContent>
+                {subjectOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
         <AnimatePresence>
           {errors.subject && (
             <motion.p
@@ -201,15 +211,13 @@ export function ContactForm() {
         >
           Message <span className="text-ocean-500">*</span>
         </label>
-        <textarea
+        <Textarea
           id="message"
           rows={5}
           placeholder="How can we help you?"
           aria-invalid={!!errors.message}
           aria-describedby={errors.message ? "message-error" : undefined}
-          className={`w-full px-4 py-3 border rounded-lg text-base bg-white transition-colors focus:outline-none focus:ring-2 focus:ring-ocean-500/20 focus:border-ocean-500 resize-none ${
-            errors.message ? "border-red-400" : "border-gray-200"
-          }`}
+          className="resize-none"
           {...register("message")}
         />
         <AnimatePresence>

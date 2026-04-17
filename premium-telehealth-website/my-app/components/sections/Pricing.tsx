@@ -32,10 +32,6 @@ export function Pricing() {
           transition={{ duration: 0.6, delay: 0.1 }}
           className="border-2 border-ocean-500 rounded-xl p-8 md:p-10 bg-white relative w-full max-w-sm"
         >
-          <span className="absolute top-4 right-4 bg-ocean-500 text-white text-xs font-semibold px-3 py-1 rounded-full">
-            Most popular
-          </span>
-
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
             Active Treatment
           </h3>

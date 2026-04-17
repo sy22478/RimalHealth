@@ -64,13 +64,13 @@ export default function HowItWorksPage() {
             transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.5, ease: "easeOut" }}
           >
             <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-ocean-500/10 border border-ocean-500/20 text-sm font-semibold text-ocean-600 mb-6">
-              New Payment-First Workflow
+              How it works
             </span>
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
-              How the new process works
+              Five simple steps, from checkout to prescription
             </h2>
             <p className="text-lg text-gray-600 mt-4 max-w-2xl mx-auto">
-              We&apos;ve updated our workflow to provide faster service. Complete payment first, then fill out your intake.
+              Pay first so your physician review starts the moment you finish your intake.
             </p>
           </motion.div>
 

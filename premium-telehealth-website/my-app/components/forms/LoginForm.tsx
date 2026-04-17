@@ -673,7 +673,7 @@ export function LoginForm() {
           asChild
           disabled={isLoading}
         >
-          <Link href="/signup">Create Account</Link>
+          <Link href="/checkout/consent">Create Account</Link>
         </Button>
       </CardFooter>
     </Card>

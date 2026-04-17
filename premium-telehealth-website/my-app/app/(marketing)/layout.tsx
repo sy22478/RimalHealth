@@ -10,7 +10,7 @@ export default function MarketingLayout({
   return (
     <>
       <Navigation />
-      <main id="main-content" className="min-h-screen">{children}</main>
+      <div className="min-h-screen">{children}</div>
       <Footer />
       <MobileStickyCTA />
     </>

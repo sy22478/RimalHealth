@@ -11,7 +11,7 @@ import { CountUp } from "@/components/animations/CountUp";
  * - "4.9/5 rating" — removed until sourced from a verified review platform (e.g. Google, Healthgrades)
  * - "$60 typical monthly cost" — corrected to $50/month (matches stated service pricing)
  * - "75% reduction" — hedged per TASK-C03
- * - "Sarah M., San Francisco" testimonial — labeled as illustrative until patient consent is on file
+ * - Patient testimonial removed until a real story with written consent is on file.
  *
  * When real numbers are available, document the source in a code comment and restore the claims.
  */
@@ -64,21 +64,27 @@ export function Proof() {
           ))}
         </div>
 
+        {/* Clinical evidence card — replaces illustrative testimonial until a real patient story with written consent is on file */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6, delay: 0.4 }}
-          className="max-w-2xl mx-auto text-center"
+          className="max-w-2xl mx-auto"
         >
-          <blockquote className="text-xl md:text-2xl italic text-white/90 leading-relaxed mb-6">
-            &ldquo;No scheduling, no video calls. Just filled out the form, got my
-            prescription the next day. Three months sober.&rdquo;
-          </blockquote>
-          {/* TASK-V03: labeled as illustrative — do not publish as real patient quote without written consent on file */}
-          <cite className="text-base text-gray-400 not-italic">
-            — Sarah M., San Francisco (illustrative patient story)
-          </cite>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-8 md:p-10 text-center">
+            <div className="text-sm font-semibold uppercase tracking-wide text-ocean-300 mb-3">
+              Clinical evidence
+            </div>
+            <p className="text-xl md:text-2xl text-white leading-relaxed">
+              In controlled clinical studies, medication-assisted treatment has shown
+              up to a 75% reduction in heavy drinking days and sustained reductions in
+              alcohol cravings.
+            </p>
+            <p className="text-sm text-gray-400 mt-4">
+              Source: COMBINE study (Anton et al., JAMA 2006). Individual results vary.
+            </p>
+          </div>
         </motion.div>
       </div>
     </section>

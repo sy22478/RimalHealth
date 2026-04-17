@@ -29,11 +29,11 @@ export default function AuthLayout({
       </header>
 
       {/* Main Content */}
-      <main id="main-content" className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 py-12">
+      <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 py-12">
         <div className="w-full max-w-md">
           {children}
         </div>
-      </main>
+      </div>
 
       {/* Footer */}
       <footer className="w-full py-6 px-4 sm:px-6 lg:px-8">

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Check, X, ArrowRight } from "lucide-react";
+import { Check, X, ArrowRight, Pill, Clock, MessageSquare, ShieldCheck } from "lucide-react";
 import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
 import { SectionWrapper } from "@/components/sections/SectionWrapper";
 
@@ -48,8 +48,54 @@ export default function AlcoholTreatmentPage() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" as const }}
-              className="bg-gradient-to-br from-ocean-500/10 to-blue-500/10 rounded-2xl h-80"
-            />
+              className="bg-gradient-to-br from-ocean-500/10 to-blue-500/10 rounded-2xl p-8 md:p-10"
+            >
+              <div className="text-sm font-semibold uppercase tracking-wide text-ocean-600 mb-4">
+                What&apos;s included
+              </div>
+              <ul className="space-y-4">
+                {[
+                  {
+                    icon: Pill,
+                    title: "Physician-selected medication",
+                    detail:
+                      "Naltrexone, Acamprosate, or Disulfiram — chosen by a California-licensed physician.",
+                  },
+                  {
+                    icon: Clock,
+                    title: "Prescription in 24 hours",
+                    detail:
+                      "Asynchronous review. No appointments, no video calls.",
+                  },
+                  {
+                    icon: MessageSquare,
+                    title: "Unlimited physician messaging",
+                    detail:
+                      "Follow-up questions, dose adjustments, and refills included.",
+                  },
+                  {
+                    icon: ShieldCheck,
+                    title: "HIPAA-compliant & confidential",
+                    detail:
+                      "42 CFR Part 2 protections for all substance-use records.",
+                  },
+                ].map((item) => (
+                  <li key={item.title} className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-lg bg-white shadow-sm flex items-center justify-center flex-shrink-0">
+                      <item.icon className="w-5 h-5 text-ocean-500" />
+                    </div>
+                    <div>
+                      <div className="text-base font-semibold text-gray-900">
+                        {item.title}
+                      </div>
+                      <div className="text-sm text-gray-600 mt-0.5">
+                        {item.detail}
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
           </div>
         </SectionWrapper>
 

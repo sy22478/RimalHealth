@@ -125,7 +125,7 @@ export default async function QueuePage(): Promise<React.ReactElement> {
   }
 
   return (
-    <main className="container-custom py-8">
+    <div className="container-custom py-8">
       {/* Page Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight">Patient Queue</h1>
@@ -146,6 +146,6 @@ export default async function QueuePage(): Promise<React.ReactElement> {
         All patient information displayed is protected health information (PHI). Access is
         logged for HIPAA compliance. Do not share or print this data.
       </p>
-    </main>
+    </div>
   );
 }

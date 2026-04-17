@@ -101,8 +101,8 @@ export default function TermsOfServicePage() {
                 after intake review, you will receive a full refund
               </li>
               <li>
-                Refunds for dissatisfaction within 30 days may be requested by
-                contacting support
+                30-day money-back guarantee: if our service isn&apos;t the right fit
+                for you within your first 30 days, contact support for a full refund
               </li>
             </ul>
           </section>

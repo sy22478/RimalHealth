@@ -1,9 +1,13 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { IntakeForm } from "@/components/forms/IntakeForm";
 import { TrustBadges } from "@/components/TrustBadges";
 import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
 import { ArrowRight, Lock, CreditCard, FileText } from "lucide-react";
+import { verifyAccessToken } from "@/lib/auth/jwt";
+import { prisma } from "@/lib/db/prisma";
+import { SubscriptionStatus } from "@prisma/client";
 
 export const metadata = {
   title: "Get Started | Rimal Health",
@@ -11,18 +15,45 @@ export const metadata = {
     "Complete your medical intake. A California-licensed physician will review within 24 hours.",
 };
 
-// In production, this would check for an active subscription in the database
-// For now, we show the page with a notice about the payment workflow
-export default function GetStartedPage({
+export const dynamic = "force-dynamic";
+
+export default async function GetStartedPage({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  // Check if user has an active subscription (mock - would check session/database in production)
-  const hasActiveSubscription = searchParams?.subscribed === "true";
+  // Consume searchParams to satisfy the Next.js 16 async signature
+  await searchParams;
 
-  // If no subscription, show notice and link to pricing
-  if (!hasActiveSubscription) {
+  // Authenticate from the accessToken cookie — middleware treats /get-started as public,
+  // so we verify here instead of relying on x-user-id injection
+  const cookieStore = await cookies();
+  const token = cookieStore.get("accessToken")?.value;
+
+  let userId: string | null = null;
+  if (token) {
+    try {
+      const payload = await verifyAccessToken(token);
+      userId = payload.userId;
+    } catch {
+      userId = null;
+    }
+  }
+
+  // Not authenticated — send to payment-first flow
+  if (!userId) {
+    redirect("/checkout/consent");
+  }
+
+  // Check for an active (or trialing) subscription
+  const subscription = await prisma.subscription.findFirst({
+    where: {
+      userId,
+      status: { in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING] },
+    },
+  });
+
+  if (!subscription) {
     return (
       <div className="pt-28 pb-20 px-4">
         <div className="max-w-2xl mx-auto text-center">
@@ -35,7 +66,7 @@ export default function GetStartedPage({
               Subscription required
             </h1>
             <p className="text-lg text-gray-600 mb-8">
-              To begin your treatment, please select a plan and complete checkout first. 
+              To begin your treatment, please complete checkout first.
               Once your subscription is active, you&apos;ll be able to complete your medical intake.
             </p>
 
@@ -46,7 +77,7 @@ export default function GetStartedPage({
                   1
                 </div>
                 <div>
-                  <p className="font-medium text-gray-900">Choose plan</p>
+                  <p className="font-medium text-gray-900">Consent & plan</p>
                   <p className="text-sm text-gray-600">$50/month</p>
                 </div>
               </div>
@@ -71,10 +102,10 @@ export default function GetStartedPage({
             </div>
 
             <Link
-              href="/pricing"
+              href="/checkout/consent"
               className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-navy-500 to-ocean-500 text-white font-semibold rounded-lg shadow-lg shadow-navy-500/20 hover:shadow-xl hover:shadow-navy-500/30 hover:-translate-y-0.5 transition-all duration-200"
             >
-              View Pricing & Plans
+              Start checkout
               <ArrowRight className="w-5 h-5" />
             </Link>
           </div>
@@ -83,16 +114,16 @@ export default function GetStartedPage({
           <div className="mt-8 p-6 bg-gray-50 rounded-xl">
             <div className="flex items-center justify-center gap-2 mb-2">
               <Lock className="w-4 h-4 text-gray-500" />
-              <span className="text-sm font-medium text-gray-900">Already subscribed?</span>
+              <span className="text-sm font-medium text-gray-900">Need help?</span>
             </div>
             <p className="text-sm text-gray-600 mb-4">
-              If you&apos;ve already completed checkout, please log in to access your intake form.
+              If you believe you already have an active subscription, please contact support.
             </p>
             <Link
-              href="/login"
+              href="/contact"
               className="inline-flex items-center gap-2 text-ocean-600 font-medium hover:text-ocean-700 transition-colors"
             >
-              Log in to your account
+              Contact support
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
@@ -101,7 +132,7 @@ export default function GetStartedPage({
     );
   }
 
-  // User has subscription - show the intake form
+  // Authenticated & subscribed — show the intake form
   return (
     <div className="pt-28 pb-20 px-4">
       <div className="max-w-xl mx-auto text-center mb-10">
@@ -121,7 +152,7 @@ export default function GetStartedPage({
         </div>
       </div>
 
-      <IntakeForm 
+      <IntakeForm
         primaryConcern="ALCOHOL"
         treatmentGoal="QUIT"
       />
