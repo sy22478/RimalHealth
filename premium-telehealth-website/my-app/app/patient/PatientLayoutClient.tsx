@@ -200,10 +200,10 @@ function MobileNav({ currentPath, unreadCount = 0 }: MobileNavProps) {
         </div>
       </header>
 
-      {/* Mobile Bottom Navigation */}
+      {/* Mobile Bottom Navigation — 5 most-used items; others in hamburger */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 safe-area-pb">
         <div className="flex items-center justify-around">
-          {navItems.slice(0, 4).map((item) => {
+          {navItems.slice(0, 5).map((item) => {
             const isActive = currentPath === item.href || currentPath.startsWith(`${item.href}/`);
             const showBadge = item.href === '/patient/messages' && unreadCount > 0;
             

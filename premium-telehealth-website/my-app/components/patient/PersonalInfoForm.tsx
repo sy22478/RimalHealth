@@ -422,7 +422,7 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
     reset,
     setValue,
     watch,
@@ -449,25 +449,71 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
   const currentMedicationsValue = watch('currentMedications') || '';
   const allergiesValue = watch('allergies') || '';
 
+  // Build the original form values snapshot once for resets
+  const originalValues = React.useMemo<PersonalInfoFormValues>(() => ({
+    firstName: profile.firstName || '',
+    lastName: profile.lastName || '',
+    dateOfBirth: profile.dateOfBirth || '',
+    phone: profile.phone || '',
+    addressStreet: profile.addressStreet || '',
+    addressCity: profile.addressCity || '',
+    addressState: 'CA' as const,
+    addressZip: profile.addressZip || '',
+    medicalHistory: profile.medicalHistory || '',
+    currentMedications: profile.currentMedications || '',
+    allergies: profile.allergies || '',
+    preferredPharmacyId: '',
+  }), [profile]);
+
   // Reset form when profile changes
   React.useEffect(() => {
-    reset({
-      firstName: profile.firstName || '',
-      lastName: profile.lastName || '',
-      dateOfBirth: profile.dateOfBirth || '',
-      phone: profile.phone || '',
-      addressStreet: profile.addressStreet || '',
-      addressCity: profile.addressCity || '',
-      addressState: 'CA' as const,
-      addressZip: profile.addressZip || '',
-      medicalHistory: profile.medicalHistory || '',
-      currentMedications: profile.currentMedications || '',
-      allergies: profile.allergies || '',
-      preferredPharmacyId: '',
-    });
+    reset(originalValues);
     setSelectedPharmacy(null);
     setShowPharmacySearch(!profile.pharmacy);
-  }, [profile, reset]);
+  }, [originalValues, profile.pharmacy, reset]);
+
+  // Warn on browser navigation/refresh with unsaved changes
+  React.useEffect(() => {
+    if (!isDirty) return;
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
+
+  // Warn on in-app navigation with unsaved changes (link/back clicks)
+  React.useEffect(() => {
+    if (!isDirty) return;
+    const handleClick = (e: MouseEvent) => {
+      const target = (e.target as HTMLElement | null)?.closest('a');
+      if (!target) return;
+      const href = target.getAttribute('href');
+      if (!href || href.startsWith('#') || target.target === '_blank') return;
+      const confirmed = window.confirm(
+        'You have unsaved changes. Are you sure you want to leave?'
+      );
+      if (!confirmed) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    document.addEventListener('click', handleClick, { capture: true });
+    return () => document.removeEventListener('click', handleClick, { capture: true });
+  }, [isDirty]);
+
+  const handleCancel = React.useCallback(() => {
+    if (isDirty) {
+      const confirmed = window.confirm(
+        'Discard your unsaved changes?'
+      );
+      if (!confirmed) return;
+    }
+    reset(originalValues);
+    setSelectedPharmacy(null);
+    setShowPharmacySearch(!profile.pharmacy);
+  }, [isDirty, originalValues, profile.pharmacy, reset]);
 
   // Derive display pharmacy for the current pharmacy section
   const displayPharmacy = selectedPharmacy
@@ -569,6 +615,9 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
       // Update parent component
       onUpdate(result.profile);
       setSubmitSuccess(true);
+
+      // Clear dirty state — values are now the saved source of truth
+      reset(data, { keepValues: true });
 
       // If a new pharmacy was selected, update the display
       if (selectedPharmacy) {
@@ -1114,11 +1163,19 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
         )}
 
         {/* Submit Button */}
-        <div className="flex justify-end">
+        <div className="flex flex-col-reverse sm:flex-row justify-end gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleCancel}
+            disabled={isSubmitting || !isDirty}
+          >
+            Cancel
+          </Button>
           <LoadingButton
             type="submit"
             loading={isSubmitting}
-            disabled={isSubmitting}
+            disabled={isSubmitting || !isDirty}
           >
             Save Changes
           </LoadingButton>

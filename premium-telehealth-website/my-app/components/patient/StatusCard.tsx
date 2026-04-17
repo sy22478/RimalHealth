@@ -69,8 +69,21 @@ function StatusIcon({ type, className }: StatusIconProps) {
 // Main Component
 // ============================================================================
 
+const STATUS_LABELS: Record<DashboardStatus, string> = {
+  intake_incomplete: 'Get Started',
+  intake_pending_review: 'Under Physician Review',
+  under_review: 'Under Physician Review',
+  approved_awaiting_rx: 'Treatment Approved',
+  rx_sent: 'Prescription Sent',
+  active_treatment: 'Active',
+  intake_rejected: 'Not Approved',
+  intake_needs_info: 'Action Required',
+  unknown: 'Status',
+};
+
 export function StatusCard({ status, intakeSubmittedAt, className }: StatusCardProps) {
   const config = statusConfig[status];
+  const badgeLabel = STATUS_LABELS[status] ?? 'Status';
   
   // Get color for icon based on status
   const getIconColor = () => {
@@ -109,11 +122,11 @@ export function StatusCard({ status, intakeSubmittedAt, className }: StatusCardP
             </div>
             <div>
               <CardTitle className="text-lg">{config.title}</CardTitle>
-              <Badge 
+              <Badge
                 variant={config.badgeVariant}
-                className="mt-1 capitalize"
+                className="mt-1"
               >
-                {status.replace(/_/g, ' ')}
+                {badgeLabel}
               </Badge>
             </div>
           </div>

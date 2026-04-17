@@ -56,6 +56,7 @@ const PUBLIC_ROUTES = [
   '/checkout/cancel',
   '/logout',
   '/unauthorized',
+  '/error',
 ];
 
 /** Static asset routes */

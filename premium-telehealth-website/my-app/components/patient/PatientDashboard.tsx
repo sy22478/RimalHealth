@@ -22,8 +22,52 @@ import {
   SubscriptionStatus, 
   PrescriptionStatus 
 } from '@prisma/client';
-import { AlertCircle, CheckCircle2, ChevronRight, ShieldCheck, Sparkles, User, X } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ChevronDown, ChevronRight, ChevronUp, ShieldCheck, Sparkles, User, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+// ============================================================================
+// Banner Stack — caps visible banners at 3 with "Show more" for the rest
+// ============================================================================
+
+const MAX_VISIBLE_BANNERS = 3;
+
+interface BannerItem {
+  key: string;
+  element: React.ReactNode;
+}
+
+function BannerStack({ banners }: { banners: BannerItem[] }) {
+  const [expanded, setExpanded] = React.useState(false);
+  if (banners.length === 0) return null;
+  const visible = expanded ? banners : banners.slice(0, MAX_VISIBLE_BANNERS);
+  const hiddenCount = banners.length - MAX_VISIBLE_BANNERS;
+  return (
+    <>
+      {visible.map((b) => (
+        <React.Fragment key={b.key}>{b.element}</React.Fragment>
+      ))}
+      {hiddenCount > 0 && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="mb-6 inline-flex items-center gap-1 text-sm font-medium text-ocean-600 hover:text-ocean-700"
+        >
+          {expanded ? (
+            <>
+              <ChevronUp className="h-4 w-4" />
+              Show fewer notifications
+            </>
+          ) : (
+            <>
+              <ChevronDown className="h-4 w-4" />
+              {hiddenCount} more notification{hiddenCount === 1 ? '' : 's'}
+            </>
+          )}
+        </button>
+      )}
+    </>
+  );
+}
 
 // ============================================================================
 // Profile Completion Prompt Component
@@ -347,6 +391,174 @@ function SubscriptionAlert({ subscription }: SubscriptionAlertProps) {
 }
 
 // ============================================================================
+// Dashboard Banners (priority-ordered, capped at 3 visible)
+// ============================================================================
+
+interface DashboardBannersProps {
+  data: DashboardData;
+  dashboardStatus: DashboardStatus;
+  hasGovernmentId: boolean;
+  hasIntakePharmacy: boolean;
+  mfaEnabled: boolean;
+  accountAgeDays: number;
+}
+
+function DashboardBanners({
+  data,
+  dashboardStatus,
+  hasGovernmentId,
+  hasIntakePharmacy,
+  mfaEnabled,
+  accountAgeDays,
+}: DashboardBannersProps) {
+  const [now] = React.useState(() => Date.now());
+
+  const banners: BannerItem[] = [];
+
+  if (data.subscription?.status === SubscriptionStatus.CANCELLED) {
+    banners.push({
+      key: 'rejected',
+      element: (
+        <Card className="mb-6 border-red-200 bg-red-50">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-red-900">
+                  Your intake was not approved. No charges were applied.
+                </p>
+                {data.intake?.review?.rejectionReason && (
+                  <p className="text-sm text-red-700 mt-1">
+                    <span className="font-medium">Reason:</span> {data.intake.review.rejectionReason}
+                  </p>
+                )}
+                {data.intake?.review?.alternativeRecommendation && (
+                  <p className="text-sm text-red-700 mt-1">
+                    <span className="font-medium">Recommendation:</span>{' '}
+                    {data.intake.review.alternativeRecommendation}
+                  </p>
+                )}
+                <p className="text-sm text-red-600 mt-2">
+                  Your account will remain accessible for 30 days. Please check your messages for more details.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ),
+    });
+  }
+
+  if (data.subscription) {
+    const daysUntilExpiry = Math.ceil(
+      (new Date(data.subscription.currentPeriodEnd).getTime() - now) / (1000 * 60 * 60 * 24)
+    );
+    if (daysUntilExpiry <= 7) {
+      banners.push({
+        key: 'subscription-alert',
+        element: <SubscriptionAlert subscription={data.subscription} />,
+      });
+    }
+  }
+
+  if (dashboardStatus === 'intake_incomplete') {
+    banners.push({ key: 'intake-cta', element: <IntakeCTA status={dashboardStatus} /> });
+  }
+
+  if (!hasGovernmentId) {
+    banners.push({
+      key: 'gov-id',
+      element: (
+        <Card className="mb-6 border-amber-200 bg-amber-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="font-medium text-amber-900">
+                  Please upload your government-issued ID to complete your profile
+                </p>
+              </div>
+              <Link href="/patient/documents">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-amber-300 text-amber-700 hover:bg-amber-100 flex-shrink-0"
+                >
+                  Upload ID
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      ),
+    });
+  }
+
+  if (data.intake?.review?.decision === 'APPROVED' && data.intake.review.clinicalNotes) {
+    banners.push({
+      key: 'physician-note',
+      element: (
+        <Card className="mb-6 border-green-200 bg-green-50">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-green-900">Your physician&apos;s note</p>
+                <p className="text-sm text-green-700 mt-1">{data.intake.review.clinicalNotes}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ),
+    });
+  }
+
+  if (
+    data.subscription?.status === SubscriptionStatus.TRIALING &&
+    data.intake?.status === IntakeStatus.SUBMITTED
+  ) {
+    banners.push({
+      key: 'trialing',
+      element: (
+        <Card className="mb-6 border-blue-200 bg-blue-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="h-5 w-5 text-blue-600 flex-shrink-0" />
+              <div>
+                <p className="font-medium text-blue-900">
+                  Intake submitted — awaiting physician review
+                </p>
+                <p className="text-sm text-blue-700">
+                  You will not be charged until your intake is approved.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ),
+    });
+  }
+
+  const profileCompletion = getProfileCompletionStatus(data.profile, hasIntakePharmacy);
+  if (!profileCompletion.isComplete) {
+    banners.push({
+      key: 'profile',
+      element: <ProfileCompletionPrompt profile={data.profile} hasIntakePharmacy={hasIntakePharmacy} />,
+    });
+  }
+
+  if (!mfaEnabled) {
+    banners.push({
+      key: 'mfa',
+      element: <MFASetupPrompt mfaEnabled={mfaEnabled} accountAgeDays={accountAgeDays} />,
+    });
+  }
+
+  return <BannerStack banners={banners} />;
+}
+
+// ============================================================================
 // Main Dashboard Component
 // ============================================================================
 
@@ -379,115 +591,22 @@ export function PatientDashboard({ data, userId, mfaEnabled = true, accountAgeDa
   return (
     <div className={cn('max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8', className)}>
       {/* Welcome Header */}
-      <WelcomeHeader 
-        firstName={firstName} 
+      <WelcomeHeader
+        firstName={firstName}
         subscriptionStatus={data.subscription?.status ?? SubscriptionStatus.EXPIRED}
       />
 
-      {/* Intake CTA - Only show if intake incomplete */}
-      <IntakeCTA status={dashboardStatus} />
+      {/* Priority-ordered banner stack (max 3 visible, rest collapsed).
+          Priority: rejection > expiring sub > intake CTA > govID > approved note > trialing > profile > MFA. */}
+      <DashboardBanners
+        data={data}
+        dashboardStatus={dashboardStatus}
+        hasGovernmentId={hasGovernmentId}
+        hasIntakePharmacy={hasIntakePharmacy}
+        mfaEnabled={mfaEnabled}
+        accountAgeDays={accountAgeDays}
+      />
 
-      {/* Government ID Upload Banner */}
-      {!hasGovernmentId && (
-        <Card className="mb-6 border-amber-200 bg-amber-50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="font-medium text-amber-900">
-                  Please upload your government-issued ID to complete your profile
-                </p>
-              </div>
-              <Link href="/patient/documents">
-                <Button variant="outline" size="sm" className="border-amber-300 text-amber-700 hover:bg-amber-100 flex-shrink-0">
-                  Upload ID
-                  <ChevronRight className="h-4 w-4 ml-1" />
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Subscription Alert - Show if expiring soon */}
-      {data.subscription && (
-        <SubscriptionAlert subscription={data.subscription} />
-      )}
-
-      {/* Trialing — awaiting physician review */}
-      {data.subscription?.status === SubscriptionStatus.TRIALING && data.intake?.status === IntakeStatus.SUBMITTED && (
-        <Card className="mb-6 border-blue-200 bg-blue-50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="h-5 w-5 text-blue-600 flex-shrink-0" />
-              <div>
-                <p className="font-medium text-blue-900">
-                  Intake submitted — awaiting physician review
-                </p>
-                <p className="text-sm text-blue-700">
-                  You will not be charged until your intake is approved.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Approved — show physician's note */}
-      {data.intake?.review?.decision === 'APPROVED' && data.intake.review.clinicalNotes && (
-        <Card className="mb-6 border-green-200 bg-green-50">
-          <CardContent className="p-4">
-            <div className="flex items-start gap-3">
-              <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="font-medium text-green-900">
-                  Your physician&apos;s note
-                </p>
-                <p className="text-sm text-green-700 mt-1">
-                  {data.intake.review.clinicalNotes}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Cancelled — rejected patient */}
-      {data.subscription?.status === SubscriptionStatus.CANCELLED && (
-        <Card className="mb-6 border-red-200 bg-red-50">
-          <CardContent className="p-4">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="font-medium text-red-900">
-                  Your intake was not approved. No charges were applied.
-                </p>
-                {data.intake?.review?.rejectionReason && (
-                  <p className="text-sm text-red-700 mt-1">
-                    <span className="font-medium">Reason:</span> {data.intake.review.rejectionReason}
-                  </p>
-                )}
-                {data.intake?.review?.alternativeRecommendation && (
-                  <p className="text-sm text-red-700 mt-1">
-                    <span className="font-medium">Recommendation:</span> {data.intake.review.alternativeRecommendation}
-                  </p>
-                )}
-                <p className="text-sm text-red-600 mt-2">
-                  Your account will remain accessible for 30 days. Please check your messages for more details.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Profile Completion Prompt - Show if profile is incomplete */}
-      <ProfileCompletionPrompt profile={data.profile} hasIntakePharmacy={hasIntakePharmacy} />
-
-      {/* MFA Setup Prompt - Show if MFA is not enabled */}
-      <MFASetupPrompt mfaEnabled={mfaEnabled} accountAgeDays={accountAgeDays} />
-
-      {/* Status & Next Steps Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <StatusCard 
           status={dashboardStatus}

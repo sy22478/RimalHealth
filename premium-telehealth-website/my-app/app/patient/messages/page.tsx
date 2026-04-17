@@ -429,6 +429,7 @@ export default function MessagesPage() {
   const [isLoadingMessages, setIsLoadingMessages] = React.useState(false);
   const [isSending, setIsSending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [isRefetching, setIsRefetching] = React.useState(false);
 
   const loadThreads = React.useCallback(async () => {
     try {
@@ -467,6 +468,29 @@ export default function MessagesPage() {
 
   React.useEffect(() => {
     loadThreads();
+  }, [loadThreads]);
+
+  // Silent background polling every 30s + refetch on window focus so unread
+  // counts stay reasonably fresh without a WebSocket.
+  React.useEffect(() => {
+    let mounted = true;
+    const refresh = async () => {
+      if (!mounted) return;
+      setIsRefetching(true);
+      try {
+        await loadThreads();
+      } finally {
+        if (mounted) setIsRefetching(false);
+      }
+    };
+    const interval = setInterval(refresh, 30000);
+    const onFocus = () => { refresh(); };
+    window.addEventListener('focus', onFocus);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+    };
   }, [loadThreads]);
 
   const selectedConversation = conversations.find(
@@ -645,7 +669,12 @@ export default function MessagesPage() {
           )}
         >
           <div className="p-4 border-b border-gray-200">
-            <h1 className="text-xl font-semibold text-gray-900">Messages</h1>
+            <div className="flex items-center justify-between">
+              <h1 className="text-xl font-semibold text-gray-900">Messages</h1>
+              {isRefetching && (
+                <span className="text-xs text-gray-400">Updating…</span>
+              )}
+            </div>
             <p className="text-sm text-gray-500">Communicate with your care team</p>
           </div>
           <ConversationList

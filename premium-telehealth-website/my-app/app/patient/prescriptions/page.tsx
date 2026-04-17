@@ -24,7 +24,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { IntakeStatus } from '@prisma/client';
-import { PrescriptionSummary, getPrescriptionStatusDisplay, canRequestRefill } from '@/types/prescriptions';
+import { PrescriptionSummary, getPrescriptionStatusDisplay, canRequestRefill, getDaysUntilRefill } from '@/types/prescriptions';
 
 // ============================================================================
 // Types
@@ -109,6 +109,34 @@ function RejectedState() {
         </Link>
       </CardContent>
     </Card>
+  );
+}
+
+function RefillIneligibleMessage({ prescription }: { prescription: PrescriptionSummary }) {
+  let message: string;
+  if (prescription.refillsRemaining <= 0) {
+    message = 'No refills remaining. Contact your doctor for a new prescription.';
+  } else if (prescription.nextRefillAvailable) {
+    const daysUntil = getDaysUntilRefill(prescription.nextRefillAvailable);
+    if (daysUntil !== null && daysUntil > 7) {
+      const date = new Date(prescription.nextRefillAvailable).toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      });
+      message = `Next refill available on ${date}.`;
+    } else {
+      message = 'Refill not available yet. Please check back soon.';
+    }
+  } else {
+    message = 'Contact your doctor for more refills.';
+  }
+
+  return (
+    <div className="flex items-start gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+      <RefreshCw className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
+      <p className="text-sm text-gray-600">{message}</p>
+    </div>
   );
 }
 
@@ -250,7 +278,7 @@ function PrescriptionStatusCard({ prescription, onRefillRequested }: Prescriptio
                 </div>
               )}
 
-              {isRefillEligible && (
+              {isRefillEligible ? (
                 <div className="space-y-2">
                   <Button
                     className="w-full bg-ocean-500 hover:bg-ocean-600 text-white"
@@ -271,6 +299,8 @@ function PrescriptionStatusCard({ prescription, onRefillRequested }: Prescriptio
                     </p>
                   )}
                 </div>
+              ) : (
+                <RefillIneligibleMessage prescription={prescription} />
               )}
             </>
           )}

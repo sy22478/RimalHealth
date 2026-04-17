@@ -29,6 +29,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { LoadingButton } from '@/components/ui/LoadingButton';
 import { PatientPharmacySearch, SelectedPharmacy } from '@/components/patient/PharmacySearch';
+import { MedicalTerm } from '@/components/patient/MedicalTerm';
 
 // ============================================================================
 // Validation Schema -- 8 Sections, 33 Questions + Personal Info (no consent)
@@ -734,7 +735,7 @@ function SafetyScreeningStep(): React.ReactElement {
       {/* Q21: Opioid Maintenance */}
       <div className="space-y-2">
         <Label className="text-base font-medium">
-          Q21. Are you currently enrolled in a methadone or buprenorphine maintenance program? <span className="text-red-500">*</span>
+          Q21. Are you currently enrolled in a <MedicalTerm term="methadone">methadone</MedicalTerm> or <MedicalTerm term="buprenorphine">buprenorphine</MedicalTerm> maintenance program? <span className="text-red-500">*</span>
         </Label>
         <BooleanRadio fieldKey="opioidMaintenance" />
       </div>
@@ -785,7 +786,7 @@ function SafetyScreeningStep(): React.ReactElement {
       {/* Q23: Liver Tests */}
       <div className="space-y-2">
         <Label className="text-base font-medium">
-          Q23. Have you had liver blood tests (LFTs) done in the past 6 months? <span className="text-red-500">*</span>
+          Q23. Have you had liver blood tests (<MedicalTerm term="lfts">LFTs</MedicalTerm>) done in the past 6 months? <span className="text-red-500">*</span>
         </Label>
         <select
           {...register('liverTests')}
@@ -1151,6 +1152,13 @@ function ReviewStep({ onEditSection }: { onEditSection: (index: number) => void 
   // DSM-5 summary
   const dsm5Keys = ['dsm5Q1', 'dsm5Q2', 'dsm5Q3', 'dsm5Q4', 'dsm5Q5', 'dsm5Q6', 'dsm5Q7', 'dsm5Q8', 'dsm5Q9', 'dsm5Q10', 'dsm5Q11'] as const;
   const dsm5YesCount = dsm5Keys.filter(k => values[k] === true).length;
+  const dsm5Severity = dsm5YesCount >= 6
+    ? 'Severe AUD'
+    : dsm5YesCount >= 4
+      ? 'Moderate AUD'
+      : dsm5YesCount >= 2
+        ? 'Mild AUD'
+        : 'No AUD indicated';
 
   const formatBoolean = (val: boolean | undefined): string => val === true ? 'Yes' : val === false ? 'No' : 'Not answered';
   const formatEnum = (val: string | undefined, labels: Record<string, string>): string => {
@@ -1208,7 +1216,7 @@ function ReviewStep({ onEditSection }: { onEditSection: (index: number) => void 
     {
       title: 'Section 1: DSM-5 AUD Screening',
       index: 1,
-      items: [`${dsm5YesCount} of 11 questions answered Yes`],
+      items: [`${dsm5Severity} \u2014 ${dsm5YesCount} of 11 criteria endorsed`],
     },
     {
       title: 'Section 2: Current Drinking Pattern',
@@ -1322,16 +1330,21 @@ function ProgressTracker({
 }): React.ReactElement {
   return (
     <div className="mb-8">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-medium text-gray-600">
+      <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+        <span className="text-sm font-medium text-gray-700">
           Step {currentStep + 1} of {totalSteps}
+          <span className="hidden sm:inline"> &middot; {stepLabels[currentStep]}</span>
         </span>
         <span className="text-sm font-medium text-gray-600">
           {Math.round(((currentStep + 1) / totalSteps) * 100)}%
         </span>
       </div>
+      {/* Mobile-only step label (full step name) */}
+      <p className="sm:hidden text-xs text-ocean-600 font-medium mb-2">
+        {stepLabels[currentStep]}
+      </p>
       <div
-        className="h-2 bg-gray-200 rounded-full overflow-hidden"
+        className="h-3 bg-gray-200 rounded-full overflow-hidden"
         role="progressbar"
         aria-valuenow={currentStep + 1}
         aria-valuemin={1}
@@ -1421,15 +1434,23 @@ function SubmitConfirmModal({
 // Main Intake Page
 // ============================================================================
 
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'failed';
+
+interface SaveState {
+  status: SaveStatus;
+  lastSavedAt: Date | null;
+}
+
 export default function IntakePage(): React.ReactElement {
   const router = useRouter();
   const [currentStep, setCurrentStep] = React.useState(0);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
-  const [saveStatus, setSaveStatus] = React.useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [saveState, setSaveState] = React.useState<SaveState>({ status: 'idle', lastSavedAt: null });
   const [showConfirmModal, setShowConfirmModal] = React.useState(false);
   const [intakeId, setIntakeId] = React.useState<string | null>(null);
-  const saveTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [submitBlockedMessage, setSubmitBlockedMessage] = React.useState<string | null>(null);
+  const savedTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const steps = [
     { id: 'personal', title: 'Personal Info', sectionTitle: 'Personal Information', component: PersonalInfoStep },
@@ -1498,12 +1519,22 @@ export default function IntakePage(): React.ReactElement {
     mode: 'onBlur',
   });
 
-  const { handleSubmit, trigger, formState: { isDirty }, getValues } = methods;
+  const { handleSubmit, trigger, formState: { isDirty }, getValues, watch } = methods;
 
-  // Server-side auto-save: save draft to backend every 30 seconds if dirty
-  const saveDraft = React.useCallback(async () => {
+  // Track whether the form has edits that haven't been persisted to the server
+  // since the last successful save (separate from RHF's isDirty, which stays true).
+  const [hasUnsavedChanges, setHasUnsavedChanges] = React.useState(false);
+
+  React.useEffect(() => {
+    const subscription = watch(() => setHasUnsavedChanges(true));
+    return () => subscription.unsubscribe();
+  }, [watch]);
+
+  // Server-side auto-save: save draft to backend every 30 seconds if dirty.
+  // Returns true on success, false on failure.
+  const saveDraft = React.useCallback(async (): Promise<boolean> => {
+    setSaveState((prev) => ({ ...prev, status: 'saving' }));
     try {
-      setSaveStatus('saving');
       const formData = getValues();
 
       const response = await fetch('/api/patient/intake', {
@@ -1524,25 +1555,39 @@ export default function IntakePage(): React.ReactElement {
         if (result.intake?.id) {
           setIntakeId(result.intake.id);
         }
-        setSaveStatus('saved');
-      } else if (response.status === 409) {
-        // Existing intake -- get its ID
-        const existing = await response.json().catch(() => ({}));
-        if (existing.intakeId) {
-          setIntakeId(existing.intakeId);
-        }
-        setSaveStatus('saved');
-      } else {
-        setSaveStatus('error');
+        setSaveState({ status: 'saved', lastSavedAt: new Date() });
+        setHasUnsavedChanges(false);
+        setSubmitBlockedMessage(null);
+        return true;
       }
+      if (response.status === 409) {
+        const existing = await response.json().catch(() => ({}));
+        if (existing.intakeId) setIntakeId(existing.intakeId);
+        setSaveState({ status: 'saved', lastSavedAt: new Date() });
+        setHasUnsavedChanges(false);
+        setSubmitBlockedMessage(null);
+        return true;
+      }
+      setSaveState((prev) => ({ ...prev, status: 'failed' }));
+      return false;
     } catch {
-      setSaveStatus('error');
+      setSaveState((prev) => ({ ...prev, status: 'failed' }));
+      return false;
     }
-
-    // Reset status after 3 seconds
-    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    saveTimeoutRef.current = setTimeout(() => setSaveStatus('idle'), 3000);
   }, [getValues]);
+
+  // Auto-clear the "saved" badge after 3s, but leave "failed" persistent.
+  React.useEffect(() => {
+    if (saveState.status !== 'saved') return;
+    if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+    savedTimerRef.current = setTimeout(
+      () => setSaveState((prev) => (prev.status === 'saved' ? { ...prev, status: 'idle' } : prev)),
+      3000,
+    );
+    return () => {
+      if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+    };
+  }, [saveState.status]);
 
   React.useEffect(() => {
     if (!isDirty) return;
@@ -1553,6 +1598,9 @@ export default function IntakePage(): React.ReactElement {
 
     return () => clearInterval(interval);
   }, [isDirty, saveDraft]);
+
+  const formatSavedTime = (d: Date): string =>
+    d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 
   // Validate current step fields before proceeding
   const validateCurrentStep = async (): Promise<boolean> => {
@@ -1665,6 +1713,18 @@ export default function IntakePage(): React.ReactElement {
   };
 
   const handleSubmitClick = async (): Promise<void> => {
+    // Block submission if the last auto-save failed or there are unsaved changes
+    if (saveState.status === 'failed' || hasUnsavedChanges) {
+      const saved = await saveDraft();
+      if (!saved) {
+        setSubmitBlockedMessage(
+          "Your changes couldn't be saved. Please retry before submitting."
+        );
+        return;
+      }
+    }
+    setSubmitBlockedMessage(null);
+
     // Validate all fields before showing confirmation
     const allValid = await trigger();
     if (allValid) {
@@ -1733,24 +1793,41 @@ export default function IntakePage(): React.ReactElement {
                   />
 
                   {/* Save Status */}
-                  <div className="text-sm flex-shrink-0 ml-4">
-                    {saveStatus === 'saving' && (
+                  <div className="text-sm flex-shrink-0 ml-4 flex items-center gap-2">
+                    {saveState.status === 'saving' && (
                       <span className="text-ocean-600 flex items-center gap-1">
                         <Loader2 className="h-3 w-3 animate-spin" />
                         Saving...
                       </span>
                     )}
-                    {saveStatus === 'saved' && (
+                    {saveState.status === 'saved' && saveState.lastSavedAt && (
                       <span className="text-green-600 flex items-center gap-1">
                         <Save className="h-3 w-3" />
-                        Saved
+                        Saved at {formatSavedTime(saveState.lastSavedAt)}
                       </span>
                     )}
-                    {saveStatus === 'error' && (
-                      <span className="text-amber-600 flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
-                        Save failed
+                    {saveState.status === 'idle' && saveState.lastSavedAt && (
+                      <span className="text-gray-500 flex items-center gap-1">
+                        <Save className="h-3 w-3" />
+                        Last saved at {formatSavedTime(saveState.lastSavedAt)}
                       </span>
+                    )}
+                    {saveState.status === 'failed' && (
+                      <>
+                        <span className="text-red-600 flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" />
+                          Save failed
+                        </span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => { void saveDraft(); }}
+                          className="h-7 px-2 text-xs"
+                        >
+                          Retry save
+                        </Button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -1768,6 +1845,13 @@ export default function IntakePage(): React.ReactElement {
                   <Alert variant="destructive" className="mb-6">
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>{submitError}</AlertDescription>
+                  </Alert>
+                )}
+
+                {submitBlockedMessage && (
+                  <Alert variant="destructive" className="mb-6">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{submitBlockedMessage}</AlertDescription>
                   </Alert>
                 )}
 
@@ -1801,26 +1885,38 @@ export default function IntakePage(): React.ReactElement {
                     <div />
                   )}
 
-                  {isReviewStep ? (
-                    <LoadingButton
-                      type="button"
-                      loading={isSubmitting}
-                      onClick={handleSubmitClick}
-                      className="flex items-center gap-2 bg-gradient-to-r from-navy-500 to-ocean-500 hover:from-navy-600 hover:to-ocean-600 text-white"
-                    >
-                      Submit Intake
-                      <CheckCircle className="h-4 w-4" />
-                    </LoadingButton>
-                  ) : (
+                  <div className="flex items-center gap-2">
                     <Button
                       type="button"
-                      onClick={handleNext}
-                      className="flex items-center gap-2 bg-gradient-to-r from-navy-500 to-ocean-500 hover:from-navy-600 hover:to-ocean-600 text-white"
+                      variant="outline"
+                      onClick={() => { void saveDraft(); }}
+                      disabled={saveState.status === 'saving'}
+                      className="flex items-center gap-2"
                     >
-                      Next
-                      <ChevronRight className="h-4 w-4" />
+                      <Save className="h-4 w-4" />
+                      Save draft
                     </Button>
-                  )}
+                    {isReviewStep ? (
+                      <LoadingButton
+                        type="button"
+                        loading={isSubmitting}
+                        onClick={handleSubmitClick}
+                        className="flex items-center gap-2 bg-gradient-to-r from-navy-500 to-ocean-500 hover:from-navy-600 hover:to-ocean-600 text-white"
+                      >
+                        Submit Intake
+                        <CheckCircle className="h-4 w-4" />
+                      </LoadingButton>
+                    ) : (
+                      <Button
+                        type="button"
+                        onClick={handleNext}
+                        className="flex items-center gap-2 bg-gradient-to-r from-navy-500 to-ocean-500 hover:from-navy-600 hover:to-ocean-600 text-white"
+                      >
+                        Next
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>

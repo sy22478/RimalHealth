@@ -27,6 +27,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import { DeleteConfirmDialog } from '@/components/patient/DocumentCard';
 
 // ============================================================================
 // Types
@@ -539,6 +540,10 @@ export default function DocumentsPage() {
   // Intake viewer state
   const [viewingIntakeId, setViewingIntakeId] = React.useState<string | null>(null);
 
+  // Delete confirmation state
+  const [deleteTarget, setDeleteTarget] = React.useState<Document | null>(null);
+  const [isDeleting, setIsDeleting] = React.useState(false);
+
   const loadDocuments = React.useCallback(async () => {
     try {
       const res = await fetch('/api/patient/documents', { credentials: 'include' });
@@ -587,17 +592,26 @@ export default function DocumentsPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this document?')) return;
+  const handleDelete = (id: string) => {
+    const target = documents.find((d) => d.id === id);
+    if (target) setDeleteTarget(target);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
     try {
-      const res = await fetch(`/api/patient/documents/${id}`, {
+      const res = await fetch(`/api/patient/documents/${deleteTarget.id}`, {
         method: 'DELETE',
         credentials: 'include',
       });
       if (!res.ok) throw new Error('Failed to delete document');
-      setDocuments(prev => prev.filter(d => d.id !== id));
+      setDocuments(prev => prev.filter(d => d.id !== deleteTarget.id));
+      setDeleteTarget(null);
     } catch (err) {
       setFetchError(err instanceof Error ? err.message : 'Failed to delete document');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -784,6 +798,15 @@ export default function DocumentsPage() {
           onClose={() => setViewingIntakeId(null)}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmDialog
+        isOpen={deleteTarget !== null}
+        documentName={deleteTarget?.name ?? ''}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }
