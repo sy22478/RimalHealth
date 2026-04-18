@@ -1754,16 +1754,18 @@ export default function IntakePage(): React.ReactElement {
               Complete your medical intake for naltrexone treatment
             </p>
           </div>
-          <form action="/api/auth/logout" method="POST">
-            <Button
-              variant="outline"
-              type="submit"
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
-            >
-              <LogOut className="h-4 w-4" />
-              Sign Out
-            </Button>
-          </form>
+          <Button
+            variant="outline"
+            type="button"
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+            onClick={async () => {
+              await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+              window.location.href = '/login';
+            }}
+          >
+            <LogOut className="h-4 w-4" />
+            Sign Out
+          </Button>
         </div>
 
         <div className="inline-flex items-center gap-2 mb-6 px-4 py-2 bg-blue-50 text-blue-700 rounded-full text-sm">

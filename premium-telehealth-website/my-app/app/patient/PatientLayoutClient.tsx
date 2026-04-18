@@ -97,16 +97,18 @@ function Sidebar({ currentPath, unreadCount = 0 }: SidebarProps) {
 
       {/* Logout */}
       <div className="p-4 border-t border-gray-100">
-        <form action="/api/auth/logout" method="POST">
-          <Button 
-            variant="ghost" 
-            className="w-full justify-start text-gray-600 hover:text-gray-900"
-            type="submit"
-          >
-            <LogOut className="h-5 w-5 mr-3 text-gray-400" />
-            Sign Out
-          </Button>
-        </form>
+        <Button
+          variant="ghost"
+          className="w-full justify-start text-gray-600 hover:text-gray-900"
+          type="button"
+          onClick={async () => {
+            await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+            window.location.href = '/login';
+          }}
+        >
+          <LogOut className="h-5 w-5 mr-3 text-gray-400" />
+          Sign Out
+        </Button>
       </div>
     </aside>
   );
@@ -183,16 +185,18 @@ function MobileNav({ currentPath, unreadCount = 0 }: MobileNavProps) {
 
                 {/* Logout */}
                 <div className="p-4 border-t border-gray-100">
-                  <form action="/api/auth/logout" method="POST">
-                    <Button 
-                      variant="ghost" 
-                      className="w-full justify-start text-gray-600 hover:text-gray-900"
-                      type="submit"
-                    >
-                      <LogOut className="h-5 w-5 mr-3 text-gray-400" />
-                      Sign Out
-                    </Button>
-                  </form>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start text-gray-600 hover:text-gray-900"
+                    type="button"
+                    onClick={async () => {
+                      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+                      window.location.href = '/login';
+                    }}
+                  >
+                    <LogOut className="h-5 w-5 mr-3 text-gray-400" />
+                    Sign Out
+                  </Button>
                 </div>
               </div>
             </SheetContent>

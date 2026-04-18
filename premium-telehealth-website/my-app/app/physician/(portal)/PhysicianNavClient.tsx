@@ -258,16 +258,18 @@ export function Sidebar() {
         })}
 
         {/* Logout */}
-        <form action="/api/auth/logout" method="POST">
-          <Button
-            variant="ghost"
-            className="w-full justify-start text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-            type="submit"
-          >
-            <LogOut className="h-5 w-5 mr-3 text-gray-400" />
-            Sign Out
-          </Button>
-        </form>
+        <Button
+          variant="ghost"
+          className="w-full justify-start text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+          type="button"
+          onClick={async () => {
+            await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+            window.location.href = '/physician/login';
+          }}
+        >
+          <LogOut className="h-5 w-5 mr-3 text-gray-400" />
+          Sign Out
+        </Button>
       </div>
     </aside>
   );
@@ -344,16 +346,18 @@ export function MobileHeader() {
           />
           
           <div className="border-t border-gray-100 pt-2 mt-2">
-            <form action="/api/auth/logout" method="POST">
-              <Button
-                variant="ghost"
-                className="w-full justify-start text-gray-600"
-                type="submit"
-              >
-                <LogOut className="h-5 w-5 mr-3 text-gray-400" />
-                Sign Out
-              </Button>
-            </form>
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-gray-600"
+              type="button"
+              onClick={async () => {
+                await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+                window.location.href = '/physician/login';
+              }}
+            >
+              <LogOut className="h-5 w-5 mr-3 text-gray-400" />
+              Sign Out
+            </Button>
           </div>
         </nav>
       )}
