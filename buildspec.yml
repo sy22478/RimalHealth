@@ -15,7 +15,7 @@ phases:
       - echo Build started on `date`
       - echo Building the Docker image...
       - cd premium-telehealth-website/my-app
-      - docker build -f docker/Dockerfile -t $REPOSITORY_URI:latest .
+      - docker build -f docker/Dockerfile --build-arg NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=$NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY --build-arg NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL --build-arg NEXT_PUBLIC_APP_NAME=$NEXT_PUBLIC_APP_NAME -t $REPOSITORY_URI:latest .
       - docker tag $REPOSITORY_URI:latest $REPOSITORY_URI:$IMAGE_TAG
   post_build:
     commands:
