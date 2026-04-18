@@ -415,7 +415,16 @@ export function PhysicianPrescriptionsClient({ initialPrescriptions }: Physician
               sent until a pharmacy is assigned.
             </DialogDescription>
           </DialogHeader>
-          <PharmacySearch onSelect={handlePharmacySelected} />
+          {/* Key on the prescription id so PharmacySearch resets its
+              internal state (including the prefilled ZIP) when the
+              physician opens the dialog for a different prescription. */}
+          <PharmacySearch
+            key={pharmacyDialogRxId ?? 'pharmacy-search'}
+            onSelect={handlePharmacySelected}
+            defaultZip={
+              prescriptions.find((p) => p.id === pharmacyDialogRxId)?.patientZip ?? ''
+            }
+          />
         </DialogContent>
       </Dialog>
 

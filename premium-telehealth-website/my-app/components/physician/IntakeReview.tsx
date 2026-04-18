@@ -25,6 +25,7 @@ import { DecisionForm, DecisionFormData } from './DecisionForm';
 import { IntakeWithPatient } from '@/lib/physician/review-types';
 import { IntakeFormData, IntakeScores, RiskAssessment } from '@/types/intake';
 import { cn } from '@/lib/utils';
+import { maskPhone, maskEmail } from '@/lib/utils/string-helpers';
 
 interface IntakeReviewProps {
   intake: IntakeWithPatient;
@@ -344,31 +345,48 @@ export function IntakeReview({ intake, physicianId, physicianName, isDeactivated
                   <div className="flex items-center gap-2 text-sm">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <span className="text-muted-foreground">Submitted:</span>
-                    <span className="font-medium ml-auto">{submittedDate}</span>
+                    <span className="font-medium ml-auto" suppressHydrationWarning>{submittedDate}</span>
                   </div>
 
-                  <div className="flex items-center gap-2 text-sm">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">SLA:</span>
-                    <Badge
-                      variant={slaStatus?.isOverdue ? 'destructive' : slaStatus?.isUrgent ? 'secondary' : 'default'}
-                      className="ml-auto"
-                    >
-                      {slaStatus?.isOverdue
-                        ? 'Overdue'
-                        : slaStatus?.hoursRemaining != null
-                        ? `${slaStatus.hoursRemaining}h left`
-                        : 'N/A'}
-                    </Badge>
-                  </div>
+                  {/* SLA pill is meaningless once an intake is decided — hide it
+                      when viewing a read-only/already-reviewed intake.
+                      suppressHydrationWarning: hoursRemaining is computed from
+                      `new Date()` at render time and can shift between SSR and
+                      hydration. */}
+                  {!isReadOnly && (
+                    <div className="flex items-center gap-2 text-sm" suppressHydrationWarning>
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">SLA:</span>
+                      <Badge
+                        variant={slaStatus?.isOverdue ? 'destructive' : slaStatus?.isUrgent ? 'secondary' : 'default'}
+                        className="ml-auto"
+                      >
+                        {slaStatus?.isOverdue
+                          ? 'Overdue'
+                          : slaStatus?.hoursRemaining != null
+                          ? `${slaStatus.hoursRemaining}h left`
+                          : 'N/A'}
+                      </Badge>
+                    </div>
+                  )}
+
+                  {isReadOnly && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">Status:</span>
+                      <Badge variant="secondary" className="ml-auto">
+                        Reviewed
+                      </Badge>
+                    </div>
+                  )}
                 </div>
 
                 <Separator />
 
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground">Contact</p>
-                  <p className="text-sm font-medium break-all">{intake.patient.email}</p>
-                  <p className="text-sm font-medium">{intake.patient.phone}</p>
+                  <p className="text-sm font-medium break-all">{maskEmail(intake.patient.email)}</p>
+                  <p className="text-sm font-medium">{maskPhone(intake.patient.phone)}</p>
                 </div>
 
                 {intake.patient.address && (

@@ -25,6 +25,48 @@ import { auditLogger } from '@/lib/audit/logger';
 import { AuditEventType } from '@/lib/audit/types';
 import { Role } from '@prisma/client';
 
+/**
+ * GET /api/patient/mfa/setup-sms
+ * Returns the masked phone-on-file so the setup page can display
+ * "We'll send a code to (•••) •••-1234" before the user clicks Send.
+ * Does NOT send an SMS.
+ */
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  const auth = await requireRole(request, [Role.PATIENT]);
+  if (auth instanceof NextResponse) return auth;
+
+  const { userId } = auth.user;
+
+  try {
+    const profile = await prisma.patientProfile.findUnique({
+      where: { userId },
+      select: { phone: true },
+    });
+
+    const phone = typeof profile?.phone === 'string' ? profile.phone : '';
+    if (!phone) {
+      return NextResponse.json(
+        { hasPhone: false, code: 'NO_PHONE_NUMBER' },
+        { status: 200 },
+      );
+    }
+
+    return NextResponse.json({
+      hasPhone: true,
+      phoneHint: maskPhoneNumber(phone),
+    });
+  } catch (error) {
+    console.error(
+      'SMS MFA phone hint error:',
+      error instanceof Error ? error.message : 'Unknown error',
+    );
+    return NextResponse.json(
+      { error: 'Failed to load phone information' },
+      { status: 500 },
+    );
+  }
+}
+
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const auth = await requireRole(request, [Role.PATIENT]);
   if (auth instanceof NextResponse) return auth;

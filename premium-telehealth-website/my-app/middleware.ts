@@ -296,6 +296,10 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     requestHeaders.set('x-user-role', role);
     requestHeaders.set('x-user-email', payload.email);
     requestHeaders.set('x-request-id', requestId);
+    // Surface the request path so server layouts/components can make
+    // path-aware decisions (e.g. patient layout exempting /patient/mfa-setup
+    // from the intake gate when MFA setup is the actual destination).
+    requestHeaders.set('x-pathname', pathname);
 
     // Continue with modified headers
     const response = NextResponse.next({
@@ -356,6 +360,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
           requestHeaders.set('x-user-role', userRole);
           requestHeaders.set('x-user-email', userEmail);
           requestHeaders.set('x-request-id', requestId);
+          requestHeaders.set('x-pathname', pathname);
 
           const response = NextResponse.next({
             request: { headers: requestHeaders },

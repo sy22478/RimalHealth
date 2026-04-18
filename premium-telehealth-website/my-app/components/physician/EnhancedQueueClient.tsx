@@ -438,7 +438,7 @@ export function EnhancedQueueClient({
             </span>
           )}
         </p>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground" suppressHydrationWarning>
           Last updated: {lastUpdated.toLocaleTimeString()}
         </p>
       </div>

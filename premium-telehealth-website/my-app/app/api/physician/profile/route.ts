@@ -54,6 +54,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
 
+    // Strip a duplicated state prefix from licenseNumber. Some seed/admin paths
+    // store the license as "CA-MED-..." even though we already render it as
+    // "{licenseState}-{licenseNumber}", which produced "CA-CA-MED-..." in the UI.
+    const stateRe = new RegExp(`^${physician.licenseState}-`, 'i');
+    const cleanLicenseNumber = physician.licenseNumber.replace(stateRe, '');
+
+    // The denormalized totalReviews counter on Physician drifts from the source
+    // of truth (Review rows) when reviews complete via paths that don't
+    // increment it. Recompute from completed reviews so Settings agrees with
+    // Review History.
+    const completedReviews = await prisma.review.count({
+      where: { physicianId: physician.id, completedAt: { not: null } },
+    });
+
     // Log PHI access (NPI, DEA, license numbers)
     await AuditService.logPHIAccess(
       'VIEW',
@@ -71,6 +85,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       success: true,
       physician: {
         ...physicianData,
+        licenseNumber: cleanLicenseNumber,
+        totalReviews: completedReviews,
         email: user.email,
         mfaEnabled: user.mfaEnabled,
       },

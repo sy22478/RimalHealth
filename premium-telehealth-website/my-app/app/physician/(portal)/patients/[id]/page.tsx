@@ -16,7 +16,9 @@ import { notFound } from 'next/navigation';
 import { PatientDetailView } from '@/components/physician/PatientDetailView';
 import { verifyAccessToken } from '@/lib/auth/jwt';
 import { getPhysicianDisplayName } from '@/lib/physician/patients';
-import type { PhysicianPatientDetail } from '@/types/physician-dashboard';
+import type { PhysicianPatientDetail, RiskLevel } from '@/types/physician-dashboard';
+import { getRiskLevelFromScore } from '@/types/physician-dashboard';
+import { maskPhone } from '@/lib/utils/string-helpers';
 
 // ============================================================================
 // Helpers
@@ -66,6 +68,14 @@ function mapApiResponseToPatientDetail(raw: Record<string, unknown>): PhysicianP
   const dob = raw.dateOfBirth as string | undefined;
   const address = raw.address as Record<string, string> | undefined;
 
+  // Derive riskLevel from the latest intake's risk score so the patient detail
+  // header agrees with the intake review's "Provider Decision Summary" risk badge.
+  // Without this, riskLevel defaults to 'LOW' regardless of the actual score.
+  const intakesRaw = Array.isArray(raw.intakes) ? (raw.intakes as Record<string, unknown>[]) : [];
+  const latestIntakeScore = intakesRaw[0]?.riskScore as number | undefined;
+  const riskLevel: RiskLevel =
+    (raw.riskLevel as RiskLevel | undefined) ?? getRiskLevelFromScore(latestIntakeScore);
+
   return {
     id: (raw.id as string) || '',
     name,
@@ -77,9 +87,9 @@ function mapApiResponseToPatientDetail(raw: Record<string, unknown>): PhysicianP
     lastVisitAt: raw.lastVisit ? new Date(raw.lastVisit as string) : undefined,
     activePrescriptions: Array.isArray(raw.prescriptions) ? (raw.prescriptions as unknown[]).length : 0,
     unreadMessages: 0,
-    riskLevel: (raw.riskLevel as string) || 'LOW',
+    riskLevel,
     emailMasked: maskEmail(email),
-    phoneMasked: (raw.phone as string) || 'No phone',
+    phoneMasked: maskPhone(raw.phone as string | undefined),
     // Pass through raw YYYY-MM-DD string to avoid UTC serialization (Date objects
     // serialize as UTC timestamps across the RSC boundary and render a day early
     // in negative-offset timezones like PST).

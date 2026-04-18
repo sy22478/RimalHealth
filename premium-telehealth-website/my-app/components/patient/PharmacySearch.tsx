@@ -59,7 +59,7 @@ export function PatientPharmacySearch({
   const [selectedNpi, setSelectedNpi] = React.useState<string | null>(null);
   const [selectingNpi, setSelectingNpi] = React.useState<string | null>(null);
 
-  const handleSearch = async (e?: React.FormEvent): Promise<void> => {
+  const handleSearch = async (e?: React.FormEvent | React.MouseEvent): Promise<void> => {
     e?.preventDefault();
     const trimmed = query.trim();
     if (trimmed.length < 2) return;
@@ -176,18 +176,28 @@ export function PatientPharmacySearch({
           </div>
         )}
 
-        {/* Search form */}
-        <form onSubmit={handleSearch} className="flex gap-2">
+        {/* Search controls — use a div + button click instead of a nested <form>.
+            The intake page wraps every step in a React Hook Form <form>, and the
+            browser strips any inner <form>, so a nested form submit never fired
+            the search handler. */}
+        <div className="flex gap-2">
           <Input
             type="text"
             placeholder="Enter city name or ZIP code..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                void handleSearch();
+              }
+            }}
             disabled={disabled || isLoading}
             className="flex-1"
           />
           <Button
-            type="submit"
+            type="button"
+            onClick={() => void handleSearch()}
             disabled={disabled || isLoading || query.trim().length < 2}
           >
             {isLoading ? (
@@ -197,7 +207,7 @@ export function PatientPharmacySearch({
             )}
             <span className="ml-2 hidden sm:inline">Search</span>
           </Button>
-        </form>
+        </div>
 
         {/* Error */}
         {error && (

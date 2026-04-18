@@ -242,7 +242,7 @@ export function PatientQueue({
 
         {/* Last Updated */}
         {lastUpdated && !error && (
-          <p className="mt-4 text-xs text-muted-foreground">
+          <p className="mt-4 text-xs text-muted-foreground" suppressHydrationWarning>
             Last updated: {lastUpdated.toLocaleTimeString()}
           </p>
         )}

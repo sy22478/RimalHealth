@@ -55,6 +55,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
                   select: {
                     firstName: true,
                     lastName: true,
+                    addressZip: true,
                   },
                 },
               },
@@ -93,6 +94,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         id: rx.id,
         patientId: rx.patientId,
         patientName,
+        // Patient ZIP — used to prefill the Set Pharmacy dialog so search
+        // starts near the patient instead of a hardcoded fallback.
+        patientZip: rx.intake?.patient?.patientProfile?.addressZip ?? null,
         medicationName: rx.medicationName,
         genericName: rx.genericName,
         dosage: rx.dosage,

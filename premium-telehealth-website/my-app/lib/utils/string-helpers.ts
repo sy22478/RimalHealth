@@ -337,8 +337,21 @@ export function maskString(
 }
 
 /**
+ * Mask phone number — show last 4 digits only, e.g. (•••) •••-1234
+ *
+ * @param phone - Phone number to mask
+ * @returns Masked phone number, or "No phone" when empty
+ */
+export function maskPhone(phone: string | null | undefined): string {
+  if (!phone) return 'No phone';
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length < 4) return '(•••) •••-••••';
+  return `(•••) •••-${digits.slice(-4)}`;
+}
+
+/**
  * Mask email address
- * 
+ *
  * @param email - Email to mask
  * @returns Masked email
  */

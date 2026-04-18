@@ -13,7 +13,7 @@
  */
 
 import * as React from 'react';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,6 +36,36 @@ export default function PatientMFASetupPage(): React.ReactElement {
   const [phoneHint, setPhoneHint] = useState('');
   const [code, setCode] = useState('');
   const [noPhone, setNoPhone] = useState(false);
+
+  // Fetch the masked phone-on-file at mount so we can show
+  // "We'll send a code to (•••) •••-1234" before the user clicks Send,
+  // instead of the generic "your phone number on file".
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/patient/mfa/setup-sms', {
+          method: 'GET',
+          credentials: 'include',
+        });
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (cancelled) return;
+        if (data?.hasPhone === false) {
+          setNoPhone(true);
+          return;
+        }
+        if (typeof data?.phoneHint === 'string') {
+          setPhoneHint(data.phoneHint);
+        }
+      } catch {
+        // Non-fatal: the page still works, the hint just won't render.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Step 1: Request SMS code for setup
   const handleStartSetup = useCallback(async (): Promise<void> => {
@@ -125,7 +155,12 @@ export default function PatientMFASetupPage(): React.ReactElement {
         <CardHeader>
           <CardTitle>SMS Verification</CardTitle>
           <CardDescription>
-            {step === 'start' && 'We will send a code to your phone number on file.'}
+            {step === 'start' &&
+              (noPhone
+                ? 'No phone number on file. Please add one in your profile.'
+                : phoneHint
+                ? `We'll send a code to ${phoneHint}.`
+                : 'We will send a code to your phone number on file.')}
             {step === 'verify' && `Enter the 6-digit code sent to ${phoneHint}.`}
             {step === 'done' && 'SMS verification is now enabled.'}
           </CardDescription>

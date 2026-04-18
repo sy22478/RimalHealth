@@ -47,6 +47,8 @@ export default async function PatientLayout({
   // Prefer middleware-injected headers (already verified, survives inline refresh)
   const headerStore = await headers();
   const middlewareUserId = headerStore.get('x-user-id');
+  const currentPath = headerStore.get('x-pathname') ?? '';
+  const isMfaSetupPath = currentPath === '/patient/mfa-setup';
 
   let userId: string;
 
@@ -91,25 +93,30 @@ export default async function PatientLayout({
     redirect('/checkout/payment');
   }
 
-  // Gate 1b: Intake gate — check if patient has a completed/submitted intake
+  // Gate 1b: Intake gate — check if patient has a completed/submitted intake.
+  // Skip this gate when the patient is on /patient/mfa-setup, otherwise a
+  // patient with no intake AND expired MFA grace period would loop:
+  //   /intake → (MFA gate) → /patient/mfa-setup → (intake gate) → /intake
   let completedIntake: { id: string } | null = null;
-  try {
-    completedIntake = await prisma.intake.findFirst({
-      where: {
-        patientId: userId,
-        status: { in: COMPLETED_INTAKE_STATUSES },
-      },
-      select: { id: true },
-    });
-  } catch (err) {
-    console.error('[PatientLayout] Failed to check intake status:', err instanceof Error ? err.message : 'Unknown error');
-    // On DB failure, redirect to an error page rather than silently allowing access
-    redirect('/error?reason=intake-check-failed');
-  }
+  if (!isMfaSetupPath) {
+    try {
+      completedIntake = await prisma.intake.findFirst({
+        where: {
+          patientId: userId,
+          status: { in: COMPLETED_INTAKE_STATUSES },
+        },
+        select: { id: true },
+      });
+    } catch (err) {
+      console.error('[PatientLayout] Failed to check intake status:', err instanceof Error ? err.message : 'Unknown error');
+      // On DB failure, redirect to an error page rather than silently allowing access
+      redirect('/error?reason=intake-check-failed');
+    }
 
-  // If no completed intake, redirect to intake form
-  if (!completedIntake) {
-    redirect('/intake');
+    // If no completed intake, redirect to intake form
+    if (!completedIntake) {
+      redirect('/intake');
+    }
   }
 
   // Gate 2: MFA gate — enforce MFA after grace period

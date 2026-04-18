@@ -363,6 +363,8 @@ export interface PhysicianPrescriptionListItem {
   patientId: string;
   /** Patient name */
   patientName: string;
+  /** Patient address ZIP — used to prefill the Set Pharmacy search */
+  patientZip?: string | null;
   /** Medication name */
   medicationName: string;
   /** Generic name */

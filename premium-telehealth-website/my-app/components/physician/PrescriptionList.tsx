@@ -296,33 +296,7 @@ export function PrescriptionList({
 
   return (
     <div className={className}>
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Total</p>
-            <p className="text-2xl font-bold">{stats.total}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Pending</p>
-            <p className="text-2xl font-bold text-amber-600">{stats.pending}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Sent</p>
-            <p className="text-2xl font-bold text-blue-600">{stats.sent}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Ready</p>
-            <p className="text-2xl font-bold text-green-600">{stats.ready}</p>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Stats are rendered by PhysicianPrescriptionsClient — don't duplicate here. */}
 
       {/* Search and Filters */}
       <Card className="mb-6">

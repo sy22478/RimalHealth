@@ -344,7 +344,28 @@ export function MobileHeader() {
             currentPath={currentPath}
             onClick={() => setMenuOpen(false)}
           />
-          
+
+          {/* Settings — included in mobile hamburger so it's reachable on phones */}
+          {bottomNavItems.map((item) => {
+            const isActive = currentPath === item.href || currentPath.startsWith(`${item.href}/`);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setMenuOpen(false)}
+                className={cn(
+                  'flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors',
+                  isActive
+                    ? 'bg-ocean-50 text-ocean-700'
+                    : 'text-gray-600 hover:bg-gray-50'
+                )}
+              >
+                <item.icon className={cn('h-5 w-5', isActive ? 'text-ocean-600' : 'text-gray-400')} />
+                {item.label}
+              </Link>
+            );
+          })}
+
           <div className="border-t border-gray-100 pt-2 mt-2">
             <Button
               variant="ghost"

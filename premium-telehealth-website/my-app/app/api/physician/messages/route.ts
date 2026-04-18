@@ -215,16 +215,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       deactivatedUsers.map(u => u.id)
     );
 
-    // Build thread responses using the lookup map
+    // Build thread responses using the lookup map. Treat a missing patient
+    // profile as "deactivated" — for the physician's purposes the account is
+    // gone, and the UI already has a Deactivated badge to convey that.
     const threads = threadValues.map((thread) => {
       const profile = profileMap.get(thread.patientId);
+      const profileMissing = !profile;
+      const userDeactivated = deactivatedSet.has(thread.patientId);
 
       return {
         ...thread,
         patientName: profile
           ? `${profile.firstName} ${profile.lastName}`
-          : 'Unknown Patient',
-        isDeactivated: deactivatedSet.has(thread.patientId),
+          : 'Deactivated Patient',
+        isDeactivated: profileMissing || userDeactivated,
       };
     });
 
