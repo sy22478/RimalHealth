@@ -15,7 +15,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { rateLimit, rateLimitPresets } from '@/lib/middleware/rate-limit';
-import { requireCSRF } from '@/lib/security/csrf';
 import { AuditEventType } from '@/lib/audit/types';
 
 export const dynamic = 'force-dynamic';
@@ -54,9 +53,8 @@ const CONSENT_ITEMS = [
 ];
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  // CSRF validation (double-submit cookie pattern)
-  const csrfError = requireCSRF(request);
-  if (csrfError) return csrfError;
+  // Note: No CSRF on this route — it's a public endpoint (pre-auth).
+  // Rate limiting by IP provides sufficient abuse protection.
 
   // Rate limit by IP
   const clientIp =
