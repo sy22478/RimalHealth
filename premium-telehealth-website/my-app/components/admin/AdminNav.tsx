@@ -103,8 +103,12 @@ function Sidebar({ currentPath, pendingCount = 0 }: SidebarProps) {
           className="w-full justify-start text-gray-600 hover:text-gray-900 hover:bg-gray-50"
           type="button"
           onClick={async () => {
-            await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-            window.location.href = '/login';
+            try {
+              await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+            } catch (err) {
+              console.error('Logout request failed:', err instanceof Error ? err.message : 'Unknown error');
+            }
+            window.location.assign('/login');
           }}
         >
           <LogOut className="h-5 w-5 mr-3 text-gray-400" />
@@ -191,8 +195,12 @@ function MobileNav({ currentPath, pendingCount = 0 }: MobileNavProps) {
                     className="w-full justify-start text-gray-600 hover:text-gray-900"
                     type="button"
                     onClick={async () => {
-                      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-                      window.location.href = '/login';
+                      try {
+                        await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+                      } catch (err) {
+                        console.error('Logout request failed:', err instanceof Error ? err.message : 'Unknown error');
+                      }
+                      window.location.assign('/login');
                     }}
                   >
                     <LogOut className="h-5 w-5 mr-3 text-gray-400" />

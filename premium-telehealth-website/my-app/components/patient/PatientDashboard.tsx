@@ -155,83 +155,54 @@ function ProfileCompletionPrompt({ profile, hasIntakePharmacy = false }: Profile
 interface MFASetupPromptProps {
   /** Whether MFA is already enabled */
   mfaEnabled: boolean;
-  /** Days since account creation */
-  accountAgeDays: number;
+  /** Days since account creation (currently unused — MFA is optional) */
+  accountAgeDays?: number;
 }
 
-function MFASetupPrompt({ mfaEnabled, accountAgeDays }: MFASetupPromptProps) {
+function MFASetupPrompt({ mfaEnabled }: MFASetupPromptProps) {
   const [dismissed, setDismissed] = React.useState(false);
 
   // Don't show if MFA is already enabled
   if (mfaEnabled) return null;
+  if (dismissed) return null;
 
-  // After grace period (7 days), this shouldn't render because the layout gate
-  // redirects to /patient/mfa-setup. But if it does render, show a non-dismissible prompt.
-  const isGracePeriod = accountAgeDays <= 7;
-
-  // If dismissed during grace period, hide
-  if (isGracePeriod && dismissed) return null;
-
+  // MFA is currently optional — present this as a recommendation, not a
+  // requirement, and use a calm informational style. Matches /patient/mfa-setup
+  // copy ("Recommended for your security.").
   return (
-    <Card className={cn(
-      'mb-6',
-      isGracePeriod
-        ? 'border-ocean-200 bg-gradient-to-r from-ocean-50 to-blue-50'
-        : 'border-red-200 bg-gradient-to-r from-red-50 to-orange-50'
-    )}>
+    <Card className="mb-6 border-ocean-200 bg-gradient-to-r from-ocean-50 to-blue-50">
       <CardContent className="p-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-start gap-3 flex-1">
-            <div className={cn(
-              'p-2 rounded-lg flex-shrink-0',
-              isGracePeriod ? 'bg-ocean-100' : 'bg-red-100'
-            )}>
-              <ShieldCheck className={cn(
-                'h-5 w-5',
-                isGracePeriod ? 'text-ocean-600' : 'text-red-600'
-              )} />
+            <div className="p-2 rounded-lg flex-shrink-0 bg-ocean-100">
+              <ShieldCheck className="h-5 w-5 text-ocean-600" />
             </div>
             <div className="flex-1">
               <h3 className="font-semibold text-gray-900">
-                {isGracePeriod
-                  ? 'Set Up Two-Factor Authentication'
-                  : 'Two-Factor Authentication Required'}
+                Two-Factor Authentication Recommended
               </h3>
               <p className="text-sm text-gray-600 mt-1">
-                {isGracePeriod
-                  ? 'Add an extra layer of security to protect your health information. We recommend setting this up now.'
-                  : 'For the security of your health information, two-factor authentication is required. Please set it up to continue.'}
+                We strongly recommend enabling multi-factor authentication to
+                protect your health information.
               </p>
-              {isGracePeriod && (
-                <p className="text-xs text-gray-500 mt-2">
-                  This will become mandatory in {7 - accountAgeDays} day{7 - accountAgeDays !== 1 ? 's' : ''}.
-                </p>
-              )}
             </div>
           </div>
           <div className="flex items-center gap-2">
             <Link href="/patient/mfa-setup">
-              <Button className={cn(
-                'flex-shrink-0 text-white',
-                isGracePeriod
-                  ? 'bg-ocean-600 hover:bg-ocean-700'
-                  : 'bg-red-600 hover:bg-red-700'
-              )}>
+              <Button className="flex-shrink-0 text-white bg-ocean-600 hover:bg-ocean-700">
                 Set Up MFA
                 <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             </Link>
-            {isGracePeriod && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="flex-shrink-0 text-gray-400 hover:text-gray-600"
-                onClick={() => setDismissed(true)}
-                aria-label="Dismiss MFA prompt"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="flex-shrink-0 text-gray-400 hover:text-gray-600"
+              onClick={() => setDismissed(true)}
+              aria-label="Dismiss MFA prompt"
+            >
+              <X className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       </CardContent>
@@ -663,7 +634,8 @@ export function PatientDashboard({ data, userId, mfaEnabled = true, accountAgeDa
                   <p className="text-sm text-muted-foreground mt-1">
                     Renews {new Date(data.subscription.currentPeriodEnd).toLocaleDateString('en-US', {
                       month: 'short',
-                      day: 'numeric'
+                      day: 'numeric',
+                      timeZone: 'America/Los_Angeles',
                     })}
                   </p>
                 )}

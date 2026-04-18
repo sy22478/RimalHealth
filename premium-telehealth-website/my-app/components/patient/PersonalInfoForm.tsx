@@ -25,6 +25,16 @@ import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { LoadingButton } from '@/components/ui/LoadingButton';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { PatientPharmacySearch, SelectedPharmacy } from '@/components/patient/PharmacySearch';
 
 // ============================================================================
@@ -182,11 +192,17 @@ function MultiSelectCombobox({
   const containerRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
-  // Parse comma-separated string into array of items
+  // Parse comma-separated string into array of items.
+  // Defensively drop any "[object Object]" literals that may have been
+  // persisted by an earlier code path that String()-coerced object items —
+  // patients can't see or edit those, so they're better dropped than shown.
   const selectedItems = React.useMemo((): string[] => {
     const str = typeof value === 'string' ? value : '';
     if (!str || str.trim() === '') return [];
-    return str.split(',').map((item) => item.trim()).filter(Boolean);
+    return str
+      .split(',')
+      .map((item) => item.trim())
+      .filter((item) => item && item !== '[object Object]');
   }, [value]);
 
   // Filter presets based on search query, excluding already-selected items
@@ -483,7 +499,18 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [isDirty]);
 
-  // Warn on in-app navigation with unsaved changes (link/back clicks)
+  // Unsaved-changes confirmation state. Two flavors:
+  //   - 'navigate' — user clicked an in-app link; on confirm we send them there
+  //   - 'discard'  — user clicked the Cancel button; on confirm we reset the form
+  const [unsavedPrompt, setUnsavedPrompt] = React.useState<
+    | { kind: 'navigate'; href: string }
+    | { kind: 'discard' }
+    | null
+  >(null);
+
+  // Warn on in-app navigation with unsaved changes (link/back clicks).
+  // We intercept the click, capture the href, and surface a styled AlertDialog
+  // instead of the native window.confirm.
   React.useEffect(() => {
     if (!isDirty) return;
     const handleClick = (e: MouseEvent) => {
@@ -491,29 +518,40 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
       if (!target) return;
       const href = target.getAttribute('href');
       if (!href || href.startsWith('#') || target.target === '_blank') return;
-      const confirmed = window.confirm(
-        'You have unsaved changes. Are you sure you want to leave?'
-      );
-      if (!confirmed) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
+      e.preventDefault();
+      e.stopPropagation();
+      setUnsavedPrompt({ kind: 'navigate', href });
     };
     document.addEventListener('click', handleClick, { capture: true });
     return () => document.removeEventListener('click', handleClick, { capture: true });
   }, [isDirty]);
 
-  const handleCancel = React.useCallback(() => {
-    if (isDirty) {
-      const confirmed = window.confirm(
-        'Discard your unsaved changes?'
-      );
-      if (!confirmed) return;
-    }
+  const performReset = React.useCallback(() => {
     reset(originalValues);
     setSelectedPharmacy(null);
     setShowPharmacySearch(!profile.pharmacy);
-  }, [isDirty, originalValues, profile.pharmacy, reset]);
+  }, [originalValues, profile.pharmacy, reset]);
+
+  const handleCancel = React.useCallback(() => {
+    if (isDirty) {
+      setUnsavedPrompt({ kind: 'discard' });
+      return;
+    }
+    performReset();
+  }, [isDirty, performReset]);
+
+  const handleConfirmUnsaved = React.useCallback(() => {
+    const prompt = unsavedPrompt;
+    setUnsavedPrompt(null);
+    if (!prompt) return;
+    if (prompt.kind === 'navigate') {
+      // Reset before navigating so the listener doesn't re-fire mid-route change
+      performReset();
+      window.location.assign(prompt.href);
+    } else {
+      performReset();
+    }
+  }, [unsavedPrompt, performReset]);
 
   // Derive display pharmacy for the current pharmacy section
   const displayPharmacy = selectedPharmacy
@@ -1181,6 +1219,35 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
           </LoadingButton>
         </div>
       </div>
+
+      <AlertDialog
+        open={unsavedPrompt !== null}
+        onOpenChange={(open) => { if (!open) setUnsavedPrompt(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {unsavedPrompt?.kind === 'discard'
+                ? 'Discard your unsaved changes?'
+                : 'Leave with unsaved changes?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {unsavedPrompt?.kind === 'discard'
+                ? 'Your edits will be lost. This cannot be undone.'
+                : 'You have unsaved changes to your profile. If you leave now, your edits will be lost.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Stay on this page</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmUnsaved}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {unsavedPrompt?.kind === 'discard' ? 'Discard changes' : 'Leave anyway'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </form>
   );
 }

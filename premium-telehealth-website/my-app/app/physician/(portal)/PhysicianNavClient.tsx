@@ -263,8 +263,12 @@ export function Sidebar() {
           className="w-full justify-start text-gray-600 hover:text-gray-900 hover:bg-gray-50"
           type="button"
           onClick={async () => {
-            await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-            window.location.href = '/physician/login';
+            try {
+              await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+            } catch (err) {
+              console.error('Logout request failed:', err instanceof Error ? err.message : 'Unknown error');
+            }
+            window.location.assign('/physician/login');
           }}
         >
           <LogOut className="h-5 w-5 mr-3 text-gray-400" />
@@ -372,8 +376,12 @@ export function MobileHeader() {
               className="w-full justify-start text-gray-600"
               type="button"
               onClick={async () => {
-                await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-                window.location.href = '/physician/login';
+                try {
+                  await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+                } catch (err) {
+                  console.error('Logout request failed:', err instanceof Error ? err.message : 'Unknown error');
+                }
+                window.location.assign('/physician/login');
               }}
             >
               <LogOut className="h-5 w-5 mr-3 text-gray-400" />

@@ -92,8 +92,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       });
     }
 
-    // Redirect to login after successful logout
-    return NextResponse.redirect(new URL('/login', request.url));
+    // Return JSON 200 — the client handles the post-logout navigation.
+    // We must NOT redirect here: `new URL('/login', request.url)` resolves
+    // against the internal ECS hostname behind the load balancer, which the
+    // browser then tries to POST to (307 preserves method) and CSP blocks.
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Logout error:', error instanceof Error ? error.message : 'Unknown error');
 
@@ -102,7 +105,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     cookieStore.delete('accessToken');
     cookieStore.delete('refreshToken');
 
-    return NextResponse.redirect(new URL('/login', request.url));
+    return NextResponse.json({ success: true });
   }
 }
 

@@ -293,7 +293,7 @@ export function PharmacySearch({
         {hasSearched && pharmacies.length > 0 && (
           <div className="space-y-3 mt-4">
             <div className="text-sm text-muted-foreground">
-              Found {pharmacies.length} pharmacy{pharmacies.length !== 1 ? 'ies' : 'y'}
+              Found {pharmacies.length} pharmac{pharmacies.length !== 1 ? 'ies' : 'y'}
             </div>
 
             <div className="space-y-2 max-h-96 overflow-y-auto">

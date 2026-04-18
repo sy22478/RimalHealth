@@ -186,8 +186,10 @@ export default function PatientSettingsPage(): React.ReactElement {
         method: 'POST',
         credentials: 'include',
       });
+    } catch (err) {
+      console.error('Logout request failed:', err instanceof Error ? err.message : 'Unknown error');
     } finally {
-      router.push('/login');
+      window.location.assign('/login');
     }
   };
 

@@ -102,7 +102,7 @@ export function RecentMessages({ messages, className }: RecentMessagesProps) {
                     <p className="font-medium text-sm text-gray-900 truncate">
                       {msg.senderType === 'PHYSICIAN' ? `Dr. ${msg.senderName}` : msg.senderName}
                     </p>
-                    <span className="text-xs text-muted-foreground flex-shrink-0">
+                    <span className="text-xs text-muted-foreground flex-shrink-0" suppressHydrationWarning>
                       {formatDistanceToNow(msg.sentAt)}
                     </span>
                   </div>

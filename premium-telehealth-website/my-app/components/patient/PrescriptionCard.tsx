@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { PrescriptionSummary } from '@/types/prescriptions';
+import { PrescriptionStatus } from '@prisma/client';
 import {
   formatPrescriptionStatusText,
   prescriptionStatusVariants,
@@ -67,6 +68,58 @@ export function PrescriptionCard({
     );
   }
 
+  // Status badge variant
+  const statusClass = prescriptionStatusVariants[prescription.status];
+
+  // PENDING means the physician approved treatment but no pharmacy has been
+  // assigned yet — the prescription has no fill date, refill window, or
+  // pharmacy. Showing refill counts/progress/refill-overdue text in this state
+  // is contradictory and confusing, so render a dedicated pending card.
+  if (prescription.status === PrescriptionStatus.PENDING) {
+    return (
+      <Card className="overflow-hidden">
+        <CardHeader className="pb-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ocean-100">
+                <Pill className="h-5 w-5 text-ocean-600" aria-hidden="true" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="font-semibold text-gray-900 truncate">
+                  {prescription.medicationName}
+                </h3>
+                {prescription.genericName && (
+                  <p className="text-sm text-muted-foreground truncate">
+                    Generic: {prescription.genericName}
+                  </p>
+                )}
+              </div>
+            </div>
+            <Badge variant="outline" className={cn('shrink-0', statusClass)}>
+              {formatPrescriptionStatusText(prescription.status)}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-amber-800">
+                  Prescription pending — awaiting pharmacy assignment
+                </p>
+                <p className="text-amber-700 mt-1">
+                  Your physician has approved your treatment. We&apos;ll send your
+                  prescription to your pharmacy shortly.
+                </p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   // Calculate days remaining and refill status
   const daysRemaining = getDaysRemaining(prescription);
   const daysUntilRefill = getDaysUntilRefill(prescription.nextRefillAvailable);
@@ -74,9 +127,6 @@ export function PrescriptionCard({
   const eligibilityMessage = getRefillEligibilityMessage(prescription);
   const progressPercentage = getDaysRemainingProgress(prescription);
   const progressColorClass = getDaysRemainingColorClass(daysRemaining, prescription.quantity);
-
-  // Status badge variant
-  const statusClass = prescriptionStatusVariants[prescription.status];
 
   return (
     <Card className="overflow-hidden transition-shadow hover:shadow-md">

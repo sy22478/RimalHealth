@@ -450,9 +450,18 @@ export async function POST(
 
     // Create an INTAKE_FORM document record so the intake appears in the Documents tab.
     // This is a "virtual" document (no S3 file) that references the intake by ID.
-    const submittedDate = updatedIntake.submittedAt
-      ? new Date(updatedIntake.submittedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-      : new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    // Pin to America/Los_Angeles so the date in the fileName matches what the
+    // CA-only patient sees in their browser — without the timeZone option this
+    // formats in the server's UTC and shifts a day for late-evening submissions.
+    const submittedDate = (updatedIntake.submittedAt
+      ? new Date(updatedIntake.submittedAt)
+      : new Date()
+    ).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      timeZone: 'America/Los_Angeles',
+    });
     try {
       await prisma.document.create({
         data: {

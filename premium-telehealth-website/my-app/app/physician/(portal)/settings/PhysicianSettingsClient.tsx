@@ -113,7 +113,7 @@ function ChangePasswordForm() {
       // If requireReLogin, redirect to login after a short delay
       if (json.requireReLogin) {
         setTimeout(() => {
-          window.location.href = '/physician/login';
+          window.location.assign('/physician/login');
         }, 2000);
       }
     } catch {

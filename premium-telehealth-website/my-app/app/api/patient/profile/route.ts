@@ -26,21 +26,47 @@ import { DEFAULT_ALLOWED_STATE } from '@/lib/constants';
 // that are listed in PHI_FIELDS — doing so causes double-encryption (data corruption).
 
 /**
+ * Coerce a single array item to a display string. Items may be strings or
+ * objects like { name: 'Adderall' } / { label: '...' } / { value: '...' };
+ * naive String() coercion on objects yields literal '[object Object]'.
+ */
+function itemToString(item: unknown): string | null {
+  if (item == null) return null;
+  if (typeof item === 'string') return item.trim() || null;
+  if (typeof item === 'number' || typeof item === 'boolean') return String(item);
+  if (typeof item === 'object') {
+    const obj = item as Record<string, unknown>;
+    const candidate = obj.name ?? obj.label ?? obj.value ?? obj.title ?? obj.text;
+    if (typeof candidate === 'string' && candidate.trim()) return candidate.trim();
+    if (typeof candidate === 'number') return String(candidate);
+    return null;
+  }
+  return null;
+}
+
+/**
  * Safely serialize a PHI field that may be a string, array, or object after decryption.
  * Returns a comma-separated string or null. Prevents [object Object] display issues.
  */
 function serializePHIField(value: unknown): string | null {
   if (value == null) return null;
   if (typeof value === 'string') return value;
-  if (Array.isArray(value)) return value.map(String).join(', ');
+  if (Array.isArray(value)) {
+    const parts = value.map(itemToString).filter((s): s is string => !!s);
+    return parts.length > 0 ? parts.join(', ') : null;
+  }
   if (typeof value === 'object') {
     const obj = value as Record<string, unknown>;
     // Handle common nested structures like { conditions: [...] }
     const inner = obj.conditions || obj.medications || obj.items || Object.values(obj)[0];
-    if (Array.isArray(inner)) return inner.map(String).join(', ');
+    if (Array.isArray(inner)) {
+      const parts = inner.map(itemToString).filter((s): s is string => !!s);
+      return parts.length > 0 ? parts.join(', ') : null;
+    }
     if (typeof inner === 'string') return inner;
-    // Last resort: JSON stringify, but don't return [object Object]
-    try { return JSON.stringify(value); } catch { return null; }
+    const single = itemToString(value);
+    if (single) return single;
+    return null;
   }
   return String(value);
 }
@@ -53,17 +79,21 @@ function serializePHIField(value: unknown): string | null {
 function extractMedicalConditions(data: unknown): string | null {
   if (data == null) return null;
   if (typeof data === 'string') return data || null;
-  if (Array.isArray(data)) return data.map(String).join(', ') || null;
+  if (Array.isArray(data)) {
+    const parts = data.map(itemToString).filter((s): s is string => !!s);
+    return parts.length > 0 ? parts.join(', ') : null;
+  }
   if (typeof data === 'object') {
     const obj = data as Record<string, unknown>;
     const conditions: string[] = [];
 
-    // Extract array-based condition lists
+    // Extract array-based condition lists. Items may be strings OR objects
+    // like { name: 'High Cholesterol' } — itemToString handles both.
     if (Array.isArray(obj.medicalHistoryItems)) {
-      conditions.push(...obj.medicalHistoryItems.map(String));
+      conditions.push(...obj.medicalHistoryItems.map(itemToString).filter((s): s is string => !!s));
     }
     if (Array.isArray(obj.conditions)) {
-      conditions.push(...obj.conditions.map(String));
+      conditions.push(...obj.conditions.map(itemToString).filter((s): s is string => !!s));
     }
 
     // Extract free-text conditions
@@ -95,7 +125,10 @@ function extractMedicalConditions(data: unknown): string | null {
 function extractMedications(data: unknown): string | null {
   if (data == null) return null;
   if (typeof data === 'string') return data || null;
-  if (Array.isArray(data)) return data.map(String).join(', ') || null;
+  if (Array.isArray(data)) {
+    const parts = data.map(itemToString).filter((s): s is string => !!s);
+    return parts.length > 0 ? parts.join(', ') : null;
+  }
   if (typeof data === 'object') {
     const obj = data as Record<string, unknown>;
 
@@ -103,9 +136,11 @@ function extractMedications(data: unknown): string | null {
     if (typeof obj.medicationList === 'string' && obj.medicationList.trim()) {
       return obj.medicationList.trim();
     }
-    // Array of medications
+    // Array of medications. Items may be strings OR objects like
+    // { name: 'Adderall', dosage: '...' } — itemToString handles both.
     if (Array.isArray(obj.medications) && obj.medications.length > 0) {
-      return obj.medications.map(String).join(', ');
+      const parts = obj.medications.map(itemToString).filter((s): s is string => !!s);
+      return parts.length > 0 ? parts.join(', ') : null;
     }
     // If not taking medications, return null
     if (obj.takingMedications === 'false' || obj.takingMedications === false ||

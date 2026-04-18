@@ -87,10 +87,15 @@ function formatFileSize(bytes: number): string {
 }
 
 function formatDate(date: Date): string {
+  // Pin to America/Los_Angeles so the date matches the date baked into
+  // server-generated document fileNames (CA-only service). Without this,
+  // a doc submitted near midnight UTC shows different days in the title vs.
+  // metadata.
   return new Date(date).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
+    timeZone: 'America/Los_Angeles',
   });
 }
 

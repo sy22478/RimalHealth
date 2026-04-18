@@ -223,7 +223,7 @@ export function PatientPharmacySearch({
         {hasSearched && !isLoading && results.length > 0 && (
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">
-              Found {results.length} pharmacy{results.length !== 1 ? 'ies' : 'y'}
+              Found {results.length} pharmac{results.length !== 1 ? 'ies' : 'y'}
             </p>
 
             <div className="space-y-2 max-h-80 overflow-y-auto">

@@ -1759,8 +1759,12 @@ export default function IntakePage(): React.ReactElement {
             type="button"
             className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
             onClick={async () => {
-              await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-              window.location.href = '/login';
+              try {
+                await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+              } catch (err) {
+                console.error('Logout request failed:', err instanceof Error ? err.message : 'Unknown error');
+              }
+              window.location.assign('/login');
             }}
           >
             <LogOut className="h-4 w-4" />

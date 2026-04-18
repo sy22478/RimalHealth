@@ -138,7 +138,7 @@ export function StatusCard({ status, intakeSubmittedAt, className }: StatusCardP
         </CardDescription>
         
         {intakeSubmittedAt && (status === 'under_review' || status === 'intake_pending_review') && (
-          <p className="text-sm text-muted-foreground mt-3">
+          <p className="text-sm text-muted-foreground mt-3" suppressHydrationWarning>
             Submitted {formatDistanceToNow(intakeSubmittedAt)}
           </p>
         )}
