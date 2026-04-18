@@ -3,11 +3,13 @@
 /**
  * Patient MFA Setup Page
  *
- * SMS-based two-factor authentication for patients.
+ * SMS-based two-factor authentication for patients (opt-in).
  * Sends a verification code to the patient's phone number on file.
  * If no phone number, prompts to add one in profile settings.
  *
- * 2026 HIPAA Security Rule mandates MFA for all ePHI access.
+ * TEMPORARY: MFA gate disabled until AWS SNS toll-free number is approved
+ * and SMS delivery is verified. Re-enable when SMS works end-to-end.
+ * Tracking: AWS_MIGRATION_STATUS.md
  *
  * @module app/patient/mfa-setup/page
  */
@@ -145,10 +147,9 @@ export default function PatientMFASetupPage(): React.ReactElement {
 
       {/* Info banner */}
       <div className="mb-6 rounded-md border border-ocean-200 bg-ocean-50 p-4 text-sm text-ocean-800">
-        <strong>Why is this required?</strong> Under the 2026 HIPAA Security Rule,
-        all access to electronic protected health information (ePHI) must be secured
-        with multi-factor authentication. This protects your medical records from
-        unauthorized access.
+        <strong>Recommended for your security.</strong> We strongly recommend
+        enabling multi-factor authentication to protect your health information.
+        You can set this up now, or do it later from your settings.
       </div>
 
       <Card className="w-full max-w-md mx-auto">

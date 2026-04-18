@@ -27,6 +27,11 @@ import PatientLayoutClient from './PatientLayoutClient';
 
 export const dynamic = 'force-dynamic';
 
+// TEMPORARY: MFA gate disabled until AWS SNS toll-free number is approved
+// and SMS delivery is verified. Re-enable when SMS works end-to-end.
+// Tracking: AWS_MIGRATION_STATUS.md
+const MFA_REQUIRED = false;
+
 /** Number of days after account creation before MFA becomes mandatory */
 const MFA_GRACE_PERIOD_DAYS = 7;
 
@@ -158,9 +163,10 @@ export default async function PatientLayout({
     }
   }
 
-  // Intake gate passed, MFA gate deferred to client component (to avoid redirect loops
-  // when user is already on /patient/mfa-setup)
-  const mfaRequired = user ? !user.mfaEnabled : false;
+  // TEMPORARY: MFA gate disabled until AWS SNS toll-free number is approved
+  // and SMS delivery is verified. Re-enable when SMS works end-to-end.
+  // Tracking: AWS_MIGRATION_STATUS.md
+  const mfaRequired = MFA_REQUIRED && (user ? !user.mfaEnabled : false);
   const accountAgeDays = user
     ? Math.floor((now - new Date(user.createdAt).getTime()) / (1000 * 60 * 60 * 24))
     : 0;
@@ -168,7 +174,7 @@ export default async function PatientLayout({
   return (
     <PatientLayoutClient
       mfaRequired={mfaRequired}
-      mfaGracePeriodExpired={accountAgeDays > MFA_GRACE_PERIOD_DAYS}
+      mfaGracePeriodExpired={MFA_REQUIRED && accountAgeDays > MFA_GRACE_PERIOD_DAYS}
     >
       {children}
     </PatientLayoutClient>
