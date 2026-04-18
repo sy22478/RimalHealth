@@ -16,7 +16,7 @@ export default function PricingPage() {
     {
       question: "What does the $50/month include?",
       answer:
-        "Your monthly subscription includes a comprehensive doctor intake review, personalized prescription plan, e-prescriptions sent directly to your pharmacy, unlimited messaging with your doctor, automatic prescription refills, medication adjustments as needed, and treatment plan modifications throughout your journey.",
+        "Your monthly subscription includes a comprehensive physician intake review, personalized prescription plan, prescriptions sent to your pharmacy, unlimited messaging with your physician, automatic prescription refills, medication adjustments as needed, and treatment plan modifications throughout your journey.",
     },
     {
       question: "Do you accept insurance?",
@@ -67,7 +67,7 @@ export default function PricingPage() {
     {
       icon: UserCheck,
       number: "4",
-      title: "Doctor reviews",
+      title: "Physician reviews",
       description: "Physician reviews within 24 hours and approves treatment",
     },
     {
@@ -177,15 +177,14 @@ export default function PricingPage() {
               description="For patients currently in treatment"
               features={[
                 "Physician consultation & intake review",
-                "Prescription management & e-prescribing",
-                "24/7 secure messaging with your doctor",
+                "Prescription management",
+                "24/7 secure messaging with your physician",
                 "Treatment progress tracking",
                 "Monthly check-ins & adjustments",
                 "Automatic prescription refills",
                 "Cancel anytime",
               ]}
               highlighted={true}
-              badge="Most Popular"
               ctaText="Select Active Plan"
               ctaHref="/checkout/payment?plan=active-treatment"
               ctaVariant="primary"
@@ -208,13 +207,13 @@ export default function PricingPage() {
             Total monthly cost
           </motion.h2>
           <motion.div
-            className="bg-white border border-gray-200 rounded-xl overflow-hidden"
+            className="bg-white border border-gray-200 rounded-xl overflow-x-auto"
             initial={shouldReduceMotion ? false : { opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.5, delay: 0.1, ease: "easeOut" }}
           >
-            <table className="w-full">
+            <table className="w-full min-w-[560px]">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="text-left py-4 px-6 font-semibold text-gray-900">

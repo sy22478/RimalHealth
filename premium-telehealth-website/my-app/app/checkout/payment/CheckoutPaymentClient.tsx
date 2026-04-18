@@ -44,10 +44,11 @@ interface PlanCardProps {
   isSelected: boolean;
   onSelect: () => void;
   disabled: boolean;
+  showPopularBadge: boolean;
 }
 
-function PlanCard({ plan, isSelected, onSelect, disabled }: PlanCardProps) {
-  const isPopular = plan.id === 'ACTIVE_TREATMENT';
+function PlanCard({ plan, isSelected, onSelect, disabled, showPopularBadge }: PlanCardProps) {
+  const isPopular = showPopularBadge && plan.id === 'ACTIVE_TREATMENT';
 
   return (
     <Card
@@ -234,6 +235,7 @@ function CheckoutPaymentContent() {
               isSelected={selectedPlanId === plan.id}
               onSelect={() => handlePlanSelect(plan.id)}
               disabled={state.status !== 'idle' && state.status !== 'error'}
+              showPopularBadge={plans.length > 1}
             />
           ))}
         </div>

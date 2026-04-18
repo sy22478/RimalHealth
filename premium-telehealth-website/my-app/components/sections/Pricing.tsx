@@ -46,7 +46,7 @@ export function Pricing() {
           <ul className="space-y-2">
             <li className="flex items-center gap-3 text-base text-gray-900 py-2">
               <Check className="text-emerald-500 flex-shrink-0" size={18} />
-              <span>Doctor intake review</span>
+              <span>Physician intake review</span>
             </li>
             <li className="flex items-center gap-3 text-base text-gray-900 py-2">
               <Check className="text-emerald-500 flex-shrink-0" size={18} />

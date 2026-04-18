@@ -80,6 +80,9 @@ const ROLE_ROUTES: Record<Role, string[]> = {
 /** Routes that any authenticated user can access */
 const AUTHENTICATED_ROUTES = ['/checkout'];
 
+/** Route prefixes that require authentication. Anything outside these (and not public) should render 404. */
+const PROTECTED_PREFIXES = ['/patient', '/physician', '/admin', '/checkout', '/intake'];
+
 // ============================================
 // Helper Functions
 // ============================================
@@ -226,6 +229,21 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     });
     publicResponse.headers.set('x-request-id', requestId);
     return publicResponse;
+  }
+
+  // Unknown routes that aren't protected should fall through to Next.js
+  // (which will render the 404 page) rather than being redirected to login.
+  const isProtectedRoute = PROTECTED_PREFIXES.some(prefix =>
+    pathname === prefix || pathname.startsWith(`${prefix}/`)
+  );
+  if (!isProtectedRoute) {
+    const passthroughHeaders = new Headers(request.headers);
+    passthroughHeaders.set('x-request-id', requestId);
+    const passthroughResponse = NextResponse.next({
+      request: { headers: passthroughHeaders },
+    });
+    passthroughResponse.headers.set('x-request-id', requestId);
+    return passthroughResponse;
   }
 
   // Extract and verify token for protected routes

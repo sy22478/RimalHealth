@@ -79,7 +79,7 @@ export default function HowItWorksPage() {
             <StepCard
               number="1"
               title="Start your treatment plan"
-              description="Our Active Treatment Plan is $50/month — one flat fee that covers physician intake review, prescription management, and unlimited messaging with your doctor."
+              description="Our Active Treatment Plan is $50/month — one flat fee that covers physician intake review, prescription management, and unlimited messaging with your physician."
               icon={Sparkles}
               details={[
                 "Active Treatment: $50/month, everything included",
@@ -123,7 +123,7 @@ export default function HowItWorksPage() {
             {/* Step 4 */}
             <StepCard
               number="4"
-              title="Doctor reviews within 24 hours"
+              title="Physician reviews within 24 hours"
               description="A California-licensed physician reviews your intake, evaluates your medical history, and determines the appropriate treatment plan."
               icon={UserCheck}
               details={[
@@ -145,7 +145,7 @@ export default function HowItWorksPage() {
                 "E-prescription to any pharmacy in California",
                 "Same-day pickup at most pharmacies",
                 "Automatic refills when needed",
-                "Message your doctor anytime with questions",
+                "Message your physician anytime with questions",
               ]}
               delay={0.4}
             />
@@ -447,16 +447,6 @@ const alcoholMedications = [
     howItWorks: "Blocks alcohol's rewarding effects, reducing cravings",
     cost: "$10–40/mo",
   },
-  {
-    name: "Acamprosate",
-    howItWorks: "Reduces cravings and helps maintain abstinence",
-    cost: "$15–50/mo",
-  },
-  {
-    name: "Disulfiram",
-    howItWorks: "Creates unpleasant reaction if alcohol is consumed",
-    cost: "$10–30/mo",
-  },
 ];
 
 // FAQs data
@@ -464,7 +454,7 @@ const faqs = [
   {
     question: "Do I have to schedule a video call?",
     answer:
-      "No. Our model is completely asynchronous. After completing checkout and your intake, a physician reviews it within 24 hours. If approved, your prescription is sent directly to your pharmacy. You can message your doctor anytime with questions.",
+      "No. Our model is completely asynchronous. After completing checkout and your intake, a physician reviews it within 24 hours. If approved, your prescription is sent directly to your pharmacy. You can message your physician anytime with questions.",
   },
   {
     question: "How quickly do I get my prescription?",
@@ -474,7 +464,7 @@ const faqs = [
   {
     question: "What if the medication doesn't work?",
     answer:
-      "Message your doctor. We'll try a different medication or adjust your dose at no extra charge. Treatment adjustments are included in your monthly subscription.",
+      "Message your physician. We'll try a different medication or adjust your dose at no extra charge. Treatment adjustments are included in your monthly subscription.",
   },
   {
     question: "Can I use my insurance?",

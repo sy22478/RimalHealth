@@ -22,7 +22,7 @@ export default function AlcoholTreatmentPage() {
               </h1>
               {/* TASK-A01: physician-prescribed + California-licensed qualifier */}
               <p className="text-lg text-gray-600 mt-4">
-                Physician-prescribed Naltrexone, Acamprosate, or Disulfiram. California-licensed physician review. $50/month.
+                Physician-prescribed Naltrexone. California-licensed physician review. $50/month.
               </p>
               {/* TASK-B03: geographic restriction near primary CTA */}
               <p className="text-sm text-gray-500 mt-2">
@@ -57,9 +57,9 @@ export default function AlcoholTreatmentPage() {
                 {[
                   {
                     icon: Pill,
-                    title: "Physician-selected medication",
+                    title: "Physician-prescribed medication",
                     detail:
-                      "Naltrexone, Acamprosate, or Disulfiram — chosen by a California-licensed physician.",
+                      "Naltrexone — prescribed by a California-licensed physician.",
                   },
                   {
                     icon: Clock,
@@ -171,7 +171,7 @@ export default function AlcoholTreatmentPage() {
                 /* TASK-A09, TASK-C01: physician-prescribed language */
                 title: "Physician prescribes medication",
                 description:
-                  "Naltrexone, Acamprosate, or Disulfiram chosen based on your needs. Prescription sent to pharmacy in 24 hours.",
+                  "Naltrexone prescribed based on your needs. Prescription sent to pharmacy in 24 hours.",
               },
               {
                 number: 3,
@@ -225,9 +225,9 @@ export default function AlcoholTreatmentPage() {
             transition={{ duration: 0.5, ease: "easeOut" as const }}
             className="text-3xl md:text-4xl font-bold text-center mb-12"
           >
-            Medications for alcohol treatment
+            Medication for alcohol treatment
           </motion.h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 max-w-xl mx-auto gap-6">
             {[
               {
                 name: "Naltrexone",
@@ -238,26 +238,6 @@ export default function AlcoholTreatmentPage() {
                 dosage: "50mg daily (oral) or 380mg monthly (injection)",
                 /* TASK-A03, TASK-B01: pharmacy billing clarification */
                 cost: "$10–40/month at pharmacy (pharmacy may bill your insurance separately)",
-              },
-              {
-                name: "Acamprosate",
-                howItWorks:
-                  "Reduces withdrawal symptoms and helps maintain abstinence by normalizing brain chemistry disrupted by alcohol.",
-                bestFor:
-                  "People committed to complete abstinence who struggle with cravings and withdrawal.",
-                dosage: "666mg three times daily",
-                /* TASK-A04, TASK-B01: pharmacy billing clarification */
-                cost: "$15–50/month at pharmacy (pharmacy may bill your insurance separately)",
-              },
-              {
-                name: "Disulfiram",
-                howItWorks:
-                  "Causes unpleasant reaction (nausea, flushing) if you drink alcohol. Acts as a deterrent.",
-                bestFor:
-                  "Highly motivated individuals who want an extra layer of accountability.",
-                dosage: "250mg daily",
-                /* TASK-A05, TASK-B01: pharmacy billing clarification */
-                cost: "$10–30/month at pharmacy (pharmacy may bill your insurance separately)",
               },
             ].map((med, index) => (
               <motion.div
@@ -342,7 +322,7 @@ export default function AlcoholTreatmentPage() {
                   Recommended medication:
                 </div>
                 <p className="text-sm text-gray-600">
-                  Naltrexone or Acamprosate
+                  Naltrexone
                 </p>
               </div>
               {/* TASK-A06, TASK-C03: hedge the outcome stat */}

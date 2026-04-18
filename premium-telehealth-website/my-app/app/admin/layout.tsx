@@ -20,7 +20,7 @@ import { AdminNav } from '@/components/admin/AdminNav';
 // ============================================================================
 
 export const metadata: Metadata = {
-  title: 'Admin Panel | Rimal Health',
+  title: 'Admin Panel',
   description: 'Administrative dashboard for Rimal Health platform',
 };
 

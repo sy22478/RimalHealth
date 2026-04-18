@@ -21,7 +21,7 @@ import { verifyAccessToken } from '@/lib/auth/jwt';
 // ============================================================================
 
 export const metadata: Metadata = {
-  title: 'Physician Portal | Rimal Health',
+  title: 'Physician Portal',
   description: 'Manage patients, reviews, prescriptions, and messages.',
 };
 

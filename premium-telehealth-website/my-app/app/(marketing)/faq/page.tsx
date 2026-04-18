@@ -53,7 +53,7 @@ const faqData: FAQSection[] = [
       {
         question: "What medications do you prescribe for alcohol addiction?",
         answer:
-          "Naltrexone is our primary medication. It blocks the rewarding effects of alcohol and reduces cravings. Your physician may also recommend Acamprosate or Disulfiram based on your specific situation.",
+          "We prescribe Naltrexone, an FDA-approved medication that blocks the rewarding effects of alcohol and reduces cravings.",
       },
       {
         question: "Are these medications safe?",

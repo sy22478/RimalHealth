@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   description:
     "Answers to common questions about our process, medications, pricing, privacy, and eligibility for medication-assisted addiction treatment.",
   openGraph: {
-    title: "FAQ — Rimal Health",
+    title: "FAQ",
     description:
       "Answers to common questions about our process, medications, pricing, privacy, and eligibility for medication-assisted addiction treatment.",
     url: "/faq",

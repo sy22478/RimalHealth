@@ -3,11 +3,11 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "How It Works",
   description:
-    "Three simple steps: complete intake, doctor reviews in 24 hours, pick up prescription at your pharmacy. No appointments or video calls needed.",
+    "Three simple steps: complete intake, physician reviews in 24 hours, pick up prescription at your pharmacy. No appointments or video calls needed.",
   openGraph: {
-    title: "How It Works — Rimal Health",
+    title: "How It Works",
     description:
-      "Three simple steps: complete intake, doctor reviews in 24 hours, pick up prescription at your pharmacy. No appointments or video calls needed.",
+      "Three simple steps: complete intake, physician reviews in 24 hours, pick up prescription at your pharmacy. No appointments or video calls needed.",
     url: "/how-it-works",
   },
 };
