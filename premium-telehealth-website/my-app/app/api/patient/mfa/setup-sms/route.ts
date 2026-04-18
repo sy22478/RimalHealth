@@ -14,7 +14,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/auth/require-auth';
 import { prisma } from '@/lib/db/prisma';
 import { getRedisClient } from '@/lib/redis/client';
-import { sendSMS } from '@/lib/integrations/sns';
+// TEMPORARY: Using Twilio until AWS SNS toll-free number is provisioned
+// and SES production access is approved. Switch back to sns.ts/ses.ts when ready.
+// Tracking: AWS_MIGRATION_STATUS.md
+import { sendSMS } from '@/lib/integrations/twilio';
 import {
   generateSMSCode,
   storeSMSCode,

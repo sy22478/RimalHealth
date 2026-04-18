@@ -1,9 +1,8 @@
+// TEMPORARY: Using SendGrid until AWS SES production access is approved.
+// Switch back to ses.ts delegation when ready.
+// Tracking: AWS_MIGRATION_STATUS.md
 /**
- * Email Integration (Amazon SES)
- *
- * Migrated from SendGrid to Amazon SES. The file retains its original name
- * so that every existing import (`@/lib/integrations/sendgrid`) continues to
- * work without changes across the codebase.
+ * SendGrid Email Integration
  *
  * HIPAA Compliance Notes:
  * - No PHI logged to console or errors
@@ -14,9 +13,16 @@
  * @module lib/integrations/sendgrid
  */
 
-import { sesSendEmail } from '@/lib/integrations/ses';
+import * as sgMail from '@sendgrid/mail';
 import { getRedisClient } from '@/lib/redis/client';
-import { emailTemplates, EmailTemplate, interpolateTemplate } from '@/lib/notifications/templates';
+import { emailTemplates, EmailTemplate } from '@/lib/notifications/templates';
+
+/**
+ * SendGrid configuration from environment
+ */
+const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY || '';
+const SENDGRID_FROM_EMAIL = process.env.SENDGRID_FROM_EMAIL || 'noreply@rimalhealth.com';
+const SENDGRID_FROM_NAME = process.env.SENDGRID_FROM_NAME || 'Rimal Health';
 
 /**
  * Email sending options
@@ -28,7 +34,7 @@ export interface SendEmailOptions {
   template: EmailTemplate;
   /** Template data for interpolation */
   data: Record<string, string>;
-  /** Optional: override from address (unused with SES — from is configured via env) */
+  /** Optional: override from address */
   from?: string;
   /** Optional: BCC addresses for audit */
   bcc?: string | string[];
@@ -58,11 +64,29 @@ interface RetryQueueJob {
 }
 
 /**
- * Initialize email service (no-op — SES uses IAM role credentials)
- * Kept for API compatibility with callers that invoke initializeSendGrid().
+ * SendGrid initialization state
+ */
+let isInitialized = false;
+
+/**
+ * Initialize SendGrid with API key
+ * Called automatically on first send, can be called early for eager setup
  */
 export function initializeSendGrid(): void {
-  console.log('[Email] SES initialized (IAM role auth)');
+  if (isInitialized) return;
+
+  if (!SENDGRID_API_KEY) {
+    console.error('[SendGrid] SENDGRID_API_KEY not configured');
+    return;
+  }
+
+  try {
+    sgMail.setApiKey(SENDGRID_API_KEY);
+    isInitialized = true;
+    console.log('[SendGrid] Initialized successfully');
+  } catch (error) {
+    console.error('[SendGrid] Failed to initialize:', error instanceof Error ? error.message : 'Unknown error');
+  }
 }
 
 /**
@@ -82,14 +106,14 @@ async function queueForRetry(job: RetryQueueJob): Promise<void> {
     const score = Date.now() + retryDelay * 1000;
 
     await redis.zadd('notifications:email:retry', score, jobData);
-    console.log(`[Email] Email queued for retry ${job.attempt}/${job.maxRetries}, jobId: ${jobId}`);
+    console.log(`[SendGrid] Email queued for retry ${job.attempt}/${job.maxRetries}, jobId: ${jobId}`);
   } catch (error) {
-    console.error('[Email] Failed to queue for retry:', error instanceof Error ? error.message : 'Unknown error');
+    console.error('[SendGrid] Failed to queue for retry:', error instanceof Error ? error.message : 'Unknown error');
   }
 }
 
 /**
- * Send a single email via Amazon SES
+ * Send a single email using SendGrid
  *
  * Never throws - logs errors and continues
  * Queues for retry on transient failures
@@ -98,60 +122,67 @@ async function queueForRetry(job: RetryQueueJob): Promise<void> {
  * @returns Promise<SendEmailResult> indicating success or failure
  */
 export async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
-  const { to, template, data, bcc, replyTo } = options;
+  // Initialize if needed
+  if (!isInitialized) {
+    initializeSendGrid();
+  }
+
+  if (!SENDGRID_API_KEY) {
+    console.error('[SendGrid] Cannot send email: SENDGRID_API_KEY not configured');
+    return { success: false, error: 'SENDGRID_API_KEY not configured' };
+  }
+
+  const { to, template, data, from = SENDGRID_FROM_EMAIL, bcc, replyTo } = options;
 
   try {
     // Generate email content from template
     const templateGenerator = emailTemplates[template];
     if (!templateGenerator) {
-      console.error(`[Email] Unknown template: ${template}`);
+      console.error(`[SendGrid] Unknown template: ${template}`);
       return { success: false, error: `Unknown template: ${template}` };
     }
 
     const { subject, html, text } = templateGenerator(data);
 
-    // Send via SES
-    const result = await sesSendEmail({
+    // Construct SendGrid message
+    const msg: sgMail.MailDataRequired = {
       to,
+      from: {
+        email: from,
+        name: SENDGRID_FROM_NAME,
+      },
       subject,
       html,
       text,
-      bcc,
-      replyTo,
-    });
+      ...(bcc && { bcc }),
+      ...(replyTo && { replyTo }),
+      // Add tracking settings for HIPAA compliance (disable click tracking)
+      trackingSettings: {
+        clickTracking: {
+          enable: false,
+        },
+      },
+    };
 
-    if (result.success) {
-      console.log('[Email] Email sent successfully');
-      return { success: true };
-    }
-
-    // SES returned an error
-    console.error('[Email] Failed to send email:', result.error);
-
-    if (isRetryableError(result.error)) {
-      await queueForRetry({
-        type: 'email',
-        to,
-        template,
-        data,
-        from: '',
-        attempt: 1,
-        maxRetries: 3,
-      });
-    }
-
-    return { success: false, error: result.error };
+    // Send email
+    await sgMail.send(msg);
+    console.log('[SendGrid] Email sent successfully');
+    return { success: true };
   } catch (error) {
+    // Log error without exposing recipient details
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[Email] Failed to send email:', errorMessage);
+    console.error('[SendGrid] Failed to send email:', errorMessage);
 
-    if (isRetryableError(errorMessage)) {
+    // Check if it's a retryable error
+    const isRetryable = isRetryableError(error);
+
+    if (isRetryable) {
       await queueForRetry({
         type: 'email',
         to,
         template,
         data,
-        from: '',
+        from,
         attempt: 1,
         maxRetries: 3,
       });
@@ -162,7 +193,8 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
 }
 
 /**
- * Send multiple emails sequentially via SES
+ * Send multiple emails in batch
+ * Uses SendGrid's batch sending for efficiency
  *
  * Never throws - logs errors and continues
  * Failed emails are queued individually for retry
@@ -171,31 +203,145 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
  * @returns Promise<void>
  */
 export async function sendMultipleEmails(optionsArray: SendEmailOptions[]): Promise<void> {
+  if (!isInitialized) {
+    initializeSendGrid();
+  }
+
+  if (!SENDGRID_API_KEY) {
+    console.error('[SendGrid] Cannot send emails: SENDGRID_API_KEY not configured');
+    return;
+  }
+
   if (!optionsArray.length) return;
 
-  for (const options of optionsArray) {
-    await sendEmail(options);
+  try {
+    // Prepare messages
+    const messages: sgMail.MailDataRequired[] = [];
+    const failedOptions: SendEmailOptions[] = [];
+
+    for (const options of optionsArray) {
+      const { to, template, data, from = SENDGRID_FROM_EMAIL, bcc, replyTo } = options;
+
+      const templateGenerator = emailTemplates[template];
+      if (!templateGenerator) {
+        console.error(`[SendGrid] Unknown template: ${template}`);
+        failedOptions.push(options);
+        continue;
+      }
+
+      try {
+        const { subject, html, text } = templateGenerator(data);
+
+        messages.push({
+          to,
+          from: {
+            email: from,
+            name: SENDGRID_FROM_NAME,
+          },
+          subject,
+          html,
+          text,
+          ...(bcc && { bcc }),
+          ...(replyTo && { replyTo }),
+          trackingSettings: {
+            clickTracking: {
+              enable: false,
+            },
+          },
+        });
+      } catch (templateError) {
+        console.error('[SendGrid] Template generation failed:', templateError instanceof Error ? templateError.message : 'Unknown error');
+        failedOptions.push(options);
+      }
+    }
+
+    // Send batch if we have messages
+    if (messages.length > 0) {
+      // SendGrid supports up to 1000 messages per batch
+      const batchSize = 1000;
+      for (let i = 0; i < messages.length; i += batchSize) {
+        const batch = messages.slice(i, i + batchSize);
+        try {
+          await sgMail.send(batch);
+          console.log(`[SendGrid] Batch sent: ${batch.length} emails`);
+        } catch (batchError) {
+          console.error('[SendGrid] Batch send failed, will retry individually:', batchError instanceof Error ? batchError.message : 'Unknown error');
+          // Queue individual retries for this batch
+          for (let j = 0; j < batch.length; j++) {
+            const originalIndex = i + j;
+            const originalOptions = optionsArray[originalIndex];
+            if (originalOptions) {
+              await queueForRetry({
+                type: 'email',
+                to: originalOptions.to,
+                template: originalOptions.template,
+                data: originalOptions.data,
+                from: originalOptions.from || SENDGRID_FROM_EMAIL,
+                attempt: 1,
+                maxRetries: 3,
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // Queue failed template generations for retry
+    for (const failed of failedOptions) {
+      await queueForRetry({
+        type: 'email',
+        to: failed.to,
+        template: failed.template,
+        data: failed.data,
+        from: failed.from || SENDGRID_FROM_EMAIL,
+        attempt: 1,
+        maxRetries: 3,
+      });
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[SendGrid] Batch send error:', errorMessage);
+
+    // Queue all for retry on catastrophic failure
+    for (const options of optionsArray) {
+      await queueForRetry({
+        type: 'email',
+        to: options.to,
+        template: options.template,
+        data: options.data,
+        from: options.from || SENDGRID_FROM_EMAIL,
+        attempt: 1,
+        maxRetries: 3,
+      });
+    }
   }
 }
 
 /**
  * Check if an error is retryable
- * SES throttling, service errors, and network issues are retryable.
+ * Based on SendGrid error codes and response status
  *
- * @param error - Error message or object
+ * @param error - Error from SendGrid
  * @returns boolean indicating if error is retryable
  */
 function isRetryableError(error: unknown): boolean {
-  if (typeof error === 'string') {
-    const lower = error.toLowerCase();
-    // Retry on throttling, service unavailable, or network errors
-    if (lower.includes('throttl') || lower.includes('rate') || lower.includes('limit')) return true;
-    if (lower.includes('service') || lower.includes('unavailable') || lower.includes('timeout')) return true;
-    if (lower.includes('network') || lower.includes('econnreset') || lower.includes('enotfound')) return true;
-    // Don't retry on validation / auth errors
-    if (lower.includes('validation') || lower.includes('invalid') || lower.includes('access denied')) return false;
-  }
-  // Default to retryable for unknown errors
+  if (typeof error !== 'object' || error === null) return false;
+
+  const err = error as { code?: number; response?: { statusCode?: number } };
+
+  // Retry on network errors (no code)
+  if (!err.code && !err.response?.statusCode) return true;
+
+  // Retry on rate limits (429)
+  if (err.code === 429 || err.response?.statusCode === 429) return true;
+
+  // Retry on server errors (5xx)
+  const statusCode = err.response?.statusCode;
+  if (statusCode && statusCode >= 500 && statusCode < 600) return true;
+
+  // Don't retry on client errors (4xx except 429)
+  if (statusCode && statusCode >= 400 && statusCode < 500) return false;
+
   return true;
 }
 
@@ -206,6 +352,15 @@ function isRetryableError(error: unknown): boolean {
  * @returns Promise<void>
  */
 export async function processRetryQueue(): Promise<void> {
+  if (!isInitialized) {
+    initializeSendGrid();
+  }
+
+  if (!SENDGRID_API_KEY) {
+    console.error('[SendGrid] Cannot process retry queue: SENDGRID_API_KEY not configured');
+    return;
+  }
+
   try {
     const redis = getRedisClient();
     const now = Date.now();
@@ -215,7 +370,7 @@ export async function processRetryQueue(): Promise<void> {
 
     if (jobs.length === 0) return;
 
-    console.log(`[Email] Processing ${jobs.length} retry jobs`);
+    console.log(`[SendGrid] Processing ${jobs.length} retry jobs`);
 
     for (const jobData of jobs) {
       try {
@@ -226,7 +381,7 @@ export async function processRetryQueue(): Promise<void> {
 
         // Check if max retries reached
         if (job.attempt >= job.maxRetries) {
-          console.error(`[Email] Max retries reached for job: ${job.id}`);
+          console.error(`[SendGrid] Max retries reached for job: ${job.id}`);
           // Move to dead letter queue
           await redis.lpush('notifications:email:dead', jobData);
           continue;
@@ -235,47 +390,52 @@ export async function processRetryQueue(): Promise<void> {
         // Attempt to send
         const templateGenerator = emailTemplates[job.template];
         if (!templateGenerator) {
-          console.error(`[Email] Unknown template in retry: ${job.template}`);
+          console.error(`[SendGrid] Unknown template in retry: ${job.template}`);
           continue;
         }
 
         const { subject, html, text } = templateGenerator(job.data);
 
-        const result = await sesSendEmail({
+        const msg: sgMail.MailDataRequired = {
           to: job.to,
+          from: {
+            email: job.from,
+            name: SENDGRID_FROM_NAME,
+          },
           subject,
           html,
           text,
-        });
+          trackingSettings: {
+            clickTracking: {
+              enable: false,
+            },
+          },
+        };
 
-        if (result.success) {
-          console.log(`[Email] Retry successful for job: ${job.id}`);
-        } else {
-          throw new Error(result.error || 'SES send failed');
-        }
+        await sgMail.send(msg);
+        console.log(`[SendGrid] Retry successful for job: ${job.id}`);
       } catch (error) {
         // Re-queue with incremented attempt
         const job: RetryQueueJob & { id?: string; queuedAt?: string } = JSON.parse(jobData);
         job.attempt += 1;
 
-        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-        const retryable = isRetryableError(errorMsg);
+        const isRetryable = isRetryableError(error);
 
-        if (retryable && job.attempt < job.maxRetries) {
+        if (isRetryable && job.attempt < job.maxRetries) {
           const retryDelay = Math.pow(2, job.attempt) * 60;
           const score = Date.now() + retryDelay * 1000;
           await redis.zadd('notifications:email:retry', score, JSON.stringify(job));
-          console.log(`[Email] Re-queued for retry ${job.attempt}/${job.maxRetries}`);
+          console.log(`[SendGrid] Re-queued for retry ${job.attempt}/${job.maxRetries}`);
         } else {
           // Move to dead letter queue
           await redis.lpush('notifications:email:dead', jobData);
-          console.error(`[Email] Moved to dead letter queue after ${job.attempt} attempts`);
+          console.error(`[SendGrid] Moved to dead letter queue after ${job.attempt} attempts`);
         }
       }
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[Email] Error processing retry queue:', errorMessage);
+    console.error('[SendGrid] Error processing retry queue:', errorMessage);
   }
 }
 

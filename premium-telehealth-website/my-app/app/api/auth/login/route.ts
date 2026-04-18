@@ -24,7 +24,10 @@ import {
 // SMS MFA for patients
 import { generateSMSCode, storeSMSCode, checkSMSRateLimit, maskPhoneNumber } from '@/lib/auth/sms-mfa';
 import { getRedisClient } from '@/lib/redis/client';
-import { sendSMS } from '@/lib/integrations/sns';
+// TEMPORARY: Using Twilio until AWS SNS toll-free number is provisioned
+// and SES production access is approved. Switch back to sns.ts/ses.ts when ready.
+// Tracking: AWS_MIGRATION_STATUS.md
+import { sendSMS } from '@/lib/integrations/twilio';
 
 // Password utilities
 import { verifyPassword } from '@/lib/auth/password';

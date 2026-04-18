@@ -75,12 +75,15 @@ import {
   sendEmail,
   sendMultipleEmails,
 } from '@/lib/integrations/sendgrid';
+// TEMPORARY: Using Twilio until AWS SNS toll-free number is provisioned
+// and SES production access is approved. Switch back to sns.ts/ses.ts when ready.
+// Tracking: AWS_MIGRATION_STATUS.md
 import {
   sendSMS,
   getSMSTemplate,
   formatPhoneNumber,
   isValidPhoneNumber,
-} from '@/lib/integrations/sns';
+} from '@/lib/integrations/twilio';
 import { notificationQueue, NotificationQueue } from './queue';
 
 // Queue
@@ -115,14 +118,14 @@ export {
   type SendEmailOptions,
 } from '@/lib/integrations/sendgrid';
 
-// SMS Integration (SNS)
+// SMS Integration (Twilio — temporary rollback from SNS)
 export {
   sendSMS,
   getSMSTemplate,
   formatPhoneNumber,
   isValidPhoneNumber,
   type SendSMSOptions,
-} from '@/lib/integrations/sns';
+} from '@/lib/integrations/twilio';
 
 /**
  * Notify a user via email and/or SMS

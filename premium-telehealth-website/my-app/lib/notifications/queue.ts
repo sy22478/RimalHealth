@@ -22,7 +22,10 @@
 
 import { getRedisClient } from '@/lib/redis/client';
 import { sendEmail } from '@/lib/integrations/sendgrid';
-import { sendSMS } from '@/lib/integrations/sns';
+// TEMPORARY: Using Twilio until AWS SNS toll-free number is provisioned
+// and SES production access is approved. Switch back to sns.ts/ses.ts when ready.
+// Tracking: AWS_MIGRATION_STATUS.md
+import { sendSMS } from '@/lib/integrations/twilio';
 import { EmailTemplate, SMSTemplate } from './templates';
 
 /**
