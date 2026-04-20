@@ -16,12 +16,20 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { 
-  calculateAge, 
-  getPatientInitials, 
-  getStatusVariant, 
-  formatDate 
+import {
+  calculateAge,
+  getPatientInitials,
+  getStatusVariant,
+  formatDate
 } from '@/lib/physician/patient-utils';
+
+function serializeJsonField(value: unknown): string {
+  if (!value) return '';
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value)) return value.filter(v => typeof v === 'string').join(', ');
+  if (typeof value === 'object') return Object.values(value).filter(v => typeof v === 'string').join(', ');
+  return String(value);
+}
 
 interface PatientProfileCardProps {
   patientId: string;
@@ -147,28 +155,30 @@ export function PatientProfileCard({
             <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
               Medical Alerts
             </h4>
-            {profile.allergies && Object.keys(profile.allergies).length > 0 && (
-              <div className="flex items-start gap-2 p-3 bg-red-50 rounded-lg border border-red-100">
-                <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
-                <div className="text-sm">
-                  <span className="font-medium text-red-800">Allergies:</span>
-                  <span className="text-red-700 ml-1">
-                    {Object.values(profile.allergies).join(', ')}
-                  </span>
+            {(() => {
+              const allergiesText = serializeJsonField(profile.allergies);
+              return allergiesText ? (
+                <div className="flex items-start gap-2 p-3 bg-red-50 rounded-lg border border-red-100">
+                  <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm">
+                    <span className="font-medium text-red-800">Allergies:</span>
+                    <span className="text-red-700 ml-1">{allergiesText}</span>
+                  </div>
                 </div>
-              </div>
-            )}
-            {profile.currentMedications && Object.keys(profile.currentMedications).length > 0 && (
-              <div className="flex items-start gap-2 p-3 bg-blue-50 rounded-lg border border-blue-100">
-                <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                <div className="text-sm">
-                  <span className="font-medium text-blue-800">Current Medications:</span>
-                  <span className="text-blue-700 ml-1">
-                    {Object.values(profile.currentMedications).join(', ')}
-                  </span>
+              ) : null;
+            })()}
+            {(() => {
+              const medsText = serializeJsonField(profile.currentMedications);
+              return medsText ? (
+                <div className="flex items-start gap-2 p-3 bg-blue-50 rounded-lg border border-blue-100">
+                  <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm">
+                    <span className="font-medium text-blue-800">Current Medications:</span>
+                    <span className="text-blue-700 ml-1">{medsText}</span>
+                  </div>
                 </div>
-              </div>
-            )}
+              ) : null;
+            })()}
           </div>
         )}
 

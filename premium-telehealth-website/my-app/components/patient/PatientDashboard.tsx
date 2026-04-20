@@ -382,7 +382,11 @@ function DashboardBanners({
   mfaEnabled,
   accountAgeDays,
 }: DashboardBannersProps) {
-  const [now] = React.useState(() => Date.now());
+  const [now, setNow] = React.useState(0);
+
+  React.useEffect(() => {
+    setNow(Date.now());
+  }, []);
 
   const banners: BannerItem[] = [];
 
@@ -420,7 +424,7 @@ function DashboardBanners({
     });
   }
 
-  if (data.subscription) {
+  if (data.subscription && now !== 0) {
     const daysUntilExpiry = Math.ceil(
       (new Date(data.subscription.currentPeriodEnd).getTime() - now) / (1000 * 60 * 60 * 24)
     );

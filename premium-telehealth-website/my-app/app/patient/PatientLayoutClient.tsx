@@ -294,11 +294,11 @@ export default function PatientLayoutClient({
               <ShieldCheck className="h-8 w-8 text-ocean-600" />
             </div>
             <h2 className="text-lg font-semibold text-gray-900 mb-2">
-              Two-Factor Authentication Required
+              Two-Factor Authentication Recommended
             </h2>
             <p className="text-sm text-muted-foreground mb-4">
-              For the security of your health information, you must set up
-              two-factor authentication to continue using the patient portal.
+              For the security of your health information, we recommend setting up
+              two-factor authentication for added security.
             </p>
             <p className="text-xs text-muted-foreground">
               Redirecting to setup...

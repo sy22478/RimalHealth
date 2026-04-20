@@ -32,6 +32,10 @@ npx vitest run tests/unit/path/to/file.test.ts
 npm run db:generate      # Generate Prisma client
 npm run db:migrate       # Run dev migrations
 npm run db:studio        # Open Prisma Studio
+npm run db:seed          # Seed test data
+
+# Tests
+npm run test:integration # Integration tests only (forks pool, 30s timeout)
 ```
 
 ## Conventions
@@ -64,6 +68,15 @@ npm run db:studio        # Open Prisma Studio
 **Tailwind v4:** No `tailwind.config.js`; all theme tokens in `app/globals.css` under `@theme inline`. Brand colors: `navy` (#0A2540) and `ocean` (#0284C7). Use `btn-primary` and other `@layer components` classes.
 
 ## Architecture
+
+### Project Rules (`.claude/rules/`)
+
+Detailed project-specific guidance lives in `.claude/rules/` and is auto-loaded into context:
+- `hipaa.md` — PHI encryption, audit logging, 28 encrypted fields by model
+- `42cfr2.md` — SUD record protections, consent, redisclosure, disclosure accounting
+- `stripe.md` — API version `2026-01-28.clover`, webhook handler, pricing env vars
+- `testing.md` — Vitest configs (default/unit/integration), test accounts, mock patterns
+- `api-patterns.md` — Auth HOFs (`requireAuth`/`requireRole`/`requirePermission`), standard route structure
 
 ### Route Groups
 

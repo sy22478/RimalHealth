@@ -194,17 +194,16 @@ export function formatFileSize(bytes: number): string {
 }
 
 /**
- * Format date for display
- * 
- * @param dateString - ISO date string
- * @returns Formatted date (e.g., "Jan 15, 2026")
+ * Format date for display. Pinned to America/Los_Angeles so the displayed
+ * day matches the date baked into server-generated document fileNames
+ * (CA-only service).
  */
-export function formatDocumentDate(dateString: string): string {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
+export function formatDocumentDate(date: Date | string): string {
+  return new Date(date).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
+    timeZone: 'America/Los_Angeles',
   });
 }
 

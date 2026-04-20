@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { DeleteConfirmDialog } from '@/components/patient/DocumentCard';
+import { formatDocumentDate } from '@/lib/patient/documents';
 
 // ============================================================================
 // Types
@@ -84,19 +85,6 @@ function formatFileSize(bytes: number): string {
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-
-function formatDate(date: Date): string {
-  // Pin to America/Los_Angeles so the date matches the date baked into
-  // server-generated document fileNames (CA-only service). Without this,
-  // a doc submitted near midnight UTC shows different days in the title vs.
-  // metadata.
-  return new Date(date).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    timeZone: 'America/Los_Angeles',
-  });
 }
 
 function mapApiDocument(doc: Record<string, unknown>): Document {
@@ -250,7 +238,7 @@ function DocumentCard({
               </div>
               <div className="flex items-center gap-2 mt-2">
                 <span className="text-xs text-gray-500">
-                  {isIntakeForm ? 'Submitted' : 'Uploaded'} {formatDate(document.uploadedAt)}
+                  {isIntakeForm ? 'Submitted' : 'Uploaded'} {formatDocumentDate(document.uploadedAt)}
                 </span>
               </div>
             </div>

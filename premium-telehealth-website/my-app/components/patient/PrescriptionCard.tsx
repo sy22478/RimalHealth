@@ -57,9 +57,9 @@ export function PrescriptionCard({
               <Pill className="h-5 w-5 text-gray-400" aria-hidden="true" />
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900">No Active Prescription</h3>
+              <h3 className="font-semibold text-gray-900">No Prescription Yet</h3>
               <p className="text-sm text-muted-foreground">
-                Your prescriptions will appear here once sent.
+                Your prescription will appear here once your physician completes their review.
               </p>
             </div>
           </div>
