@@ -19,6 +19,8 @@ import { prisma } from '@/lib/db/prisma';
 import { Role } from '@prisma/client';
 import { auditLogger, createAuditContext } from '@/lib/audit/index';
 import { searchNpiPharmacies } from '@/lib/integrations/npi-registry';
+import { validateAddress } from '@/lib/integrations/location';
+import { haversineDistanceMiles } from '@/lib/utils/distance';
 import { rateLimit } from '@/lib/middleware/rate-limit';
 
 const QuerySchema = z
@@ -107,6 +109,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       phone: string | null;
       source: 'npi' | 'local';
       npiNumber?: string;
+      latitude?: number | null;
+      longitude?: number | null;
+      distanceMiles?: number;
     }> = [];
 
     // Primary: NPI Registry
@@ -118,17 +123,36 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
 
     if (npiResult.success && npiResult.pharmacies.length > 0) {
-      pharmacies = npiResult.pharmacies.map((p) => ({
-        id: `npi-${p.npiNumber}`,
-        name: p.name,
-        address: p.address,
-        city: p.city,
-        state: p.state,
-        zipCode: p.zipCode,
-        phone: p.phone || null,
-        source: 'npi' as const,
-        npiNumber: p.npiNumber,
-      }));
+      // Hydrate coordinates from local Pharmacy cache (keyed by NPI) so we
+      // don't re-geocode every search. Lazy geocoding below fills in the rest.
+      const npiNumbers = npiResult.pharmacies.map((p) => p.npiNumber);
+      const cached = await prisma.pharmacy.findMany({
+        where: { npiNumber: { in: npiNumbers } },
+        select: { npiNumber: true, latitude: true, longitude: true },
+      });
+      const coordsByNpi = new Map<string, { latitude: number | null; longitude: number | null }>();
+      for (const row of cached) {
+        if (row.npiNumber) {
+          coordsByNpi.set(row.npiNumber, { latitude: row.latitude, longitude: row.longitude });
+        }
+      }
+
+      pharmacies = npiResult.pharmacies.map((p) => {
+        const cachedCoords = coordsByNpi.get(p.npiNumber);
+        return {
+          id: `npi-${p.npiNumber}`,
+          name: p.name,
+          address: p.address,
+          city: p.city,
+          state: p.state,
+          zipCode: p.zipCode,
+          phone: p.phone || null,
+          source: 'npi' as const,
+          npiNumber: p.npiNumber,
+          latitude: cachedCoords?.latitude ?? null,
+          longitude: cachedCoords?.longitude ?? null,
+        };
+      });
     } else {
       // Fallback: local database
       const where: Record<string, unknown> = { isActive: true, state: 'CA' };
@@ -161,6 +185,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           state: true,
           zipCode: true,
           phone: true,
+          latitude: true,
+          longitude: true,
         },
         take: limit,
         orderBy: { name: 'asc' },
@@ -170,6 +196,78 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         ...p,
         source: 'local' as const,
       }));
+    }
+
+    // Proximity sort: if the patient has a saved geocoded address, lazy-geocode
+    // any results missing coordinates, compute Haversine distances, and sort
+    // by distance ascending. Skipped entirely when the patient has no address.
+    const patientProfile = await prisma.patientProfile.findUnique({
+      where: { userId: auth.user.userId },
+      select: { latitude: true, longitude: true },
+    });
+
+    if (
+      patientProfile?.latitude != null &&
+      patientProfile?.longitude != null &&
+      pharmacies.length > 0
+    ) {
+      const patientLat = patientProfile.latitude;
+      const patientLon = patientProfile.longitude;
+
+      // Lazy geocode: only fills in coords for pharmacies that don't already have them.
+      await Promise.all(
+        pharmacies.map(async (p) => {
+          if (p.latitude != null && p.longitude != null) return;
+          try {
+            const geocode = await validateAddress({
+              street: p.address,
+              city: p.city,
+              state: p.state,
+              zip: p.zipCode,
+            });
+            const top = geocode.suggestions[0];
+            if (top && typeof top.latitude === 'number' && typeof top.longitude === 'number') {
+              p.latitude = top.latitude;
+              p.longitude = top.longitude;
+              // Persist for NPI-sourced pharmacies already cached locally, so
+              // repeated searches don't re-hit the geocoder.
+              if (p.npiNumber) {
+                await prisma.pharmacy
+                  .updateMany({
+                    where: { npiNumber: p.npiNumber },
+                    data: { latitude: top.latitude, longitude: top.longitude },
+                  })
+                  .catch((err) => {
+                    console.warn(
+                      'Failed to cache pharmacy coords:',
+                      err instanceof Error ? err.message : 'Unknown error'
+                    );
+                  });
+              }
+            }
+          } catch (geoErr) {
+            console.warn(
+              'Lazy pharmacy geocoding failed:',
+              geoErr instanceof Error ? geoErr.message : 'Unknown error'
+            );
+          }
+        })
+      );
+
+      for (const p of pharmacies) {
+        if (p.latitude != null && p.longitude != null) {
+          const miles = haversineDistanceMiles(patientLat, patientLon, p.latitude, p.longitude);
+          p.distanceMiles = Math.round(miles * 10) / 10;
+        }
+      }
+
+      pharmacies.sort((a, b) => {
+        // Results without a distance sink to the bottom but preserve relative order.
+        if (a.distanceMiles == null && b.distanceMiles == null) return 0;
+        if (a.distanceMiles == null) return 1;
+        if (b.distanceMiles == null) return -1;
+        return a.distanceMiles - b.distanceMiles;
+      });
     }
 
     // Audit log the pharmacy search

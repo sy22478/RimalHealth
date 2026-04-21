@@ -109,6 +109,10 @@ model PatientProfile {
   addressState  String // CA only
   addressZip    String // Encrypted
 
+  // Address coordinates (public geocode, not PHI) — used for pharmacy proximity search
+  latitude  Float?
+  longitude Float?
+
   // Billing Address (PHI - Encrypted)
   billingSameAsHome Boolean @default(true)
   billingStreet     String? // Encrypted

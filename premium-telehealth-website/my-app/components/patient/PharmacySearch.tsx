@@ -39,6 +39,7 @@ interface NpiSearchResult {
   phone: string;
   id?: string;
   source?: 'npi' | 'local';
+  distanceMiles?: number;
 }
 
 // ============================================================================
@@ -294,7 +295,14 @@ export function PatientPharmacySearch({
                     )}
 
                     <div className="space-y-1.5 pr-8">
-                      <h3 className="font-semibold text-sm">{pharmacy.name}</h3>
+                      <h3 className="font-semibold text-sm">
+                        {pharmacy.name}
+                        {typeof pharmacy.distanceMiles === 'number' && (
+                          <span className="ml-1 font-normal text-muted-foreground">
+                            · {pharmacy.distanceMiles.toFixed(1)} mi
+                          </span>
+                        )}
+                      </h3>
 
                       <div className="flex items-start gap-1.5 text-sm text-muted-foreground">
                         <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0" />

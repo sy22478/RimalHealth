@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireAuth } from '@/lib/auth/require-auth';
 import { prisma } from '@/lib/db/prisma';
+import { validateAddress } from '@/lib/integrations/location';
 
 const selectPharmacySchema = z.object({
   npiNumber: z.string().min(1, { message: 'NPI number is required' }),
@@ -39,6 +40,27 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const { npiNumber, name, address, city, state, zipCode, phone } = parsed.data;
     const ncpdpId = `NPI-${npiNumber}`;
 
+    // Geocode the pharmacy address via Amazon Location Service so we can
+    // sort future searches by proximity to the patient. Non-blocking: if the
+    // service fails or returns no coords, we still persist the pharmacy.
+    let latitude: number | null = null;
+    let longitude: number | null = null;
+    try {
+      const geocode = await validateAddress({ street: address, city, state, zip: zipCode });
+      const top = geocode.suggestions[0];
+      if (top && typeof top.latitude === 'number' && typeof top.longitude === 'number') {
+        latitude = top.latitude;
+        longitude = top.longitude;
+      } else if (geocode.error) {
+        console.warn('Pharmacy geocoding returned no coordinates:', geocode.error);
+      }
+    } catch (geoError) {
+      console.warn(
+        'Pharmacy geocoding failed, proceeding without coordinates:',
+        geoError instanceof Error ? geoError.message : 'Unknown error'
+      );
+    }
+
     // Upsert pharmacy into local cache table
     const pharmacy = await prisma.pharmacy.upsert({
       where: { ncpdpId },
@@ -51,6 +73,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         city,
         state,
         zipCode,
+        latitude,
+        longitude,
         isActive: true,
       },
       update: {
@@ -60,6 +84,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         city,
         state,
         zipCode,
+        ...(latitude !== null && longitude !== null ? { latitude, longitude } : {}),
       },
     });
 

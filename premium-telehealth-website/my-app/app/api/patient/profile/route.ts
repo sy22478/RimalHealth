@@ -438,6 +438,19 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
             { status: 400 }
           );
         }
+
+        // Persist geocoded coordinates so pharmacy search can sort by proximity.
+        const topSuggestion = addrResult.suggestions[0];
+        if (
+          addrResult.valid &&
+          topSuggestion &&
+          typeof topSuggestion.latitude === 'number' &&
+          typeof topSuggestion.longitude === 'number'
+        ) {
+          dataToUpdate.latitude = topSuggestion.latitude;
+          dataToUpdate.longitude = topSuggestion.longitude;
+          changedFields.push('latitude', 'longitude');
+        }
         // If addrResult.error (Location Service failure), proceed — graceful degradation
       } catch (addrError) {
         // Location Service is down — log and proceed, don't block profile saves
