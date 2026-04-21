@@ -72,6 +72,21 @@ function serializePHIField(value: unknown): string | null {
 }
 
 /**
+ * Sanitize a comma-separated multi-value PHI string before persisting.
+ * Strips "[object Object]" literals left behind by prior client-side object-to-string
+ * coercion, drops empty tokens, and collapses whitespace. Returns null when nothing
+ * remains, so the DB clears the field instead of storing a dangling separator.
+ */
+function sanitizeMultiValueField(value: string): string | null {
+  const cleaned = value
+    .split(',')
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0 && item !== '[object Object]')
+    .join(', ');
+  return cleaned.length > 0 ? cleaned : null;
+}
+
+/**
  * Extract human-readable medical conditions from intake formData.
  * The intake stores medical history as an object with boolean flags and arrays;
  * this function returns only the meaningful conditions as a comma-separated string.
@@ -433,17 +448,17 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
     // JSON fields: pass raw values — the Prisma encryption extension serializes
     // and encrypts before write. Don't double-serialize with JSON.parse(JSON.stringify()).
     if (updateData.medicalHistory !== undefined && updateData.medicalHistory !== '') {
-      dataToUpdate.medicalHistory = updateData.medicalHistory || null;
+      dataToUpdate.medicalHistory = sanitizeMultiValueField(updateData.medicalHistory);
       changedFields.push('medicalHistory');
     }
 
     if (updateData.currentMedications !== undefined && updateData.currentMedications !== '') {
-      dataToUpdate.currentMedications = updateData.currentMedications || null;
+      dataToUpdate.currentMedications = sanitizeMultiValueField(updateData.currentMedications);
       changedFields.push('currentMedications');
     }
 
     if (updateData.allergies !== undefined && updateData.allergies !== '') {
-      dataToUpdate.allergies = updateData.allergies || null;
+      dataToUpdate.allergies = sanitizeMultiValueField(updateData.allergies);
       changedFields.push('allergies');
     }
 
