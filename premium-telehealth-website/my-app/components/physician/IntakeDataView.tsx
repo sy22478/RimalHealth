@@ -193,9 +193,12 @@ export function IntakeDataView({ formData: rawFormData, scores, riskAssessment, 
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '-';
-    // Parse YYYY-MM-DD as local date to avoid timezone shift (e.g. DOB)
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-      const [year, month, day] = dateStr.split('-').map(Number);
+    // Parse YYYY-MM-DD as local date to avoid timezone shift (e.g. DOB).
+    // If the input is an ISO datetime string, strip the time component first —
+    // otherwise new Date(isoString) parses as UTC and rolls back a day in PST.
+    const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(dateStr) ? dateStr : dateStr.slice(0, 10);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) {
+      const [year, month, day] = dateOnly.split('-').map(Number);
       return new Date(year, month - 1, day).toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',

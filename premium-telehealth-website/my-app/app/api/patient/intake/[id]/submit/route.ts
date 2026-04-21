@@ -107,7 +107,15 @@ export async function POST(
         const [y, m, d] = dobStr.split('-').map(Number);
         dob = new Date(y, m - 1, d);
       } else {
-        dob = new Date(dobStr);
+        // Strip time component to prevent UTC→local timezone shift
+        // (e.g. "1999-04-03T00:00:00.000Z" parsed in PST rolls back one day).
+        const dateOnly = dobStr.slice(0, 10);
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) {
+          const [y, m, d] = dateOnly.split('-').map(Number);
+          dob = new Date(y, m - 1, d);
+        } else {
+          dob = new Date(dobStr);
+        }
       }
       const today = new Date();
       let age = today.getFullYear() - dob.getFullYear();

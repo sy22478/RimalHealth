@@ -72,6 +72,14 @@ export interface IntakeWithPatient {
     submittedAt: Date;
     status: string;
   }>;
+  review?: {
+    decision: string;
+    clinicalNotes: string | null;
+    rejectionReason: string | null;
+    alternativeRecommendation: string | null;
+    completedAt: Date | null;
+    physicianName: string | null;
+  } | null;
 }
 
 // ============================================================================

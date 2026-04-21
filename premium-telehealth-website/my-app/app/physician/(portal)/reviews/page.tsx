@@ -159,8 +159,8 @@ export default function ReviewHistoryPage() {
                             year: 'numeric',
                           })}
                         </TableCell>
-                        <TableCell className="max-w-[300px]">
-                          <span className="text-sm text-muted-foreground truncate block">
+                        <TableCell className="max-w-[400px] align-top">
+                          <span className="text-sm text-muted-foreground whitespace-pre-wrap break-words block">
                             {review.clinicalNotes || '—'}
                           </span>
                         </TableCell>

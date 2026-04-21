@@ -65,9 +65,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         patientName,
         decision: intake.status,
         reviewedAt: review?.completedAt?.toISOString() || intake.updatedAt.toISOString(),
-        clinicalNotes: review?.clinicalNotes
-          ? (review.clinicalNotes as string).substring(0, 120) + ((review.clinicalNotes as string).length > 120 ? '...' : '')
-          : null,
+        clinicalNotes: (review?.clinicalNotes as string | undefined) ?? null,
+        rejectionReason: (review?.rejectionReason as string | undefined) ?? null,
+        alternativeRecommendation: (review?.alternativeRecommendation as string | undefined) ?? null,
         physicianName: review?.physician
           ? `${review.physician.firstName} ${review.physician.lastName}`.trim()
           : null,

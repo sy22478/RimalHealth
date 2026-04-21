@@ -478,16 +478,77 @@ export function IntakeReview({ intake, physicianId, physicianName, isDeactivated
             {isReadOnly ? (
               <Card className="lg:sticky lg:top-24 bg-gray-50">
                 <CardHeader>
-                  <CardTitle className="text-base">Review Status</CardTitle>
+                  <CardTitle className="text-base">Review Decision</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <Badge variant="secondary" className="text-sm">
-                    {intake.status.replace(/_/g, ' ')}
-                  </Badge>
-                  <p className="text-sm text-muted-foreground">
-                    This intake has already been reviewed. See the Review History
-                    page for the physician&apos;s decision and clinical notes.
-                  </p>
+                <CardContent className="space-y-4">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                      Decision
+                    </p>
+                    <Badge variant="secondary" className="text-sm">
+                      {(intake.review?.decision || intake.status).replace(/_/g, ' ')}
+                    </Badge>
+                  </div>
+
+                  {intake.review?.clinicalNotes && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                        Clinical Notes
+                      </p>
+                      <p className="text-sm whitespace-pre-wrap break-words">
+                        {intake.review.clinicalNotes}
+                      </p>
+                    </div>
+                  )}
+
+                  {intake.review?.rejectionReason && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                        Rejection Reason
+                      </p>
+                      <p className="text-sm whitespace-pre-wrap break-words">
+                        {intake.review.rejectionReason}
+                      </p>
+                    </div>
+                  )}
+
+                  {intake.review?.alternativeRecommendation && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                        Alternative Recommendation
+                      </p>
+                      <p className="text-sm whitespace-pre-wrap break-words">
+                        {intake.review.alternativeRecommendation}
+                      </p>
+                    </div>
+                  )}
+
+                  {(intake.review?.completedAt || intake.review?.physicianName) && (
+                    <div className="pt-2 border-t border-gray-200 space-y-1 text-xs text-muted-foreground">
+                      {intake.review?.completedAt && (
+                        <p>
+                          Reviewed:{' '}
+                          {new Date(intake.review.completedAt).toLocaleString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit',
+                          })}
+                        </p>
+                      )}
+                      {intake.review?.physicianName && (
+                        <p>By: {intake.review.physicianName}</p>
+                      )}
+                    </div>
+                  )}
+
+                  {!intake.review && (
+                    <p className="text-sm text-muted-foreground">
+                      This intake has already been reviewed. Review details are not available.
+                    </p>
+                  )}
+
                   <Button
                     variant="outline"
                     size="sm"

@@ -198,6 +198,11 @@ export async function getIntakeForReview(
             },
           },
         },
+        review: {
+          include: {
+            physician: true,
+          },
+        },
       },
     });
 
@@ -272,6 +277,19 @@ export async function getIntakeForReview(
           zipCode: profile.preferredPharmacy.zipCode,
         } : null,
       },
+      review: intake.review
+        ? {
+            decision: intake.review.decision ?? intake.status,
+            clinicalNotes: (intake.review.clinicalNotes as string | null) ?? null,
+            rejectionReason: (intake.review.rejectionReason as string | null) ?? null,
+            alternativeRecommendation:
+              (intake.review.alternativeRecommendation as string | null) ?? null,
+            completedAt: intake.review.completedAt ?? null,
+            physicianName: intake.review.physician
+              ? `${intake.review.physician.firstName} ${intake.review.physician.lastName}`.trim()
+              : null,
+          }
+        : null,
     };
 
     return { success: true, data };
