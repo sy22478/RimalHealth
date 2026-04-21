@@ -5,12 +5,19 @@
  *
  * No PHI involved — pharmacy business data only.
  *
+ * Results are cached in Valkey for 24 hours to reduce API load. Cache
+ * failures fall back to direct API calls (best-effort caching).
+ *
  * @see https://npiregistry.cms.hhs.gov/api-page
  * @module lib/integrations/npi-registry
  */
 
+import { createHash } from 'crypto';
+import { getCache, setCache } from '@/lib/redis';
+
 const NPI_REGISTRY_URL = 'https://npiregistry.cms.hhs.gov/api/?version=2.1';
 const REQUEST_TIMEOUT_MS = 8_000;
+const CACHE_TTL_SECONDS = 86_400; // 24 hours
 
 // ============================================================================
 // Types
@@ -29,6 +36,7 @@ export interface NpiPharmacy {
 interface NpiSearchParams {
   city?: string;
   zip?: string;
+  name?: string;
   limit?: number;
 }
 
@@ -101,21 +109,71 @@ function normalizeResult(result: NpiResult): NpiPharmacy | null {
   };
 }
 
+function buildCacheKey(params: Pick<NpiSearchParams, 'city' | 'zip' | 'name' | 'limit'>): string {
+  const normalized = [
+    (params.city ?? '').trim().toLowerCase(),
+    (params.zip ?? '').trim().toLowerCase(),
+    (params.name ?? '').trim().toLowerCase(),
+    String(params.limit ?? 20),
+  ].join('|');
+  const hash = createHash('sha256').update(normalized).digest('hex').slice(0, 16);
+  return `npi:search:${hash}`;
+}
+
+async function readCache(key: string): Promise<NpiSearchResult | null> {
+  try {
+    return await getCache<NpiSearchResult>(key);
+  } catch (error) {
+    console.debug(
+      '[npi-registry] cache read failed, falling back to API:',
+      error instanceof Error ? error.message : 'unknown'
+    );
+    return null;
+  }
+}
+
+async function writeCache(key: string, value: NpiSearchResult): Promise<void> {
+  try {
+    await setCache(key, value, CACHE_TTL_SECONDS);
+  } catch (error) {
+    console.debug(
+      '[npi-registry] cache write failed:',
+      error instanceof Error ? error.message : 'unknown'
+    );
+  }
+}
+
 /**
  * Search the NPI Registry for pharmacies in California.
  *
+ * Results are cached in Valkey for 24 hours by normalized query. Cache
+ * failures are swallowed; the live API is always the source of truth.
+ *
  * @param params.city — city name to search
  * @param params.zip — ZIP code to search
+ * @param params.name — pharmacy organization name (e.g., "CVS")
  * @param params.limit — max results (default 20, capped at 200 by NPI API)
  */
 export async function searchNpiPharmacies(
   params: NpiSearchParams
 ): Promise<NpiSearchResult> {
-  const { city, zip, limit = 20 } = params;
+  const { city, zip, name, limit = 20 } = params;
 
-  if (!city && !zip) {
-    return { success: false, pharmacies: [], error: 'City or ZIP code is required' };
+  if (!city && !zip && !name) {
+    return {
+      success: false,
+      pharmacies: [],
+      error: 'City, ZIP code, or pharmacy name is required',
+    };
   }
+
+  const cacheKey = buildCacheKey({ city, zip, name, limit });
+  const cached = await readCache(cacheKey);
+  if (cached) {
+    console.debug('[npi-registry] cache hit', cacheKey);
+    return cached;
+  }
+  console.debug('[npi-registry] cache miss', cacheKey);
 
   const url = new URL(NPI_REGISTRY_URL);
   url.searchParams.set('taxonomy_description', 'pharmacy');
@@ -128,6 +186,9 @@ export async function searchNpiPharmacies(
   }
   if (city) {
     url.searchParams.set('city', city);
+  }
+  if (name) {
+    url.searchParams.set('organization_name', name);
   }
 
   const controller = new AbortController();
@@ -150,14 +211,18 @@ export async function searchNpiPharmacies(
     const data: NpiApiResponse = await response.json();
 
     if (!data.results || !Array.isArray(data.results)) {
-      return { success: true, pharmacies: [] };
+      const empty: NpiSearchResult = { success: true, pharmacies: [] };
+      await writeCache(cacheKey, empty);
+      return empty;
     }
 
     const pharmacies = data.results
       .map(normalizeResult)
       .filter((p): p is NpiPharmacy => p !== null);
 
-    return { success: true, pharmacies };
+    const result: NpiSearchResult = { success: true, pharmacies };
+    await writeCache(cacheKey, result);
+    return result;
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
       return { success: false, pharmacies: [], error: 'NPI Registry request timed out' };

@@ -51,7 +51,8 @@ export function PatientPharmacySearch({
   currentPharmacyName,
   disabled = false,
 }: PatientPharmacySearchProps): React.ReactElement {
-  const [query, setQuery] = React.useState('');
+  const [nameQuery, setNameQuery] = React.useState('');
+  const [locationQuery, setLocationQuery] = React.useState('');
   const [results, setResults] = React.useState<NpiSearchResult[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
   const [hasSearched, setHasSearched] = React.useState(false);
@@ -59,10 +60,14 @@ export function PatientPharmacySearch({
   const [selectedNpi, setSelectedNpi] = React.useState<string | null>(null);
   const [selectingNpi, setSelectingNpi] = React.useState<string | null>(null);
 
+  const canSearch =
+    nameQuery.trim().length >= 2 || locationQuery.trim().length >= 2;
+
   const handleSearch = async (e?: React.FormEvent | React.MouseEvent): Promise<void> => {
     e?.preventDefault();
-    const trimmed = query.trim();
-    if (trimmed.length < 2) return;
+    const name = nameQuery.trim();
+    const location = locationQuery.trim();
+    if (name.length < 2 && location.length < 2) return;
 
     setIsLoading(true);
     setError(null);
@@ -70,11 +75,16 @@ export function PatientPharmacySearch({
 
     try {
       const params = new URLSearchParams();
-      // Detect ZIP vs city
-      if (/^\d/.test(trimmed)) {
-        params.set('zip', trimmed);
-      } else {
-        params.set('q', trimmed);
+      if (name.length >= 2) {
+        params.set('name', name);
+      }
+      if (location.length >= 2) {
+        // Auto-detect ZIP vs city on the location input
+        if (/^\d/.test(location)) {
+          params.set('zip', location);
+        } else {
+          params.set('q', location);
+        }
       }
 
       const res = await fetch(`/api/patient/pharmacies/search?${params.toString()}`, {
@@ -161,7 +171,7 @@ export function PatientPharmacySearch({
           Find a Pharmacy
         </CardTitle>
         <CardDescription>
-          Search by city name or ZIP code to find California pharmacies.
+          Search by pharmacy name, location (ZIP or city), or both. At least one is required.
         </CardDescription>
       </CardHeader>
 
@@ -176,29 +186,46 @@ export function PatientPharmacySearch({
           </div>
         )}
 
-        {/* Search controls — use a div + button click instead of a nested <form>.
-            The intake page wraps every step in a React Hook Form <form>, and the
-            browser strips any inner <form>, so a nested form submit never fired
-            the search handler. */}
-        <div className="flex gap-2">
+        {/* Search controls — two inputs + single search button.
+            Uses a div + button click instead of a nested <form> because the
+            intake page wraps every step in a React Hook Form <form>, and the
+            browser strips any inner <form>, so a nested form submit never
+            fires the search handler. */}
+        <div className="flex flex-col sm:flex-row gap-2">
           <Input
             type="text"
-            placeholder="Enter city name or ZIP code..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Pharmacy name (e.g., CVS)"
+            value={nameQuery}
+            onChange={(e) => setNameQuery(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') {
+              if (e.key === 'Enter' && canSearch) {
                 e.preventDefault();
                 void handleSearch();
               }
             }}
             disabled={disabled || isLoading}
+            aria-label="Pharmacy name"
+            className="flex-1"
+          />
+          <Input
+            type="text"
+            placeholder="ZIP or city"
+            value={locationQuery}
+            onChange={(e) => setLocationQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && canSearch) {
+                e.preventDefault();
+                void handleSearch();
+              }
+            }}
+            disabled={disabled || isLoading}
+            aria-label="Location (ZIP or city)"
             className="flex-1"
           />
           <Button
             type="button"
             onClick={() => void handleSearch()}
-            disabled={disabled || isLoading || query.trim().length < 2}
+            disabled={disabled || isLoading || !canSearch}
           >
             {isLoading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -214,7 +241,7 @@ export function PatientPharmacySearch({
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              {error} Try a different city or ZIP code.
+              {error} Try a different pharmacy name or location.
             </AlertDescription>
           </Alert>
         )}
@@ -295,7 +322,7 @@ export function PatientPharmacySearch({
           <div className="text-center py-6 text-sm text-muted-foreground">
             <MapPin className="h-8 w-8 mx-auto mb-2 text-gray-300" />
             <p>No pharmacies found for this search.</p>
-            <p className="mt-1">Try a different city name or ZIP code.</p>
+            <p className="mt-1">Try a different pharmacy name or location.</p>
           </div>
         )}
       </CardContent>

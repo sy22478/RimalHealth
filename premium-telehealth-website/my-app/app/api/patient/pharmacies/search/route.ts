@@ -2,15 +2,36 @@
  * GET /api/patient/pharmacies/search
  * Search pharmacies via NPI Registry (primary) with local DB fallback.
  * Available to authenticated patients.
+ *
+ * Query params:
+ *   q     — legacy single input, auto-detected as ZIP if it starts with a digit, else city
+ *   name  — optional pharmacy organization name (e.g., "CVS")
+ *   zip   — optional ZIP code (takes precedence over q auto-detect)
+ *   limit — optional result cap (max 50)
+ *
+ * At least one of (q, name, zip) must be provided.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { requireRole } from '@/lib/auth/require-auth';
 import { prisma } from '@/lib/db/prisma';
 import { Role } from '@prisma/client';
 import { auditLogger, createAuditContext } from '@/lib/audit/index';
 import { searchNpiPharmacies } from '@/lib/integrations/npi-registry';
 import { rateLimit } from '@/lib/middleware/rate-limit';
+
+const QuerySchema = z
+  .object({
+    q: z.string().trim().max(100).optional(),
+    name: z.string().trim().min(2, { message: 'Name must be at least 2 characters' }).max(100).optional(),
+    zip: z.string().trim().max(10).optional(),
+    limit: z.coerce.number().int().min(1).max(50).optional(),
+  })
+  .refine(
+    (v) => Boolean((v.q && v.q.length > 0) || (v.name && v.name.length > 0) || (v.zip && v.zip.length > 0)),
+    { message: 'At least one of q, name, or zip is required' }
+  );
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const auth = await requireRole(request, [Role.PATIENT]);
@@ -45,20 +66,35 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   try {
     const { searchParams } = new URL(request.url);
-    const query = searchParams.get('q') || '';
-    const zipCode = searchParams.get('zip') || '';
-    const limit = Math.min(parseInt(searchParams.get('limit') || '20', 10), 50);
+    const parsed = QuerySchema.safeParse({
+      q: searchParams.get('q') ?? undefined,
+      name: searchParams.get('name') ?? undefined,
+      zip: searchParams.get('zip') ?? undefined,
+      limit: searchParams.get('limit') ?? undefined,
+    });
 
-    // Determine search params: detect if query looks like a ZIP
+    if (!parsed.success) {
+      return NextResponse.json(
+        {
+          error: parsed.error.issues[0]?.message ?? 'Invalid query',
+          code: 'INVALID_QUERY',
+        },
+        { status: 400 }
+      );
+    }
+
+    const { q, name, zip, limit = 20 } = parsed.data;
+
+    // Determine location search params: explicit zip wins, else auto-detect from q.
     let searchCity: string | undefined;
     let searchZip: string | undefined;
 
-    if (zipCode) {
-      searchZip = zipCode.substring(0, 5);
-    } else if (query && /^\d/.test(query.trim())) {
-      searchZip = query.trim().substring(0, 5);
-    } else if (query) {
-      searchCity = query.trim();
+    if (zip) {
+      searchZip = zip.substring(0, 5);
+    } else if (q && /^\d/.test(q)) {
+      searchZip = q.substring(0, 5);
+    } else if (q) {
+      searchCity = q;
     }
 
     let pharmacies: Array<{
@@ -74,60 +110,66 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }> = [];
 
     // Primary: NPI Registry
-    if (searchCity || searchZip) {
-      const npiResult = await searchNpiPharmacies({
-        city: searchCity,
-        zip: searchZip,
-        limit,
+    const npiResult = await searchNpiPharmacies({
+      city: searchCity,
+      zip: searchZip,
+      name,
+      limit,
+    });
+
+    if (npiResult.success && npiResult.pharmacies.length > 0) {
+      pharmacies = npiResult.pharmacies.map((p) => ({
+        id: `npi-${p.npiNumber}`,
+        name: p.name,
+        address: p.address,
+        city: p.city,
+        state: p.state,
+        zipCode: p.zipCode,
+        phone: p.phone || null,
+        source: 'npi' as const,
+        npiNumber: p.npiNumber,
+      }));
+    } else {
+      // Fallback: local database
+      const where: Record<string, unknown> = { isActive: true, state: 'CA' };
+
+      const orClauses: Record<string, unknown>[] = [];
+      if (searchCity) {
+        orClauses.push(
+          { name: { contains: searchCity, mode: 'insensitive' } },
+          { city: { contains: searchCity, mode: 'insensitive' } }
+        );
+      }
+      if (name) {
+        orClauses.push({ name: { contains: name, mode: 'insensitive' } });
+      }
+      if (orClauses.length > 0) {
+        where.OR = orClauses;
+      }
+
+      if (searchZip) {
+        where.zipCode = { startsWith: searchZip.substring(0, 5) };
+      }
+
+      const localResults = await prisma.pharmacy.findMany({
+        where,
+        select: {
+          id: true,
+          name: true,
+          address: true,
+          city: true,
+          state: true,
+          zipCode: true,
+          phone: true,
+        },
+        take: limit,
+        orderBy: { name: 'asc' },
       });
 
-      if (npiResult.success && npiResult.pharmacies.length > 0) {
-        pharmacies = npiResult.pharmacies.map((p) => ({
-          id: `npi-${p.npiNumber}`,
-          name: p.name,
-          address: p.address,
-          city: p.city,
-          state: p.state,
-          zipCode: p.zipCode,
-          phone: p.phone || null,
-          source: 'npi' as const,
-          npiNumber: p.npiNumber,
-        }));
-      } else {
-        // Fallback: local database
-        const where: Record<string, unknown> = { isActive: true, state: 'CA' };
-
-        if (searchCity) {
-          where.OR = [
-            { name: { contains: searchCity, mode: 'insensitive' } },
-            { city: { contains: searchCity, mode: 'insensitive' } },
-          ];
-        }
-
-        if (searchZip) {
-          where.zipCode = { startsWith: searchZip.substring(0, 5) };
-        }
-
-        const localResults = await prisma.pharmacy.findMany({
-          where,
-          select: {
-            id: true,
-            name: true,
-            address: true,
-            city: true,
-            state: true,
-            zipCode: true,
-            phone: true,
-          },
-          take: limit,
-          orderBy: { name: 'asc' },
-        });
-
-        pharmacies = localResults.map((p) => ({
-          ...p,
-          source: 'local' as const,
-        }));
-      }
+      pharmacies = localResults.map((p) => ({
+        ...p,
+        source: 'local' as const,
+      }));
     }
 
     // Audit log the pharmacy search
@@ -139,7 +181,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       'pharmacy_search',
       'search',
       auditContext,
-      { query, zipCode, resultCount: pharmacies.length } as Record<string, unknown>
+      { query: q ?? '', name: name ?? '', zipCode: zip ?? '', resultCount: pharmacies.length } as Record<string, unknown>
     );
 
     return NextResponse.json({ pharmacies });
