@@ -131,7 +131,7 @@ export function createIntakeSchema(_concernType: ConcernType) {
     addressStreet: z.string().min(1, 'Street address is required'),
     addressCity: z.string().min(1, 'City is required'),
     addressState: z.literal('CA'),
-    addressZip: z.string().regex(/^\d{5}$/, 'Zip code must be 5 digits'),
+    addressZip: z.string().regex(/^\d{5}(-\d{4})?$/, 'Zip code must be 5 or 9 digits (e.g., 90210 or 90210-1234)'),
     
     // Treatment
     primaryConcern: z.nativeEnum(ConcernType),

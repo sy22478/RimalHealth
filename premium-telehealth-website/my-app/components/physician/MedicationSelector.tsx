@@ -130,7 +130,7 @@ export function MedicationSelector({
               <div className="flex items-start gap-3">
                 <Pill className="h-5 w-5 text-primary mt-0.5 shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm">{med.name}</p>
+                  <p className="font-medium text-sm break-words">{med.name}</p>
                   <p className="text-xs text-muted-foreground truncate">
                     {med.genericName}
                   </p>
@@ -177,7 +177,7 @@ export function MedicationSelector({
             </div>
 
             {/* Quantity and Refills */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="quantity">Quantity</Label>
                 <Input
@@ -227,12 +227,12 @@ export function MedicationSelector({
             <Separator />
 
             {/* Warnings */}
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 break-words">
               <div className="flex items-start gap-2">
                 <Info className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-                <div className="space-y-1">
+                <div className="space-y-1 min-w-0">
                   <p className="text-sm font-medium text-amber-900">Important Warnings</p>
-                  <ul className="text-xs text-amber-800 list-disc list-inside space-y-0.5">
+                  <ul className="text-xs text-amber-800 list-disc list-inside space-y-0.5 break-words">
                     {selectedMed.warnings.map((warning, index) => (
                       <li key={index}>{warning}</li>
                     ))}

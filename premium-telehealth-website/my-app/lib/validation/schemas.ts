@@ -197,8 +197,8 @@ export const dsm5IntakeFormDataSchema = z.object({
   // Address — California only
   addressState: z.literal('CA').optional(),
   pharmacyState: z.literal('CA').optional(),
-  pharmacyZip: z.string().regex(/^\d{5}$/).refine((zip) => {
-    const n = parseInt(zip, 10);
+  pharmacyZip: z.string().regex(/^\d{5}(-\d{4})?$/).refine((zip) => {
+    const n = parseInt(zip.slice(0, 5), 10);
     return n >= 90001 && n <= 96162;
   }, { message: 'Must be a valid California ZIP code (90001-96162)' }).optional(),
 }).passthrough(); // Allow additional fields (e.g., primaryConcern added by submit handler)

@@ -9,6 +9,7 @@
  * - Notifies physicians
  */
 
+import { randomUUID } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/auth/require-auth';
 import { prisma } from '@/lib/db/prisma';
@@ -203,6 +204,28 @@ export async function POST(
       } catch (addrError) {
         // Location Service is down — log and proceed, don't block intake submission
         console.error('Address validation service unavailable:', addrError instanceof Error ? addrError.message : 'Unknown error');
+      }
+    }
+
+    // Pharmacy address validation (warn-only — pharmacy may be new/unlisted)
+    const warnings: string[] = [];
+    const pharmacyStreet = fd_raw.pharmacyAddress as string | undefined;
+    const pharmacyCity = fd_raw.pharmacyCity as string | undefined;
+    const pharmacyZipRaw = fd_raw.pharmacyZip as string | undefined;
+    if (pharmacyStreet && pharmacyCity && pharmacyZipRaw) {
+      try {
+        const pharmacyAddrResult = await validateAddress({
+          street: pharmacyStreet,
+          city: pharmacyCity,
+          state: 'CA',
+          zip: pharmacyZipRaw,
+        });
+        if (!pharmacyAddrResult.error && !pharmacyAddrResult.valid) {
+          console.warn('Pharmacy address could not be verified — proceeding with submission');
+          warnings.push('Pharmacy address could not be verified. If the pharmacy is new or unlisted, this is normal; otherwise please double-check the address.');
+        }
+      } catch (pharmacyAddrError) {
+        console.error('Pharmacy address validation service unavailable:', pharmacyAddrError instanceof Error ? pharmacyAddrError.message : 'Unknown error');
       }
     }
 
@@ -441,13 +464,34 @@ export async function POST(
     if (pharmacyName && pharmacyZip) {
       try {
         const pharmacy = await prisma.pharmacy.findFirst({
-          where: { name: pharmacyName, zipCode: pharmacyZip },
+          where: {
+            name: { equals: pharmacyName.trim(), mode: 'insensitive' },
+            zipCode: pharmacyZip.trim().slice(0, 5),
+          },
           select: { id: true },
         });
         if (pharmacy) {
           await prisma.patientProfile.update({
             where: { userId },
             data: { preferredPharmacyId: pharmacy.id },
+          });
+        } else {
+          const newPharmacy = await prisma.pharmacy.create({
+            data: {
+              // ncpdpId is required+unique. Patient-supplied pharmacies are unverified,
+              // so stamp a placeholder — admin can reconcile with a real NCPDP lookup later.
+              ncpdpId: `TEMP-${randomUUID()}`,
+              name: pharmacyName.trim(),
+              zipCode: pharmacyZip.trim(),
+              address: (fd.pharmacyAddress as string) || '',
+              city: (fd.pharmacyCity as string) || '',
+              state: (fd.pharmacyState as string) || 'CA',
+              phone: (fd.pharmacyPhone as string) || '',
+            },
+          });
+          await prisma.patientProfile.update({
+            where: { userId },
+            data: { preferredPharmacyId: newPharmacy.id },
           });
         }
       } catch (pharmacyError) {
@@ -515,6 +559,7 @@ export async function POST(
         riskScore: scores.riskScore,
         complexityScore: scores.complexityScore,
       },
+      ...(warnings.length > 0 && { warnings }),
     });
   } catch (error) {
     console.error('Submit intake error:', error instanceof Error ? error.message : 'Unknown error');

@@ -456,7 +456,10 @@ export function IntakeReview({ intake, physicianId, physicianName, isDeactivated
           </div>
 
           {/* Main Content */}
-          <div className="md:col-span-8 lg:col-span-6 space-y-6">
+          <div className={cn(
+            'md:col-span-8 space-y-6',
+            decisionData.decision === 'APPROVE' ? 'lg:col-span-4' : 'lg:col-span-5'
+          )}>
             {/* Intake Data */}
             <Card>
               <CardHeader>
@@ -474,7 +477,10 @@ export function IntakeReview({ intake, physicianId, physicianName, isDeactivated
           </div>
 
           {/* Right Sidebar - Decision Form (hidden when viewing an already-reviewed intake) */}
-          <div className="md:col-span-12 lg:col-span-3">
+          <div className={cn(
+            'md:col-span-12',
+            decisionData.decision === 'APPROVE' ? 'lg:col-span-5' : 'lg:col-span-4'
+          )}>
             {isReadOnly ? (
               <Card className="lg:sticky lg:top-24 bg-gray-50">
                 <CardHeader>
