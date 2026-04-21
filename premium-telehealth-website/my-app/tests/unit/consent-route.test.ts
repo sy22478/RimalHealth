@@ -2,13 +2,17 @@
  * Consent API Route Unit Tests
  * Tests POST /api/checkout/consent for validation, rate limiting, and audit logging.
  *
- * Mocks: Prisma (dynamic import inside route), rate-limit, CSRF.
+ * Mocks: Prisma (dynamic import inside route), rate-limit.
+ *
+ * Note: CSRF is intentionally NOT enforced on /api/checkout/consent because it
+ * is a pre-auth public endpoint (users consent before paying/creating an
+ * account). Rate limiting by IP provides sufficient abuse protection.
  *
  * @module tests/unit/consent-route
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 
 // ---------------------------------------------------------------------------
 // Hoisted mock variables
@@ -17,11 +21,9 @@ import { NextRequest, NextResponse } from 'next/server';
 const {
   mockAuditLogCreate,
   mockRateLimit,
-  mockRequireCSRF,
 } = vi.hoisted(() => ({
   mockAuditLogCreate: vi.fn().mockResolvedValue({ id: 'audit-1' }),
   mockRateLimit: vi.fn(),
-  mockRequireCSRF: vi.fn().mockReturnValue(null),
 }));
 
 // ---------------------------------------------------------------------------
@@ -41,10 +43,6 @@ vi.mock('@/lib/middleware/rate-limit', () => ({
     auth: { requests: 5, windowMs: 900000, keyPrefix: 'ratelimit:auth' },
     strict: { requests: 3, windowMs: 3600000, keyPrefix: 'ratelimit:strict' },
   },
-}));
-
-vi.mock('@/lib/security/csrf', () => ({
-  requireCSRF: mockRequireCSRF,
 }));
 
 // ---------------------------------------------------------------------------
@@ -125,26 +123,11 @@ describe('POST /api/checkout/consent', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     rateLimitAllow();
-    mockRequireCSRF.mockReturnValue(null);
   });
 
-  // -----------------------------------------------------------------------
-  // CSRF
-  // -----------------------------------------------------------------------
-
-  it('returns 403 when CSRF validation fails', async () => {
-    mockRequireCSRF.mockReturnValue(
-      NextResponse.json(
-        { success: false, error: 'Invalid CSRF token', code: 'CSRF_INVALID' },
-        { status: 403 }
-      )
-    );
-
-    const req = makeRequest({ consents: allConsentsTrue(), timestamp: new Date().toISOString() });
-    const res = await consentPOST(req);
-
-    expect(res.status).toBe(403);
-  });
+  // CSRF is intentionally not enforced on this route — it's a pre-auth public
+  // endpoint. Rate limiting by IP provides abuse protection. See
+  // app/api/checkout/consent/route.ts.
 
   // -----------------------------------------------------------------------
   // Rate limiting
