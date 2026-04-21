@@ -102,6 +102,16 @@ export function AddressAutocomplete({
           return;
         }
 
+        if (res.status === 502) {
+          // Upstream Amazon Location Service call failed (likely missing IAM perms).
+          // Show a clear "unavailable" message so users don't think their address
+          // is simply unknown.
+          setSuggestions([]);
+          setErrorMsg('Address suggestions unavailable');
+          setOpen(true);
+          return;
+        }
+
         if (!res.ok) {
           throw new Error(`Request failed: ${res.status}`);
         }

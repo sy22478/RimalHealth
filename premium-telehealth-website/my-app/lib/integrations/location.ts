@@ -9,6 +9,11 @@
  * @module lib/integrations/location
  */
 
+// Required IAM permissions for the ECS task role:
+// - geo:SearchPlaceIndexForText (address validation)
+// - geo:SearchPlaceIndexForSuggestions (address autocomplete)
+// - geo:GetPlace (hydrate suggestion details)
+
 import {
   LocationClient,
   SearchPlaceIndexForTextCommand,

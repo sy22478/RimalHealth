@@ -27,6 +27,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { LoadingButton } from '@/components/ui/LoadingButton';
+import {
+  AddressAutocomplete,
+  type AddressAutocompleteSuggestion,
+} from '@/components/forms/AddressAutocomplete';
 
 // ============================================================================
 // Validation Schema
@@ -72,14 +76,16 @@ interface PharmacyResult {
   state: string;
   zipCode: string;
   phone: string | null;
-  is24Hour: boolean;
-  hasDelivery: boolean;
-  hasDriveThru: boolean;
+  is24Hour?: boolean;
+  hasDelivery?: boolean;
+  hasDriveThru?: boolean;
+  distanceMiles?: number;
 }
 
 /**
  * Custom hook for debounced pharmacy search via the real API.
- * Calls GET /api/patient/pharmacies/search with query and optional zip.
+ * Calls GET /api/patient/pharmacies/search with name, plus ZIP or city
+ * (auto-detected: leading digit → ZIP, otherwise treated as city).
  */
 function usePharmacySearch() {
   const [pharmacies, setPharmacies] = React.useState<PharmacyResult[]>([]);
@@ -87,14 +93,15 @@ function usePharmacySearch() {
   const [searchError, setSearchError] = React.useState<string | null>(null);
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const search = React.useCallback((query: string, zip: string) => {
-    // Clear any pending debounce
+  const search = React.useCallback((nameQuery: string, locationQuery: string) => {
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
     }
 
-    // If both fields are empty, clear results
-    if (!query.trim() && !zip.trim()) {
+    const trimmedName = nameQuery.trim();
+    const trimmedLocation = locationQuery.trim();
+
+    if (!trimmedName && !trimmedLocation) {
       setPharmacies([]);
       setSearchError(null);
       return;
@@ -106,8 +113,21 @@ function usePharmacySearch() {
 
       try {
         const params = new URLSearchParams();
-        if (query.trim()) params.set('q', query.trim());
-        if (zip.trim()) params.set('zip', zip.trim());
+        if (trimmedName.length >= 2) params.set('name', trimmedName);
+        if (trimmedLocation.length >= 2) {
+          // Leading digit → treat as ZIP; otherwise treat as city
+          if (/^\d/.test(trimmedLocation)) {
+            params.set('zip', trimmedLocation);
+          } else {
+            params.set('q', trimmedLocation);
+          }
+        }
+
+        // Require at least one usable param (mirrors the API schema's refine).
+        if (!params.has('name') && !params.has('zip') && !params.has('q')) {
+          setPharmacies([]);
+          return;
+        }
 
         const response = await fetch(`/api/patient/pharmacies/search?${params.toString()}`, {
           credentials: 'include',
@@ -118,7 +138,7 @@ function usePharmacySearch() {
         }
 
         const data = await response.json() as { pharmacies: PharmacyResult[] };
-        setPharmacies(data.pharmacies);
+        setPharmacies(Array.isArray(data.pharmacies) ? data.pharmacies : []);
       } catch {
         setSearchError('Unable to search pharmacies. You can add one later from your profile.');
         setPharmacies([]);
@@ -128,7 +148,6 @@ function usePharmacySearch() {
     }, 300);
   }, []);
 
-  // Cleanup debounce timer on unmount
   React.useEffect(() => {
     return () => {
       if (debounceRef.current) {
@@ -257,20 +276,42 @@ function PersonalInfoStep() {
 }
 
 function AddressStep() {
-  const { register, formState: { errors } } = useFormContext<ProfileSetupData>();
-  
+  const { register, watch, setValue, formState: { errors } } = useFormContext<ProfileSetupData>();
+  const addressLine1 = watch('addressLine1') ?? '';
+
+  const handleAddressSelect = (suggestion: AddressAutocompleteSuggestion): void => {
+    setValue('addressLine1', suggestion.street || suggestion.text, {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
+    if (suggestion.city) {
+      setValue('city', suggestion.city, { shouldValidate: true, shouldDirty: true });
+    }
+    if (suggestion.zipCode) {
+      setValue('zipCode', suggestion.zipCode, { shouldValidate: true, shouldDirty: true });
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="addressLine1">
           Street Address <span className="text-red-500">*</span>
         </Label>
-        <Input
+        <AddressAutocomplete
           id="addressLine1"
-          {...register('addressLine1')}
-          placeholder="123 Main Street"
-          className={cn(errors.addressLine1 && 'border-red-500')}
+          value={addressLine1}
+          onChange={(next) =>
+            setValue('addressLine1', next, { shouldValidate: true, shouldDirty: true })
+          }
+          onSelect={handleAddressSelect}
+          placeholder="Start typing a California address..."
+          aria-invalid={!!errors.addressLine1}
+          inputClassName={cn(errors.addressLine1 && 'border-red-500')}
         />
+        <p className="text-xs text-gray-500">
+          Suggestions appear as you type. Select one to auto-fill city and ZIP code.
+        </p>
         {errors.addressLine1 && (
           <p className="text-sm text-red-500">{errors.addressLine1.message}</p>
         )}
@@ -393,16 +434,35 @@ function EmergencyContactStep() {
 function InsurancePharmacyStep() {
   const { register, watch, setValue, formState: { errors } } = useFormContext<ProfileSetupData>();
   const selectedPharmacy = watch('preferredPharmacyId');
-  const zipCode = watch('zipCode');
+  const profileZip = watch('zipCode');
   const { pharmacies, isSearching, searchError, search } = usePharmacySearch();
-  const [pharmacyQuery, setPharmacyQuery] = React.useState('');
+  const [nameQuery, setNameQuery] = React.useState('');
+  const [locationQuery, setLocationQuery] = React.useState('');
 
-  const handlePharmacySearch = React.useCallback(
-    (query: string) => {
-      setPharmacyQuery(query);
-      search(query, zipCode || '');
+  // Default the location input to the patient's profile ZIP on first render,
+  // so results are local out of the box.
+  const didInitLocation = React.useRef(false);
+  React.useEffect(() => {
+    if (!didInitLocation.current && profileZip && !locationQuery) {
+      setLocationQuery(profileZip);
+      didInitLocation.current = true;
+    }
+  }, [profileZip, locationQuery]);
+
+  const handleNameChange = React.useCallback(
+    (value: string) => {
+      setNameQuery(value);
+      search(value, locationQuery);
     },
-    [search, zipCode]
+    [search, locationQuery]
+  );
+
+  const handleLocationChange = React.useCallback(
+    (value: string) => {
+      setLocationQuery(value);
+      search(nameQuery, value);
+    },
+    [search, nameQuery]
   );
 
   return (
@@ -446,28 +506,42 @@ function InsurancePharmacyStep() {
           Preferred Pharmacy (Optional)
         </h4>
 
-        {/* Pharmacy Search Input */}
-        <div className="space-y-2">
-          <Label htmlFor="pharmacySearch">Search by name or city</Label>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              id="pharmacySearch"
-              value={pharmacyQuery}
-              onChange={(e) => handlePharmacySearch(e.target.value)}
-              placeholder="e.g., CVS, Walgreens, Los Angeles..."
-              className="pl-10"
-            />
-            {isSearching && (
-              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 animate-spin" />
-            )}
+        {/* Pharmacy Search Inputs — name + location (ZIP or city) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <Label htmlFor="pharmacyName">Pharmacy name</Label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                id="pharmacyName"
+                value={nameQuery}
+                onChange={(e) => handleNameChange(e.target.value)}
+                placeholder="e.g., CVS, Walgreens"
+                className="pl-10"
+              />
+            </div>
           </div>
-          {zipCode && (
-            <p className="text-xs text-gray-500">
-              Showing results near ZIP code {zipCode}
-            </p>
-          )}
+
+          <div className="space-y-2">
+            <Label htmlFor="pharmacyLocation">ZIP or city</Label>
+            <div className="relative">
+              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                id="pharmacyLocation"
+                value={locationQuery}
+                onChange={(e) => handleLocationChange(e.target.value)}
+                placeholder="90210 or Los Angeles"
+                className="pl-10"
+              />
+              {isSearching && (
+                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 animate-spin" />
+              )}
+            </div>
+          </div>
         </div>
+        <p className="text-xs text-gray-500">
+          Enter at least one — name, ZIP, or city.
+        </p>
 
         {/* Search Error */}
         {searchError && (
@@ -497,7 +571,14 @@ function InsurancePharmacyStep() {
                   className="w-4 h-4 mt-0.5 text-ocean-600 border-gray-300 focus:ring-ocean-500"
                 />
                 <div className="flex-1">
-                  <p className="font-medium text-gray-900">{pharmacy.name}</p>
+                  <p className="font-medium text-gray-900">
+                    {pharmacy.name}
+                    {typeof pharmacy.distanceMiles === 'number' && (
+                      <span className="ml-1 font-normal text-gray-500">
+                        · {pharmacy.distanceMiles.toFixed(1)} mi
+                      </span>
+                    )}
+                  </p>
                   <p className="text-sm text-gray-500">
                     {pharmacy.address}, {pharmacy.city}, {pharmacy.state} {pharmacy.zipCode}
                   </p>
@@ -518,12 +599,12 @@ function InsurancePharmacyStep() {
                 </div>
               </label>
             ))
-          ) : pharmacyQuery.trim() && !isSearching && !searchError ? (
+          ) : (nameQuery.trim() || locationQuery.trim()) && !isSearching && !searchError ? (
             <div className="text-center py-6 text-gray-500">
               <Building2 className="h-8 w-8 mx-auto mb-2 text-gray-300" />
               <p className="text-sm">No pharmacies found. Try a different search term.</p>
             </div>
-          ) : !pharmacyQuery.trim() ? (
+          ) : !nameQuery.trim() && !locationQuery.trim() ? (
             <p className="text-sm text-gray-500 text-center py-4">
               Start typing to search for a pharmacy near you.
             </p>

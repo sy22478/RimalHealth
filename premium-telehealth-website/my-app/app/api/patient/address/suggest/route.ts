@@ -61,10 +61,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const result = await getSuggestions(parsed.data.query);
 
-    return NextResponse.json({
-      suggestions: result.suggestions,
-      error: result.error,
-    });
+    // Distinguish "no results" (200, empty array) from "service broken" (502).
+    // When getSuggestions returns an error, the upstream AWS call failed —
+    // typically because the ECS task role is missing geo:SearchPlaceIndexForSuggestions
+    // or geo:GetPlace permissions. Surface that as 502 so the UI can render
+    // an "unavailable" message instead of "no matches".
+    if (result.error) {
+      return NextResponse.json(
+        { suggestions: [], error: 'Address service temporarily unavailable' },
+        { status: 502 }
+      );
+    }
+
+    return NextResponse.json({ suggestions: result.suggestions });
   } catch (error) {
     console.error(
       'Address suggest route error:',
