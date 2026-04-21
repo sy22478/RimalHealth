@@ -7,6 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
+import {
+  AddressAutocomplete,
+  type AddressAutocompleteSuggestion,
+} from '@/components/forms/AddressAutocomplete';
 
 // ============================================================================
 // Types
@@ -208,17 +212,16 @@ export function PatientPharmacySearch({
             aria-label="Pharmacy name"
             className="flex-1"
           />
-          <Input
-            type="text"
-            placeholder="ZIP or city"
+          <AddressAutocomplete
             value={locationQuery}
-            onChange={(e) => setLocationQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && canSearch) {
-                e.preventDefault();
-                void handleSearch();
-              }
+            onChange={(next) => setLocationQuery(next)}
+            onSelect={(s: AddressAutocompleteSuggestion) => {
+              // Use ZIP when available so pharmacy search hits the zip branch;
+              // otherwise fall back to city.
+              const next = s.zipCode || s.city || s.text;
+              setLocationQuery(next);
             }}
+            placeholder="ZIP or city"
             disabled={disabled || isLoading}
             aria-label="Location (ZIP or city)"
             className="flex-1"

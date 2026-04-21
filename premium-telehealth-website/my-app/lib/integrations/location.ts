@@ -12,14 +12,19 @@
 import {
   LocationClient,
   SearchPlaceIndexForTextCommand,
+  SearchPlaceIndexForSuggestionsCommand,
+  GetPlaceCommand,
 } from '@aws-sdk/client-location';
 
 // ============================================================================
 // Client (singleton)
 // ============================================================================
 
+const LOCATION_TIMEOUT_MS = 8_000;
+
 const locationClient = new LocationClient({
   region: process.env.AWS_REGION || 'us-east-1',
+  requestHandler: { requestTimeout: LOCATION_TIMEOUT_MS },
   // No credentials needed — ECS task role provides them automatically
 });
 
@@ -120,6 +125,107 @@ export async function validateAddress(
       valid: false,
       suggestions: [],
       error: error instanceof Error ? error.message : 'Address validation failed',
+    };
+  }
+}
+
+// ============================================================================
+// Typeahead suggestions
+// ============================================================================
+
+export interface AddressSuggestionResult {
+  text: string;
+  street: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+export interface GetSuggestionsResult {
+  suggestions: AddressSuggestionResult[];
+  error?: string;
+}
+
+const MAX_SUGGESTIONS = 5;
+
+/**
+ * Return typeahead address suggestions from Amazon Location Service.
+ * Uses SearchPlaceIndexForSuggestions (cheap) then GetPlace per candidate to
+ * hydrate structured components. Filtered to California results only.
+ */
+export async function getSuggestions(query: string): Promise<GetSuggestionsResult> {
+  const trimmed = query.trim();
+  if (trimmed.length < 3) {
+    return { suggestions: [] };
+  }
+
+  try {
+    const suggestCmd = new SearchPlaceIndexForSuggestionsCommand({
+      IndexName: PLACE_INDEX,
+      Text: trimmed,
+      FilterCountries: ['USA'],
+      MaxResults: MAX_SUGGESTIONS,
+    });
+
+    const suggestResponse = await locationClient.send(suggestCmd);
+    const candidates = (suggestResponse.Results ?? []).filter((r) => r.PlaceId);
+
+    if (candidates.length === 0) {
+      return { suggestions: [] };
+    }
+
+    const places = await Promise.all(
+      candidates.map(async (candidate) => {
+        try {
+          const placeResponse = await locationClient.send(
+            new GetPlaceCommand({
+              IndexName: PLACE_INDEX,
+              PlaceId: candidate.PlaceId!,
+            })
+          );
+          return { candidate, place: placeResponse.Place };
+        } catch (err) {
+          console.error(
+            'GetPlace failed:',
+            err instanceof Error ? err.message : 'Unknown error'
+          );
+          return { candidate, place: undefined };
+        }
+      })
+    );
+
+    const suggestions: AddressSuggestionResult[] = places
+      .filter(({ place }) => {
+        if (!place) return false;
+        const region = place.Region ?? '';
+        return region === 'California' || region === 'CA';
+      })
+      .map(({ candidate, place }) => {
+        const p = place!;
+        const [lng, lat] = p.Geometry?.Point ?? [undefined, undefined];
+        const addressParts = [p.AddressNumber, p.Street].filter(Boolean);
+        return {
+          text: p.Label ?? candidate.Text ?? '',
+          street: addressParts.join(' '),
+          city: p.Municipality ?? '',
+          state: 'CA',
+          zipCode: p.PostalCode ?? '',
+          latitude: typeof lat === 'number' ? lat : undefined,
+          longitude: typeof lng === 'number' ? lng : undefined,
+        };
+      });
+
+    return { suggestions };
+  } catch (error) {
+    console.error(
+      'Address suggestions error:',
+      error instanceof Error ? error.message : 'Unknown error'
+    );
+    return {
+      suggestions: [],
+      error: error instanceof Error ? error.message : 'Address suggestions failed',
     };
   }
 }

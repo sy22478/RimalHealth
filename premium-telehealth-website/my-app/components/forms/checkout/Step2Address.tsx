@@ -12,6 +12,10 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCheckout } from "./CheckoutContext";
 import { Step2Data, step2Schema } from "./types";
+import {
+  AddressAutocomplete,
+  type AddressAutocompleteSuggestion,
+} from "@/components/forms/AddressAutocomplete";
 
 // ============================================================================
 // Step 2: Address Information
@@ -54,10 +58,56 @@ export function Step2Address() {
   });
 
   const billingSameAsHome = watch("billingSameAsHome");
+  const addressStreet = watch("addressStreet");
+  const billingStreet = watch("billingStreet");
 
   const onSubmit = async (data: unknown) => {
     updateFormData(data as Step2Data);
     await goToNextStep();
+  };
+
+  const handleHomeSelect = (suggestion: AddressAutocompleteSuggestion): void => {
+    setValue("addressStreet", suggestion.street || suggestion.text, {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
+    if (suggestion.city) {
+      setValue("addressCity", suggestion.city, {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
+    }
+    if (suggestion.zipCode) {
+      setValue("addressZip", suggestion.zipCode, {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
+    }
+  };
+
+  const handleBillingSelect = (suggestion: AddressAutocompleteSuggestion): void => {
+    setValue("billingStreet", suggestion.street || suggestion.text, {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
+    if (suggestion.city) {
+      setValue("billingCity", suggestion.city, {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
+    }
+    if (suggestion.state) {
+      setValue("billingState", suggestion.state, {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
+    }
+    if (suggestion.zipCode) {
+      setValue("billingZip", suggestion.zipCode, {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
+    }
   };
 
   return (
@@ -81,16 +131,25 @@ export function Step2Address() {
             <Label htmlFor="addressStreet">
               Street Address <span className="text-destructive">*</span>
             </Label>
-            <Input
+            <AddressAutocomplete
               id="addressStreet"
-              {...register("addressStreet")}
-              placeholder="123 Main Street"
+              value={addressStreet ?? ""}
+              onChange={(next) =>
+                setValue("addressStreet", next, {
+                  shouldValidate: true,
+                  shouldDirty: true,
+                })
+              }
+              onSelect={handleHomeSelect}
+              placeholder="Start typing a California address..."
               aria-invalid={!!errors.addressStreet}
-              className={cn(
-                "mt-1.5",
-                errors.addressStreet && "border-destructive"
-              )}
+              className="mt-1.5"
+              inputClassName={cn(errors.addressStreet && "border-destructive")}
             />
+            <p className="text-xs text-muted-foreground mt-1.5">
+              Suggestions appear as you type. Select one to auto-fill city and
+              ZIP code.
+            </p>
             {errors.addressStreet && (
               <p className="text-sm text-destructive mt-1.5" role="alert">
                 {errors.addressStreet.message}
@@ -194,13 +253,20 @@ export function Step2Address() {
                   <Label htmlFor="billingStreet">
                     Street Address <span className="text-destructive">*</span>
                   </Label>
-                  <Input
+                  <AddressAutocomplete
                     id="billingStreet"
-                    {...register("billingStreet")}
-                    placeholder="123 Main Street"
+                    value={billingStreet ?? ""}
+                    onChange={(next) =>
+                      setValue("billingStreet", next, {
+                        shouldValidate: true,
+                        shouldDirty: true,
+                      })
+                    }
+                    onSelect={handleBillingSelect}
+                    placeholder="Start typing an address..."
                     aria-invalid={!!errors.billingStreet}
-                    className={cn(
-                      "mt-1.5",
+                    className="mt-1.5"
+                    inputClassName={cn(
                       errors.billingStreet && "border-destructive"
                     )}
                   />
