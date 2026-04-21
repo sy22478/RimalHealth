@@ -1,28 +1,21 @@
 /**
  * Physician Dashboard Page
  *
- * Main dashboard for physicians showing key metrics,
- * pending reviews, and quick actions.
+ * Main dashboard for physicians showing key metrics
+ * and quick links to full Queue and Prescriptions pages.
  *
  * @module app/physician/dashboard/page
  */
 
 import * as React from 'react';
 import { Metadata } from 'next';
+import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { DashboardStats } from '@/components/physician/DashboardStats';
-import { ReviewQueue } from '@/components/physician/ReviewQueue';
-import { PrescriptionList } from '@/components/physician/PrescriptionList';
 import { Badge } from '@/components/ui/badge';
-import {
-  AlertCircle,
-} from 'lucide-react';
-import type {
-  PhysicianDashboardStats,
-  ReviewQueueItem,
-  PhysicianPrescriptionListItem,
-} from '@/types/physician-dashboard';
-import { getRiskLevelFromScore } from '@/types/physician-dashboard';
+import { Card, CardContent } from '@/components/ui/card';
+import { AlertCircle, ClipboardList, Pill } from 'lucide-react';
+import type { PhysicianDashboardStats } from '@/types/physician-dashboard';
 
 // ============================================================================
 // Metadata
@@ -49,23 +42,15 @@ const defaultStats: PhysicianDashboardStats = {
 };
 
 // ============================================================================
-// Components
-// ============================================================================
-
-
-// ============================================================================
 // Main Page
 // ============================================================================
 
 export default async function PhysicianDashboardPage() {
   let stats: PhysicianDashboardStats = defaultStats;
-  let queueItems: ReviewQueueItem[] = [];
-  let prescriptions: PhysicianPrescriptionListItem[] = [];
   let queueApiStats: { totalPending?: number; overdueCount?: number } | null = null;
   let allFetchesFailed = false;
   let queueFetchFailed = false;
   let statsFetchFailed = false;
-  let prescriptionsFetchFailed = false;
 
   try {
     const cookieStore = await cookies();
@@ -74,7 +59,7 @@ export default async function PhysicianDashboardPage() {
 
     if (token) {
       const authCookie = `accessToken=${token}`;
-      const [queueRes, statsRes, prescriptionsRes] = await Promise.allSettled([
+      const [queueRes, statsRes] = await Promise.allSettled([
         fetch(`${appUrl}/api/physician/queue`, {
           headers: { Cookie: authCookie },
           cache: 'no-store',
@@ -83,35 +68,14 @@ export default async function PhysicianDashboardPage() {
           headers: { Cookie: authCookie },
           cache: 'no-store',
         }),
-        fetch(`${appUrl}/api/physician/prescriptions`, {
-          headers: { Cookie: authCookie },
-          cache: 'no-store',
-        }),
       ]);
 
       if (queueRes.status === 'fulfilled' && queueRes.value.ok) {
         const queueData = await queueRes.value.json();
-        const rawItems = Array.isArray(queueData.items) ? queueData.items
-          : Array.isArray(queueData.queue) ? queueData.queue : [];
-        // Capture queue API stats (DB-backed counts)
+        // Capture queue API stats (DB-backed counts) for stats fallback
         if (queueData.stats) {
           queueApiStats = queueData.stats;
         }
-        // Map queue API items (QueueItem shape) to ReviewQueueItem shape
-        queueItems = rawItems.map((item: Record<string, unknown>) => {
-          const status = item.status === 'SUBMITTED' ? 'PENDING'
-            : item.status === 'UNDER_REVIEW' ? 'IN_REVIEW'
-            : (item.status as string) || 'PENDING';
-          const waitTimeHours = typeof item.waitTimeHours === 'number' ? item.waitTimeHours : 0;
-          return {
-            ...item,
-            status,
-            waitTimeHours,
-            isOverdue: typeof item.isOverdue === 'boolean' ? item.isOverdue : waitTimeHours >= 24,
-            treatmentType: (item.treatmentType as string) || (item.concernType as string) || 'ALCOHOL',
-            riskLevel: (item.riskLevel as string) || getRiskLevelFromScore(item.riskScore as number | undefined),
-          } as ReviewQueueItem;
-        });
       } else {
         queueFetchFailed = true;
       }
@@ -133,38 +97,16 @@ export default async function PhysicianDashboardPage() {
         }
       }
 
-      if (prescriptionsRes.status === 'fulfilled' && prescriptionsRes.value.ok) {
-        const prescriptionsData = await prescriptionsRes.value.json();
-        if (Array.isArray(prescriptionsData.prescriptions)) {
-          prescriptions = prescriptionsData.prescriptions;
-        }
-      } else {
-        prescriptionsFetchFailed = true;
-      }
-
-      allFetchesFailed = queueFetchFailed && statsFetchFailed && prescriptionsFetchFailed;
+      allFetchesFailed = queueFetchFailed && statsFetchFailed;
     }
   } catch {
     // API unavailable — keep empty/zero defaults
     allFetchesFailed = true;
     queueFetchFailed = true;
     statsFetchFailed = true;
-    prescriptionsFetchFailed = true;
   }
 
-  // Use the best available pending count: stats API > queue API stats > item count
-  const pendingCount = stats.pendingReviews || queueApiStats?.totalPending || queueItems.length;
-  const overdueCount = stats.overdueReviews || queueApiStats?.overdueCount || queueItems.filter((i) => i.isOverdue).length;
-
-  const queueStats = {
-    totalPending: pendingCount,
-    overdueCount,
-    inReviewCount: queueItems.filter((i) => i.status === 'IN_REVIEW').length,
-    newlySubmittedCount: queueItems.filter((i) => i.waitTimeHours < 4).length,
-    highRiskCount: queueItems.filter((i) => i.riskLevel === 'HIGH' || i.riskLevel === 'SEVERE').length,
-  };
-
-  const hasPartialFailure = !allFetchesFailed && (queueFetchFailed || statsFetchFailed || prescriptionsFetchFailed);
+  const hasPartialFailure = !allFetchesFailed && (queueFetchFailed || statsFetchFailed);
 
   return (
     <div className="space-y-8">
@@ -184,7 +126,6 @@ export default async function PhysicianDashboardPage() {
             {[
               statsFetchFailed && 'statistics',
               queueFetchFailed && 'review queue',
-              prescriptionsFetchFailed && 'prescriptions',
             ]
               .filter(Boolean)
               .join(', ')}{' '}
@@ -214,24 +155,34 @@ export default async function PhysicianDashboardPage() {
       {/* Stats */}
       <DashboardStats stats={stats} />
 
-      {/* Main Content Grid */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Review Queue — takes up 2 columns */}
-        <div className="lg:col-span-2">
-          <ReviewQueue
-            items={queueItems}
-            stats={queueStats}
-            compact
-          />
-        </div>
-
-        {/* Right Column — Recent Prescriptions */}
-        <div className="space-y-6">
-          <PrescriptionList
-            prescriptions={prescriptions}
-            compact
-          />
-        </div>
+      {/* Quick Links */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Link href="/physician/queue" className="group">
+          <Card className="transition-shadow hover:shadow-md">
+            <CardContent className="p-6 flex items-center gap-4">
+              <div className="rounded-lg bg-navy-50 p-3">
+                <ClipboardList className="size-5 text-navy-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold group-hover:underline">Patient Queue</h3>
+                <p className="text-sm text-muted-foreground">Review pending intakes</p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/physician/prescriptions" className="group">
+          <Card className="transition-shadow hover:shadow-md">
+            <CardContent className="p-6 flex items-center gap-4">
+              <div className="rounded-lg bg-ocean-50 p-3">
+                <Pill className="size-5 text-ocean-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold group-hover:underline">Prescriptions</h3>
+                <p className="text-sm text-muted-foreground">Manage active prescriptions</p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
     </div>
   );

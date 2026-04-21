@@ -66,7 +66,7 @@ interface EnhancedQueueClientProps {
 }
 
 type FilterType = 'ALL' | 'HIGH_PRIORITY' | 'ALCOHOL';
-type SortType = 'PRIORITY' | 'WAIT_TIME' | 'COMPLEXITY';
+type SortType = 'PRIORITY' | 'WAIT_TIME';
 type ViewMode = 'GRID' | 'LIST';
 
 interface ActiveFilters {
@@ -91,7 +91,6 @@ const FILTER_OPTIONS: { type: FilterType; label: string; icon: React.ReactNode }
 const SORT_OPTIONS: { type: SortType; label: string; description: string }[] = [
   { type: 'PRIORITY', label: 'Priority', description: 'Highest risk first' },
   { type: 'WAIT_TIME', label: 'Wait Time', description: 'Oldest first' },
-  { type: 'COMPLEXITY', label: 'Complexity', description: 'Most complex first' },
 ];
 
 // ============================================================================
@@ -132,27 +131,9 @@ function sortItems(items: QueueItem[], sort: SortType): QueueItem[] {
       // Sort by wait time descending (oldest first)
       sorted.sort((a, b) => b.waitTimeHours - a.waitTimeHours);
       break;
-    case 'COMPLEXITY':
-      // Sort by complexity (risk * 0.7 + overdue bonus)
-      sorted.sort((a, b) => {
-        const complexityA = (a.riskScore || 0) * 0.7 + (a.isOverdue ? 20 : 0);
-        const complexityB = (b.riskScore || 0) * 0.7 + (b.isOverdue ? 20 : 0);
-        return complexityB - complexityA;
-      });
-      break;
   }
-  
-  return sorted;
-}
 
-/**
- * Calculate complexity score for display
- */
-function getComplexityScore(item: QueueItem): number {
-  return Math.min(
-    Math.round((item.riskScore || 0) * 0.7 + (item.waitTimeHours > 24 ? 20 : 0)),
-    100
-  );
+  return sorted;
 }
 
 // ============================================================================
