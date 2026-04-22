@@ -58,9 +58,29 @@ interface ValidateAddressParams {
 }
 
 interface ValidateAddressResult {
+  /** True when Amazon Location returned a CA result (existing semantic). */
   valid: boolean;
+  /**
+   * True only when the top CA result's city AND ZIP match what the user
+   * entered. `valid: true` with `verified: false` means the geocoder found
+   * a California address but it differs from what the user typed — callers
+   * should prompt the user to confirm the corrected address.
+   */
+  verified: boolean;
   suggestions: AddressSuggestion[];
+  /** The top CA result, if any — what a "Did you mean…?" prompt should offer. */
+  correctedAddress?: AddressSuggestion;
+  /** Human-readable reasons `verified` is false (city/ZIP mismatch). */
+  warnings: string[];
   error?: string;
+}
+
+function normalizeCity(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function normalizeZip(value: string): string {
+  return value.trim().substring(0, 5);
 }
 
 // ============================================================================
@@ -89,7 +109,7 @@ export async function validateAddress(
     const results = response.Results ?? [];
 
     if (results.length === 0) {
-      return { valid: false, suggestions: [] };
+      return { valid: false, verified: false, suggestions: [], warnings: [] };
     }
 
     const suggestions: AddressSuggestion[] = results
@@ -120,7 +140,40 @@ export async function validateAddress(
     const topRegion = topResult?.Region ?? '';
     const isValid = topRegion === 'California' || topRegion === 'CA';
 
-    return { valid: isValid, suggestions };
+    // "verified" requires a stricter check: the top CA result's city and ZIP
+    // must match what the user entered. Amazon Location Service will happily
+    // return a nearby match from a different municipality when the exact
+    // street/city/ZIP combo doesn't exist, which previously looked "verified".
+    const warnings: string[] = [];
+    const correctedAddress = suggestions[0];
+    let verified = false;
+
+    if (isValid && correctedAddress) {
+      const cityMatches =
+        normalizeCity(correctedAddress.city) === normalizeCity(city);
+      const zipMatches =
+        normalizeZip(correctedAddress.zipCode) === normalizeZip(zip);
+
+      if (!zipMatches && correctedAddress.zipCode) {
+        warnings.push(
+          `ZIP code doesn't match. Did you mean ${correctedAddress.zipCode}?`
+        );
+      }
+      if (!cityMatches && correctedAddress.city) {
+        warnings.push(
+          `City doesn't match. Did you mean ${correctedAddress.city}?`
+        );
+      }
+      verified = cityMatches && zipMatches;
+    }
+
+    return {
+      valid: isValid,
+      verified,
+      suggestions,
+      correctedAddress,
+      warnings,
+    };
   } catch (error) {
     console.error(
       'Address validation error:',
@@ -128,7 +181,9 @@ export async function validateAddress(
     );
     return {
       valid: false,
+      verified: false,
       suggestions: [],
+      warnings: [],
       error: error instanceof Error ? error.message : 'Address validation failed',
     };
   }

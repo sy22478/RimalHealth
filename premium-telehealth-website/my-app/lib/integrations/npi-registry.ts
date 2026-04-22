@@ -188,7 +188,11 @@ export async function searchNpiPharmacies(
     url.searchParams.set('city', city);
   }
   if (name) {
-    url.searchParams.set('organization_name', name);
+    // Pharmacies register under legal names ("CVS PHARMACY", "WALGREENS #1234"),
+    // not the brand word alone. Append a trailing * so "CVS" matches "CVS PHARMACY",
+    // "CVS/PHARMACY", etc. The NPI Registry API treats `*` as a wildcard.
+    const query = name.endsWith('*') ? name : `${name}*`;
+    url.searchParams.set('organization_name', query);
   }
 
   const controller = new AbortController();

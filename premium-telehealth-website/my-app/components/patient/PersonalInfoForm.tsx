@@ -569,7 +569,9 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
 
   // Address validation state
   const [addressValidating, setAddressValidating] = React.useState(false);
+  // null = not yet checked, true = fully verified, false = unverified/mismatch
   const [addressValid, setAddressValid] = React.useState<boolean | null>(null);
+  const [addressWarnings, setAddressWarnings] = React.useState<string[]>([]);
   const [addressSuggestions, setAddressSuggestions] = React.useState<Array<{
     label: string;
     street: string;
@@ -588,6 +590,7 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
     setAddressValidating(true);
     setAddressValid(null);
     setAddressSuggestions([]);
+    setAddressWarnings([]);
 
     try {
       const res = await fetch('/api/patient/address/validate', {
@@ -609,8 +612,14 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
       }
 
       const data = await res.json();
-      setAddressValid(data.valid);
-      if (!data.valid && Array.isArray(data.suggestions)) {
+      const warnings: string[] = Array.isArray(data.warnings) ? data.warnings : [];
+      // Treat verified=false (city/ZIP mismatch) the same as valid=false in the
+      // UI so we prompt the user to confirm the corrected address rather than
+      // quietly accepting a different municipality.
+      const isFullyVerified = data.valid === true && data.verified === true;
+      setAddressValid(isFullyVerified);
+      setAddressWarnings(warnings);
+      if (!isFullyVerified && Array.isArray(data.suggestions)) {
         setAddressSuggestions(data.suggestions);
       }
     } catch {
@@ -627,6 +636,7 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
     setValue('addressZip', suggestion.zipCode, { shouldDirty: true });
     setAddressValid(true);
     setAddressSuggestions([]);
+    setAddressWarnings([]);
   };
 
   const onSubmit = async (data: PersonalInfoFormValues): Promise<void> => {
@@ -1008,7 +1018,15 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
                   <Alert>
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
-                      We couldn&apos;t verify that address. Did you mean one of these?
+                      {addressWarnings.length > 0 ? (
+                        <div className="space-y-1">
+                          {addressWarnings.map((w, i) => (
+                            <p key={i}>{w}</p>
+                          ))}
+                        </div>
+                      ) : (
+                        <>We couldn&apos;t verify that address. Did you mean one of these?</>
+                      )}
                     </AlertDescription>
                   </Alert>
                   <div className="space-y-1.5 max-h-48 overflow-y-auto">

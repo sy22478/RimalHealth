@@ -120,8 +120,19 @@ export function AddressAutocomplete({
         const list: AddressAutocompleteSuggestion[] = Array.isArray(data.suggestions)
           ? data.suggestions
           : [];
-        setSuggestions(list);
-        setHighlightIndex(list.length > 0 ? 0 : -1);
+        // Collapse suggestions that share the same street+ZIP (e.g. Amazon
+        // Location returns "93726 Fresno CA" and "93726 Clovis CA" for one
+        // ZIP; keep only the first so the user isn't asked to pick between
+        // two entries that are really the same postal area).
+        const seen = new Set<string>();
+        const deduped = list.filter((s) => {
+          const key = `${(s.street ?? '').trim().toLowerCase()}|${(s.zipCode ?? '').trim()}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+        setSuggestions(deduped);
+        setHighlightIndex(deduped.length > 0 ? 0 : -1);
         setOpen(true);
       } catch (err) {
         if ((err as { name?: string }).name === 'AbortError') return;

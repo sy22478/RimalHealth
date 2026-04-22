@@ -80,7 +80,7 @@ describe('searchNpiPharmacies - name search', () => {
     vi.restoreAllMocks();
   });
 
-  it('accepts a name parameter and sends organization_name to NPI API', async () => {
+  it('accepts a name parameter and sends organization_name with wildcard to NPI API', async () => {
     const fetchMock = mockFetch({ body: { result_count: 1, results: [npiResult()] } });
 
     const result = await searchNpiPharmacies({ name: 'CVS' });
@@ -88,7 +88,8 @@ describe('searchNpiPharmacies - name search', () => {
     expect(result.success).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const url = new URL(fetchMock.mock.calls[0][0] as string);
-    expect(url.searchParams.get('organization_name')).toBe('CVS');
+    // Trailing * is appended so "CVS" matches legal names like "CVS PHARMACY".
+    expect(url.searchParams.get('organization_name')).toBe('CVS*');
     expect(url.searchParams.get('state')).toBe('CA');
     expect(url.searchParams.get('taxonomy_description')).toBe('pharmacy');
   });
@@ -99,8 +100,17 @@ describe('searchNpiPharmacies - name search', () => {
     await searchNpiPharmacies({ name: 'CVS', zip: '90210' });
 
     const url = new URL(fetchMock.mock.calls[0][0] as string);
-    expect(url.searchParams.get('organization_name')).toBe('CVS');
+    expect(url.searchParams.get('organization_name')).toBe('CVS*');
     expect(url.searchParams.get('postal_code')).toBe('90210');
+  });
+
+  it('does not double up the wildcard if the caller already supplied one', async () => {
+    const fetchMock = mockFetch({ body: { result_count: 0, results: [] } });
+
+    await searchNpiPharmacies({ name: 'WALGREENS*' });
+
+    const url = new URL(fetchMock.mock.calls[0][0] as string);
+    expect(url.searchParams.get('organization_name')).toBe('WALGREENS*');
   });
 
   it('returns error when no search params are provided', async () => {

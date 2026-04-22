@@ -99,6 +99,23 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       searchCity = q;
     }
 
+    // Pull the patient profile once — we reuse it for the name-only fallback
+    // (next block) and for proximity sorting further down. Selecting only the
+    // columns we need skips PHI decryption for fields we don't read.
+    const patientProfile = await prisma.patientProfile.findUnique({
+      where: { userId: auth.user.userId },
+      select: { addressZip: true, latitude: true, longitude: true },
+    });
+
+    // Name-only searches default to the patient's saved ZIP, so a patient
+    // typing "CVS" gets pharmacies near them rather than a statewide list.
+    if (name && !searchZip && !searchCity && patientProfile?.addressZip) {
+      const patientZip = patientProfile.addressZip.substring(0, 5);
+      if (/^\d{5}$/.test(patientZip)) {
+        searchZip = patientZip;
+      }
+    }
+
     let pharmacies: Array<{
       id: string;
       name: string;
@@ -201,11 +218,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Proximity sort: if the patient has a saved geocoded address, lazy-geocode
     // any results missing coordinates, compute Haversine distances, and sort
     // by distance ascending. Skipped entirely when the patient has no address.
-    const patientProfile = await prisma.patientProfile.findUnique({
-      where: { userId: auth.user.userId },
-      select: { latitude: true, longitude: true },
-    });
-
     if (
       patientProfile?.latitude != null &&
       patientProfile?.longitude != null &&

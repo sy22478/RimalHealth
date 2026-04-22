@@ -35,7 +35,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({
       valid: result.valid,
+      verified: result.verified,
       suggestions: result.suggestions,
+      correctedAddress: result.correctedAddress,
+      warnings: result.warnings,
       error: result.error,
     });
   } catch (error) {
