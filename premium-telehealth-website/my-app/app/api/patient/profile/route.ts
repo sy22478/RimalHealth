@@ -26,6 +26,21 @@ import { DEFAULT_ALLOWED_STATE } from '@/lib/constants';
 // that are listed in PHI_FIELDS — doing so causes double-encryption (data corruption).
 
 /**
+ * Safely process a PHI-derived field. Catches unexpected errors (e.g. decryption
+ * edge cases, malformed JSON after decrypt) and returns null so one bad field
+ * never 500s the whole profile. The field name is logged; the value is NOT
+ * (it is PHI).
+ */
+function safeField<T>(fieldName: string, compute: () => T): T | null {
+  try {
+    return compute();
+  } catch (error) {
+    console.error(`[profile] failed to process field ${fieldName}:`, error instanceof Error ? error.message : 'Unknown error');
+    return null;
+  }
+}
+
+/**
  * Coerce a single array item to a display string. Items may be strings or
  * objects like { name: 'Adderall' } / { label: '...' } / { value: '...' };
  * naive String() coercion on objects yields literal '[object Object]'.
@@ -259,29 +274,29 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       id: profile.userId,
       email: profile.user.email,
       emailVerified: profile.user.emailVerified,
-      firstName: profile.firstName,
-      lastName: profile.lastName,
-      dateOfBirth: profile.dateOfBirth,
-      phone: profile.phone,
-      addressStreet: profile.addressStreet,
-      addressCity: profile.addressCity,
+      firstName: safeField('firstName', () => profile.firstName),
+      lastName: safeField('lastName', () => profile.lastName),
+      dateOfBirth: safeField('dateOfBirth', () => profile.dateOfBirth),
+      phone: safeField('phone', () => profile.phone),
+      addressStreet: safeField('addressStreet', () => profile.addressStreet),
+      addressCity: safeField('addressCity', () => profile.addressCity),
       addressState: profile.addressState,
-      addressZip: profile.addressZip,
+      addressZip: safeField('addressZip', () => profile.addressZip),
       primaryConcern: profile.primaryConcern,
       treatmentGoal: profile.treatmentGoal,
-      medicalHistory: extractMedicalConditions(profile.medicalHistory),
-      currentMedications: extractMedications(profile.currentMedications),
-      allergies: serializePHIField(profile.allergies),
+      medicalHistory: safeField('medicalHistory', () => extractMedicalConditions(profile.medicalHistory)),
+      currentMedications: safeField('currentMedications', () => extractMedications(profile.currentMedications)),
+      allergies: safeField('allergies', () => serializePHIField(profile.allergies)),
       pharmacy,
       notificationPreferences: profile.notificationPreferences,
       privacyConsent: {
         given: profile.privacyConsentGiven,
-        date: profile.privacyConsentDate?.toISOString(),
+        date: safeField('privacyConsentDate', () => profile.privacyConsentDate?.toISOString()),
         version: profile.privacyConsentVersion,
       },
       termsAccepted: {
         accepted: profile.termsAccepted,
-        date: profile.termsAcceptedDate?.toISOString(),
+        date: safeField('termsAcceptedDate', () => profile.termsAcceptedDate?.toISOString()),
       },
       createdAt: profile.createdAt.toISOString(),
       updatedAt: profile.updatedAt.toISOString(),
@@ -578,29 +593,29 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
         id: refreshedProfile.userId,
         email: refreshedProfile.user.email,
         emailVerified: refreshedProfile.user.emailVerified,
-        firstName: refreshedProfile.firstName,
-        lastName: refreshedProfile.lastName,
-        dateOfBirth: refreshedProfile.dateOfBirth,
-        phone: refreshedProfile.phone,
-        addressStreet: refreshedProfile.addressStreet,
-        addressCity: refreshedProfile.addressCity,
+        firstName: safeField('firstName', () => refreshedProfile.firstName),
+        lastName: safeField('lastName', () => refreshedProfile.lastName),
+        dateOfBirth: safeField('dateOfBirth', () => refreshedProfile.dateOfBirth),
+        phone: safeField('phone', () => refreshedProfile.phone),
+        addressStreet: safeField('addressStreet', () => refreshedProfile.addressStreet),
+        addressCity: safeField('addressCity', () => refreshedProfile.addressCity),
         addressState: refreshedProfile.addressState,
-        addressZip: refreshedProfile.addressZip,
+        addressZip: safeField('addressZip', () => refreshedProfile.addressZip),
         primaryConcern: refreshedProfile.primaryConcern,
         treatmentGoal: refreshedProfile.treatmentGoal,
-        medicalHistory: extractMedicalConditions(refreshedProfile.medicalHistory),
-        currentMedications: extractMedications(refreshedProfile.currentMedications),
-        allergies: serializePHIField(refreshedProfile.allergies),
+        medicalHistory: safeField('medicalHistory', () => extractMedicalConditions(refreshedProfile.medicalHistory)),
+        currentMedications: safeField('currentMedications', () => extractMedications(refreshedProfile.currentMedications)),
+        allergies: safeField('allergies', () => serializePHIField(refreshedProfile.allergies)),
         pharmacy: updatedPharmacy,
         notificationPreferences: refreshedProfile.notificationPreferences,
         privacyConsent: {
           given: refreshedProfile.privacyConsentGiven,
-          date: refreshedProfile.privacyConsentDate?.toISOString(),
+          date: safeField('privacyConsentDate', () => refreshedProfile.privacyConsentDate?.toISOString()),
           version: refreshedProfile.privacyConsentVersion,
         },
         termsAccepted: {
           accepted: refreshedProfile.termsAccepted,
-          date: refreshedProfile.termsAcceptedDate?.toISOString(),
+          date: safeField('termsAcceptedDate', () => refreshedProfile.termsAcceptedDate?.toISOString()),
         },
         createdAt: refreshedProfile.createdAt.toISOString(),
         updatedAt: refreshedProfile.updatedAt.toISOString(),

@@ -9,11 +9,11 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { Prisma, Role } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { auditLogger, AuditEventType } from '@/lib/audit/index';
 import { getClientIP } from '@/lib/audit/utils';
 import { requireRole } from '@/lib/auth/require-auth';
-import { Role } from '@prisma/client';
 
 // ============================================================================
 // Validation Schema
@@ -132,32 +132,26 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
 
     const data = validation.data;
 
-    // Get profile
-    const profile = await prisma.patientProfile.findUnique({
-      where: { userId },
-    });
+    const notificationPreferences = {
+      emailNotifications: data.emailNotifications,
+      smsNotifications: data.smsNotifications,
+      marketingEmails: data.marketingEmails,
+      appointmentReminders: data.appointmentReminders,
+      prescriptionAlerts: data.prescriptionAlerts,
+      messageAlerts: data.messageAlerts,
+      profileVisibility: data.profileVisibility,
+      shareDataForResearch: data.shareDataForResearch,
+    };
 
-    if (!profile) {
-      return NextResponse.json(
-        { error: 'Profile not found', code: 'NOT_FOUND' },
-        { status: 404 }
-      );
-    }
-
-    // Update notification preferences as JSON field
+    // Update only notificationPreferences — avoid depending on the rest of the
+    // profile being readable. This sidesteps any PHI decryption edge cases on
+    // fields we are not touching.
     const updatedProfile = await prisma.patientProfile.update({
       where: { userId },
-      data: {
-        notificationPreferences: {
-          emailNotifications: data.emailNotifications,
-          smsNotifications: data.smsNotifications,
-          marketingEmails: data.marketingEmails,
-          appointmentReminders: data.appointmentReminders,
-          prescriptionAlerts: data.prescriptionAlerts,
-          messageAlerts: data.messageAlerts,
-          profileVisibility: data.profileVisibility,
-          shareDataForResearch: data.shareDataForResearch,
-        },
+      data: { notificationPreferences },
+      select: {
+        id: true,
+        notificationPreferences: true,
       },
     });
 
@@ -171,7 +165,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
       ipAddress,
       userAgent,
       resourceType: 'PatientProfile',
-      resourceId: profile.id,
+      resourceId: updatedProfile.id,
       success: true,
       metadata: {
         changedFields: Object.keys(data),
@@ -186,7 +180,15 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
 
   } catch (error) {
     console.error('Preferences update error:', error instanceof Error ? error.message : 'Unknown error');
-    
+
+    // Profile row doesn't exist — surface as 404 instead of 500
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      return NextResponse.json(
+        { error: 'Profile not found', code: 'NOT_FOUND' },
+        { status: 404 }
+      );
+    }
+
     return NextResponse.json(
       { error: 'Failed to update preferences', code: 'INTERNAL_ERROR' },
       { status: 500 }
