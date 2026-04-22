@@ -158,8 +158,8 @@
 
 /* Reduced motion: disable custom animations */
 @media (prefers-reduced-motion: reduce) {
-  .animate-\\[circle-draw_0\\.5s_ease-out_forwards\\],
-  .animate-\\[check-draw_0\\.4s_ease-out_0\\.4s_forwards\\] {
+  [class*="animate-[circle-draw"],
+  [class*="animate-[check-draw"] {
     animation: none !important;
     stroke-dashoffset: 0 !important;
   }
