@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/auth/require-auth';
 import { prisma } from '@/lib/db/prisma';
-import { downloadFile } from '@/lib/integrations/storage';
+import { downloadFile, getContentType } from '@/lib/integrations/storage';
 import { auditPHIAccess, createAuditContext, PHIResourceType } from '@/lib/audit/index';
 import { DocumentStatus, Role } from '@prisma/client';
 
@@ -86,9 +86,18 @@ export async function GET(
       );
     }
 
+    // Resolve Content-Type. Fall back to file-extension lookup when the
+    // stored MIME type is missing or is the generic octet-stream — otherwise
+    // the browser refuses to render images/PDFs inline and shows raw bytes.
+    const storedMime = document.mimeType;
+    const isUsableMime = Boolean(storedMime) && storedMime !== 'application/octet-stream';
+    const resolvedMime = isUsableMime
+      ? storedMime
+      : getContentType(document.fileName);
+
     // Support inline viewing for images and PDFs via ?mode=view
     const mode = request.nextUrl.searchParams.get('mode');
-    const viewableMime = document.mimeType?.startsWith('image/') || document.mimeType === 'application/pdf';
+    const viewableMime = resolvedMime.startsWith('image/') || resolvedMime === 'application/pdf';
     const isInlineView = mode === 'view' && viewableMime;
 
     // Sanitize filename for the Content-Disposition header to prevent CRLF /
@@ -118,7 +127,7 @@ export async function GET(
 
     return new NextResponse(new Uint8Array(fileBuffer), {
       headers: {
-        'Content-Type': document.mimeType || 'application/octet-stream',
+        'Content-Type': resolvedMime,
         'Content-Disposition': disposition,
         'Content-Length': String(fileBuffer.length),
         'Cache-Control': 'no-store',
