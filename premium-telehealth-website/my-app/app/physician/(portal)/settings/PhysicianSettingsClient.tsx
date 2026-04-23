@@ -21,6 +21,7 @@ import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CheckCircle, AlertCircle, Lock, User, Shield } from 'lucide-react';
 import { MFASettingsCard } from './MFASettingsCard';
+import { fetchWithCSRF } from '@/lib/security/csrf';
 
 // ============================================================================
 // Types
@@ -89,7 +90,7 @@ function ChangePasswordForm() {
     setErrorMessage('');
 
     try {
-      const res = await fetch('/api/auth/change-password', {
+      const res = await fetchWithCSRF('/api/auth/change-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

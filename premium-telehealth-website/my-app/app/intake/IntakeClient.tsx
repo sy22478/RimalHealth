@@ -32,6 +32,35 @@ import { PatientPharmacySearch, SelectedPharmacy } from '@/components/patient/Ph
 import { MedicalTerm } from '@/components/patient/MedicalTerm';
 
 // ============================================================================
+// Address Validation Context
+// ============================================================================
+
+interface AddressSuggestion {
+  street: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  label?: string;
+}
+
+interface AddressValidationState {
+  /** Warnings returned by /api/patient/address/validate (e.g. "City doesn't match"). */
+  warnings: string[];
+  /** Top CA match from Amazon Location when the user's input didn't fully verify. */
+  correctedAddress: AddressSuggestion | null;
+  /** True once the user explicitly confirms their typed address. */
+  override: boolean;
+  /** Replace the street/city/ZIP form fields with a suggestion from Amazon Location. */
+  applySuggestion: (suggestion: AddressSuggestion) => void;
+  /** Mark the user's typed address as confirmed; clears warnings. */
+  confirmOverride: () => void;
+}
+
+const AddressValidationContext = React.createContext<AddressValidationState | null>(
+  null,
+);
+
+// ============================================================================
 // Validation Schema -- 8 Sections, 33 Questions + Personal Info (no consent)
 // ============================================================================
 
@@ -225,6 +254,7 @@ function BooleanRadio({ fieldKey, label }: { fieldKey: keyof IntakeFormData; lab
 
 function PersonalInfoStep(): React.ReactElement {
   const { register, formState: { errors } } = useFormContext<IntakeFormData>();
+  const addressValidation = React.useContext(AddressValidationContext);
 
   return (
     <section aria-label="Section 0: Personal Information" className="space-y-6">
@@ -292,6 +322,62 @@ function PersonalInfoStep(): React.ReactElement {
               {errors.addressZip && <p className="text-sm text-red-500" role="alert">{errors.addressZip.message}</p>}
             </div>
           </div>
+
+          {/* Address verification warnings (populated when the user clicks Next
+              and Amazon Location flags a city/ZIP mismatch). */}
+          {addressValidation && addressValidation.warnings.length > 0 && !addressValidation.override && (
+            <Alert variant="destructive" className="mt-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Address needs verification</AlertTitle>
+              <AlertDescription className="space-y-3">
+                <ul className="list-disc list-inside space-y-1">
+                  {addressValidation.warnings.map((w, i) => (
+                    <li key={i}>{w}</li>
+                  ))}
+                </ul>
+                {addressValidation.correctedAddress && (
+                  <div className="rounded-md border border-red-200 bg-white/60 p-3">
+                    <p className="text-sm font-medium text-gray-900">Did you mean:</p>
+                    <p className="text-sm text-gray-700">
+                      {addressValidation.correctedAddress.street},{' '}
+                      {addressValidation.correctedAddress.city}, CA{' '}
+                      {addressValidation.correctedAddress.zipCode}
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="default"
+                        onClick={() =>
+                          addressValidation.applySuggestion(addressValidation.correctedAddress!)
+                        }
+                      >
+                        Use this address
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={addressValidation.confirmOverride}
+                      >
+                        My address is correct
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                {!addressValidation.correctedAddress && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={addressValidation.confirmOverride}
+                  >
+                    My address is correct
+                  </Button>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
         </div>
       </div>
 
@@ -1519,11 +1605,113 @@ export default function IntakePage(): React.ReactElement {
     mode: 'onBlur',
   });
 
-  const { handleSubmit, trigger, formState: { isDirty }, getValues, watch } = methods;
+  const { handleSubmit, trigger, formState: { isDirty }, getValues, setValue, watch } = methods;
 
   // Track whether the form has edits that haven't been persisted to the server
   // since the last successful save (separate from RHF's isDirty, which stays true).
   const [hasUnsavedChanges, setHasUnsavedChanges] = React.useState(false);
+
+  // Address verification state — populated by handleNext when the user tries to
+  // leave the Personal Info step and Amazon Location flags a mismatch.
+  const [addressWarnings, setAddressWarnings] = React.useState<string[]>([]);
+  const [addressCorrected, setAddressCorrected] = React.useState<AddressSuggestion | null>(null);
+  const [addressOverride, setAddressOverride] = React.useState(false);
+
+  const applyAddressSuggestion = React.useCallback(
+    (suggestion: AddressSuggestion) => {
+      setValue('addressStreet', suggestion.street, { shouldDirty: true, shouldValidate: true });
+      setValue('addressCity', suggestion.city, { shouldDirty: true, shouldValidate: true });
+      setValue('addressZip', suggestion.zipCode, { shouldDirty: true, shouldValidate: true });
+      setAddressWarnings([]);
+      setAddressCorrected(null);
+      setAddressOverride(false);
+    },
+    [setValue],
+  );
+
+  const confirmAddressOverride = React.useCallback(() => {
+    setAddressOverride(true);
+  }, []);
+
+  const addressValidationValue = React.useMemo(
+    () => ({
+      warnings: addressWarnings,
+      correctedAddress: addressCorrected,
+      override: addressOverride,
+      applySuggestion: applyAddressSuggestion,
+      confirmOverride: confirmAddressOverride,
+    }),
+    [addressWarnings, addressCorrected, addressOverride, applyAddressSuggestion, confirmAddressOverride],
+  );
+
+  // Any edit to the address fields resets the override so a new mismatch
+  // check happens on the next attempt to advance.
+  React.useEffect(() => {
+    const subscription = watch((_, { name }) => {
+      if (name === 'addressStreet' || name === 'addressCity' || name === 'addressZip') {
+        setAddressOverride(false);
+        setAddressWarnings([]);
+        setAddressCorrected(null);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [watch]);
+
+  /**
+   * Call the address-validation API for the current personal-info values.
+   * Returns true when the address is verified OR the user has explicitly
+   * overridden the mismatch warning. Returns false (and populates the
+   * warning state) when the user must take action before continuing.
+   * Fails open (returns true) on network errors so a flaky Location
+   * Service never blocks intake progression.
+   */
+  const verifyPatientAddress = React.useCallback(async (): Promise<boolean> => {
+    if (addressOverride) return true;
+    const { addressStreet, addressCity, addressZip } = getValues();
+    if (!addressStreet || !addressCity || !addressZip) return true;
+    try {
+      const res = await fetch('/api/patient/address/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          street: addressStreet,
+          city: addressCity,
+          state: 'CA',
+          zip: addressZip,
+        }),
+      });
+      if (!res.ok) {
+        // Service unavailable — fail open so users aren't blocked by infra.
+        return true;
+      }
+      const data = (await res.json()) as {
+        valid?: boolean;
+        verified?: boolean;
+        warnings?: string[];
+        correctedAddress?: AddressSuggestion | null;
+      };
+      const warnings = Array.isArray(data.warnings) ? data.warnings : [];
+      if (data.valid === true && data.verified === true) {
+        setAddressWarnings([]);
+        setAddressCorrected(null);
+        return true;
+      }
+      // Mismatch or out-of-CA — surface warnings and block advancement.
+      const fallbackWarnings =
+        warnings.length > 0
+          ? warnings
+          : data.valid === false
+            ? ['Address is outside California or could not be located.']
+            : ['Address could not be verified. Please double-check the street, city, and ZIP code.'];
+      setAddressWarnings(fallbackWarnings);
+      setAddressCorrected(data.correctedAddress ?? null);
+      return false;
+    } catch (err) {
+      console.error('Intake address validation failed:', err instanceof Error ? err.message : 'Unknown error');
+      return true;
+    }
+  }, [addressOverride, getValues]);
 
   React.useEffect(() => {
     const subscription = watch(() => setHasUnsavedChanges(true));
@@ -1624,14 +1812,25 @@ export default function IntakePage(): React.ReactElement {
 
   const handleNext = async (): Promise<void> => {
     const isValid = await validateCurrentStep();
-    if (isValid && currentStep < steps.length - 1) {
+    if (!isValid) {
+      scrollToFirstError();
+      return;
+    }
+    // Address verification gate on the Personal Info step. Blocks when the
+    // typed street/city/ZIP disagrees with Amazon Location and the user has
+    // not yet clicked "Use this address" or "My address is correct".
+    if (steps[currentStep].id === 'personal') {
+      const addressOk = await verifyPatientAddress();
+      if (!addressOk) {
+        return;
+      }
+    }
+    if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
 
       // Save draft on section completion
       saveDraft();
-    } else if (!isValid) {
-      scrollToFirstError();
     }
   };
 
@@ -1700,6 +1899,25 @@ export default function IntakePage(): React.ReactElement {
 
       if (!submitResponse.ok) {
         const error = await submitResponse.json().catch(() => ({}));
+        // If the server rejected the home address, surface the warnings in
+        // the address UI and bounce the user back to the personal step rather
+        // than showing a raw error banner.
+        if (error?.code === 'ADDRESS_INVALID') {
+          const warnings = Array.isArray(error.warnings) && error.warnings.length > 0
+            ? error.warnings
+            : [error.error || 'Address could not be verified.'];
+          setAddressWarnings(warnings);
+          setAddressCorrected(error.correctedAddress ?? null);
+          setAddressOverride(false);
+          const personalIndex = steps.findIndex((s) => s.id === 'personal');
+          if (personalIndex !== -1) {
+            setCurrentStep(personalIndex);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+          setIsSubmitting(false);
+          setShowConfirmModal(false);
+          return;
+        }
         throw new Error(error.message || error.error || 'Failed to submit intake form');
       }
 
@@ -1727,11 +1945,23 @@ export default function IntakePage(): React.ReactElement {
 
     // Validate all fields before showing confirmation
     const allValid = await trigger();
-    if (allValid) {
-      setShowConfirmModal(true);
-    } else {
+    if (!allValid) {
       scrollToFirstError();
+      return;
     }
+    // Re-run address verification at submit time so a user who skipped back to
+    // an earlier step and edited their address can't bypass the mismatch gate.
+    const addressOk = await verifyPatientAddress();
+    if (!addressOk) {
+      // Jump the user back to the personal info step so they see the warning.
+      const personalIndex = steps.findIndex((s) => s.id === 'personal');
+      if (personalIndex !== -1) {
+        setCurrentStep(personalIndex);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      return;
+    }
+    setShowConfirmModal(true);
   };
 
   const handleConfirmSubmit = (): void => {
@@ -1778,6 +2008,7 @@ export default function IntakePage(): React.ReactElement {
         </div>
 
         <FormProvider {...methods}>
+          <AddressValidationContext.Provider value={addressValidationValue}>
           <form
             onSubmit={(e) => e.preventDefault()}
             onKeyDown={(e: React.KeyboardEvent) => {
@@ -1927,6 +2158,7 @@ export default function IntakePage(): React.ReactElement {
               </CardContent>
             </Card>
           </form>
+          </AddressValidationContext.Provider>
         </FormProvider>
 
         {/* Security Note */}

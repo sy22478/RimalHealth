@@ -181,21 +181,22 @@ export async function POST(
           zip: intakeZip,
         });
 
-        if (!addrResult.error && !addrResult.valid) {
-          if (addrResult.suggestions.length > 0) {
-            return NextResponse.json(
-              {
-                error: 'Address could not be verified',
-                code: 'ADDRESS_INVALID',
-                suggestions: addrResult.suggestions,
-              },
-              { status: 400 }
-            );
-          }
+        // Reject when the address is not in CA (valid=false) OR when the
+        // top CA match's city/ZIP disagrees with the user's input
+        // (verified=false). The latter catches cases like street in one
+        // municipality typed with another city/ZIP — Amazon Location would
+        // otherwise return a nearby CA result that passes the CA-only check
+        // but describes a different address than what the user entered.
+        if (!addrResult.error && (!addrResult.valid || !addrResult.verified)) {
           return NextResponse.json(
             {
-              error: 'Address could not be verified. Please check and try again.',
+              error:
+                addrResult.warnings?.[0] ||
+                'Address could not be verified. Please check the street, city, and ZIP code.',
               code: 'ADDRESS_INVALID',
+              warnings: addrResult.warnings ?? [],
+              suggestions: addrResult.suggestions,
+              correctedAddress: addrResult.correctedAddress,
             },
             { status: 400 }
           );

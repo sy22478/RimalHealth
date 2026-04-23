@@ -36,6 +36,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { PatientPharmacySearch, SelectedPharmacy } from '@/components/patient/PharmacySearch';
+import { fetchWithCSRF } from '@/lib/security/csrf';
 
 // ============================================================================
 // Preset Options
@@ -644,12 +645,11 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
     setSubmitSuccess(false);
 
     try {
-      const res = await fetch('/api/patient/profile', {
+      const res = await fetchWithCSRF('/api/patient/profile', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include',
         body: JSON.stringify(data),
       });
 

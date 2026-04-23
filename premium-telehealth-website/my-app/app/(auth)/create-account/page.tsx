@@ -163,7 +163,7 @@ function CreateAccountContent(): React.JSX.Element {
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [status, setStatus] = useState<'loading-email' | 'idle' | 'loading' | 'success' | 'error' | 'invalid-token'>('loading-email');
+  const [status, setStatus] = useState<'loading-email' | 'idle' | 'loading' | 'success' | 'error' | 'invalid-token' | 'rate-limited'>('loading-email');
   const [errorMessage, setErrorMessage] = useState('');
   const [userEmail, setUserEmail] = useState('');
 
@@ -190,6 +190,14 @@ function CreateAccountContent(): React.JSX.Element {
       const result = await response.json();
 
       if (!response.ok || !result.email) {
+        if (response.status === 429 || result.code === 'RATE_LIMITED') {
+          setStatus('rate-limited');
+          setErrorMessage(
+            result.error ||
+              'Too many verification attempts. Please wait a few minutes and try again.'
+          );
+          return;
+        }
         setStatus('invalid-token');
         setErrorMessage(result.error || 'Invalid or expired link');
         return;
@@ -206,6 +214,41 @@ function CreateAccountContent(): React.JSX.Element {
   useEffect(() => {
     fetchEmail();
   }, [fetchEmail]);
+
+  // Rate-limited state — distinct from an invalid/expired token so the user
+  // knows the link itself is fine, they just need to wait.
+  if (status === 'rate-limited') {
+    return (
+      <div className="w-full">
+        <Card className="shadow-lg border-gray-200/80">
+          <CardContent className="pt-8 pb-8 text-center">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 border border-amber-100">
+              <svg className="h-7 w-7 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h1 className="text-2xl font-bold text-navy mb-3">Too Many Attempts</h1>
+            <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
+              {errorMessage ||
+                'Too many verification attempts. Please wait a few minutes and reload this page.'}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setStatus('loading-email');
+                setErrorMessage('');
+                fetchEmail();
+              }}
+              className="inline-flex items-center gap-2 text-ocean font-medium hover:text-ocean-600 transition-colors"
+            >
+              Try again
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   // Invalid token state
   if (!token || status === 'invalid-token') {

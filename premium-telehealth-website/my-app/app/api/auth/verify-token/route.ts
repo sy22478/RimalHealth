@@ -15,7 +15,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'crypto';
 import { prisma } from '@/lib/db/prisma';
-import { rateLimit, rateLimitPresets } from '@/lib/middleware/rate-limit';
+import { rateLimit } from '@/lib/middleware/rate-limit';
 import { auditPasswordEvent } from '@/lib/audit/logger';
 import { AuditContext, AuditEventType } from '@/lib/audit/types';
 
@@ -34,12 +34,29 @@ function getAuditContext(request: NextRequest): AuditContext {
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  // Rate limiting: strict — 5 requests per 15 minutes per IP
+  // Rate limiting: 10 GETs per 15 min per (IP + token) pair. This endpoint is
+  // idempotent and legitimately gets hit more than once during normal flows
+  // (e.g. when the page mounts, when the user refreshes, or when React Strict
+  // Mode double-invokes effects in development). Key by token so a shared-IP
+  // NAT/VPN doesn't lock everyone out. Still fails closed per IP as a backstop
+  // when no token is present.
   const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
-  const rateLimitResult = await rateLimit(clientIp, rateLimitPresets.strict);
+  const tokenParam = request.nextUrl.searchParams.get('token') ?? '';
+  const rateLimitKey = tokenParam
+    ? `${clientIp}:${tokenParam.slice(0, 16)}`
+    : clientIp;
+  const rateLimitResult = await rateLimit(rateLimitKey, {
+    requests: 10,
+    windowMs: 15 * 60 * 1000,
+    keyPrefix: 'ratelimit:verify-token',
+    useMemoryFallback: true,
+  });
   if (!rateLimitResult.success) {
     return NextResponse.json(
-      { error: 'Too many requests. Please try again later.', code: 'RATE_LIMITED' },
+      {
+        error: 'Too many verification attempts. Please wait a few minutes and try again.',
+        code: 'RATE_LIMITED',
+      },
       { status: 429, headers: { 'Retry-After': String(rateLimitResult.retryAfter ?? 60) } }
     );
   }

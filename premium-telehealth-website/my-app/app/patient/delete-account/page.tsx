@@ -28,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { fetchWithCSRF } from '@/lib/security/csrf';
 
 // ============================================================================
 // Validation Schema
@@ -192,10 +193,9 @@ export default function DeleteAccountPage(): React.ReactElement {
     setSubmitError(null);
 
     try {
-      const res = await fetch('/api/patient/delete-account', {
+      const res = await fetchWithCSRF('/api/patient/delete-account', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           reason: data.reason,
           details: data.details || undefined,

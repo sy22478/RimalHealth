@@ -227,6 +227,50 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
     stripeSubscription = await getStripe().subscriptions.retrieve(subscriptionId);
   }
 
+  // ========================================================================
+  // 2a. Pin the customer's default payment method to the one used at
+  // checkout. Without this, trial subscriptions in 'trialing' status leave
+  // Customer.invoice_settings.default_payment_method empty, so the billing
+  // page has nothing to render and the user thinks their card wasn't saved.
+  // ========================================================================
+  if (customerId) {
+    try {
+      let paymentMethodId: string | null = null;
+      // Prefer the PM on the subscription (Stripe sets this for trial
+      // subscriptions created via Checkout with collection: 'always').
+      const subPm = stripeSubscription?.default_payment_method;
+      if (typeof subPm === 'string') {
+        paymentMethodId = subPm;
+      } else if (subPm && typeof subPm === 'object' && 'id' in subPm) {
+        paymentMethodId = (subPm as { id: string }).id;
+      }
+      // Fall back to the SetupIntent the Checkout Session created.
+      if (!paymentMethodId && session.setup_intent) {
+        const setupIntentId = typeof session.setup_intent === 'string'
+          ? session.setup_intent
+          : (session.setup_intent as { id: string }).id;
+        const setupIntent = await getStripe().setupIntents.retrieve(setupIntentId);
+        if (typeof setupIntent.payment_method === 'string') {
+          paymentMethodId = setupIntent.payment_method;
+        } else if (setupIntent.payment_method && 'id' in setupIntent.payment_method) {
+          paymentMethodId = (setupIntent.payment_method as { id: string }).id;
+        }
+      }
+      if (paymentMethodId) {
+        await getStripe().customers.update(customerId, {
+          invoice_settings: { default_payment_method: paymentMethodId },
+        });
+      }
+    } catch (pmError) {
+      // Non-fatal — webhook continues and the cascading lookup in
+      // getDefaultPaymentMethod will still work via subscription/list.
+      console.error(
+        '[Stripe Webhook] Failed to pin default payment method:',
+        pmError instanceof Error ? pmError.message : 'Unknown error',
+      );
+    }
+  }
+
   const stripeSub = stripeSubscription as unknown as { current_period_start?: number; current_period_end?: number };
   const periodStart = stripeSub?.current_period_start
     ? new Date(stripeSub.current_period_start * 1000)

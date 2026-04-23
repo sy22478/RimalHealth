@@ -141,7 +141,55 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       message: 'Document uploaded successfully',
     }, { status: 201 });
   } catch (error) {
-    console.error('Error uploading document:', error instanceof Error ? error.message : 'Unknown error');
+    // Surface enough detail in CloudWatch to diagnose S3 misconfiguration
+    // without leaking anything sensitive to the client. AWS SDK v3 errors
+    // carry a discriminating `name` (e.g. NoSuchBucket, AccessDenied,
+    // InvalidAccessKeyId, CredentialsProviderError) and a structured
+    // $metadata object with the HTTP status code.
+    const err = error as {
+      name?: string;
+      message?: string;
+      Code?: string;
+      $metadata?: { httpStatusCode?: number; requestId?: string };
+      cause?: { name?: string; message?: string; Code?: string };
+    };
+    const rootErr = err?.cause ?? err;
+    const errName = rootErr?.name ?? err?.name ?? 'UnknownError';
+    const errCode = rootErr?.Code ?? err?.Code;
+    const httpStatus = err?.$metadata?.httpStatusCode;
+    const requestId = err?.$metadata?.requestId;
+    console.error('Error uploading document:', {
+      errName,
+      errCode,
+      httpStatus,
+      requestId,
+      message: err?.message ?? 'Unknown error',
+      hasBucketEnv: Boolean(process.env.AWS_S3_BUCKET_NAME),
+      region: process.env.AWS_REGION ?? 'unset',
+    });
+
+    // Map well-known configuration/permission failures to a clearer response
+    // so the operator can diagnose from the frontend behaviour. Anything else
+    // falls back to a generic 500.
+    const configCodes = new Set([
+      'NoSuchBucket',
+      'AccessDenied',
+      'InvalidAccessKeyId',
+      'SignatureDoesNotMatch',
+      'CredentialsProviderError',
+      'ExpiredToken',
+    ]);
+    if (configCodes.has(errName) || configCodes.has(errCode ?? '')) {
+      return NextResponse.json(
+        {
+          error:
+            'Document storage is temporarily unavailable. Please try again shortly.',
+          code: 'STORAGE_UNAVAILABLE',
+        },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json(
       { error: 'Failed to upload document' },
       { status: 500 }

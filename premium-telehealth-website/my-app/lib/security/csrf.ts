@@ -493,7 +493,7 @@ export function appendCSRFToken(formData: FormData): FormData {
 
 /**
  * Fetch options with CSRF token header
- * 
+ *
  * @param options - Original fetch options
  * @returns Options with CSRF header added
  */
@@ -501,11 +501,11 @@ export function withCSRFHeader(
   options: RequestInit = {}
 ): RequestInit {
   const token = getClientCSRFToken();
-  
+
   if (!token) {
     return options;
   }
-  
+
   return {
     ...options,
     headers: {
@@ -513,4 +513,64 @@ export function withCSRFHeader(
       [DEFAULT_OPTIONS.headerName]: token,
     },
   };
+}
+
+/**
+ * Ensure a client-side CSRF token is available, priming it from /api/csrf if
+ * the double-submit cookies have not been set yet. Safe to call on every
+ * state-changing request — it short-circuits when the form token cookie
+ * already exists.
+ *
+ * @returns The form token, or null if the token could not be obtained.
+ */
+export async function ensureCSRFToken(): Promise<string | null> {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  const existing = getClientCSRFToken();
+  if (existing) {
+    return existing;
+  }
+
+  try {
+    const res = await fetch('/api/csrf', {
+      method: 'GET',
+      credentials: 'include',
+      cache: 'no-store',
+    });
+    if (!res.ok) {
+      return null;
+    }
+    const data = (await res.json()) as { csrfToken?: string };
+    return data.csrfToken ?? getClientCSRFToken();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Perform a fetch with CSRF protection. Automatically primes the CSRF token
+ * via /api/csrf when necessary and attaches it as X-CSRF-Token. Forces
+ * credentials: 'include' so double-submit cookies travel with the request.
+ *
+ * @param input - Fetch input (URL or Request)
+ * @param options - Fetch options
+ */
+export async function fetchWithCSRF(
+  input: RequestInfo | URL,
+  options: RequestInit = {}
+): Promise<Response> {
+  const token = await ensureCSRFToken();
+
+  const headers = new Headers(options.headers);
+  if (token) {
+    headers.set(DEFAULT_OPTIONS.headerName, token);
+  }
+
+  return fetch(input, {
+    ...options,
+    credentials: options.credentials ?? 'include',
+    headers,
+  });
 }
