@@ -119,7 +119,11 @@ export async function GET(
       }),
     ]);
 
-    if (!patientProfile || !user) {
+    // Only 404 when the underlying user doesn't exist. A missing PatientProfile
+    // shouldn't block the detail view — render whatever data we have (intakes,
+    // prescriptions, notes) so physicians can still see clinical history for
+    // patients whose profile row wasn't fully populated during signup.
+    if (!user) {
       return NextResponse.json(
         { error: 'Patient not found', code: 'NOT_FOUND' },
         { status: 404 }
@@ -137,12 +141,12 @@ export async function GET(
 
     // PHI fields (medicalHistory, currentMedications, allergies, insurance*, messages,
     // notes) are already decrypted by the Prisma encryption extension on read.
-    const medicalHistory = patientProfile.medicalHistory || null;
-    const currentMedications = patientProfile.currentMedications || null;
-    const allergies = patientProfile.allergies || null;
+    const medicalHistory = patientProfile?.medicalHistory || null;
+    const currentMedications = patientProfile?.currentMedications || null;
+    const allergies = patientProfile?.allergies || null;
 
     // Insurance info
-    const insurance = patientProfile.insuranceProvider
+    const insurance = patientProfile?.insuranceProvider
       ? {
           provider: patientProfile.insuranceProvider,
           memberId: patientProfile.insuranceMemberId || null,
@@ -175,44 +179,53 @@ export async function GET(
       updatedAt: note.updatedAt.toISOString(),
     }));
 
-    // Format patient data — PHI fields are already decrypted by Prisma extension
+    // Format patient data — PHI fields are already decrypted by Prisma extension.
+    // When patientProfile is null (profile not yet populated), fall back to nulls
+    // so the detail page can still render intakes/prescriptions/notes.
     const patientDetails = {
-      id: patientProfile.userId,
-      firstName: patientProfile.firstName,
-      lastName: patientProfile.lastName,
+      id: patientId,
+      firstName: patientProfile?.firstName ?? null,
+      lastName: patientProfile?.lastName ?? null,
       email: user.email,
-      dateOfBirth: patientProfile.dateOfBirth,
-      phone: patientProfile.phone,
-      address: {
-        street: patientProfile.addressStreet,
-        city: patientProfile.addressCity,
-        state: patientProfile.addressState,
-        zip: patientProfile.addressZip,
-      },
-      billingAddress: patientProfile.billingSameAsHome ? null : {
-        street: patientProfile.billingStreet || null,
-        city: patientProfile.billingCity || null,
-        state: patientProfile.billingState,
-        zip: patientProfile.billingZip || null,
-      },
-      primaryConcern: patientProfile.primaryConcern,
-      treatmentGoal: patientProfile.treatmentGoal,
+      dateOfBirth: patientProfile?.dateOfBirth ?? null,
+      phone: patientProfile?.phone ?? null,
+      profileIncomplete: !patientProfile,
+      address: patientProfile
+        ? {
+            street: patientProfile.addressStreet,
+            city: patientProfile.addressCity,
+            state: patientProfile.addressState,
+            zip: patientProfile.addressZip,
+          }
+        : null,
+      billingAddress: patientProfile && !patientProfile.billingSameAsHome
+        ? {
+            street: patientProfile.billingStreet || null,
+            city: patientProfile.billingCity || null,
+            state: patientProfile.billingState,
+            zip: patientProfile.billingZip || null,
+          }
+        : null,
+      primaryConcern: patientProfile?.primaryConcern ?? null,
+      treatmentGoal: patientProfile?.treatmentGoal ?? null,
       medicalHistory,
       currentMedications,
       allergies,
       insurance,
-      consent: {
-        privacy: {
-          given: patientProfile.privacyConsentGiven,
-          date: patientProfile.privacyConsentDate?.toISOString(),
-          version: patientProfile.privacyConsentVersion,
-        },
-        terms: {
-          accepted: patientProfile.termsAccepted,
-          date: patientProfile.termsAcceptedDate?.toISOString(),
-        },
-      },
-      notificationPreferences: patientProfile.notificationPreferences,
+      consent: patientProfile
+        ? {
+            privacy: {
+              given: patientProfile.privacyConsentGiven,
+              date: patientProfile.privacyConsentDate?.toISOString(),
+              version: patientProfile.privacyConsentVersion,
+            },
+            terms: {
+              accepted: patientProfile.termsAccepted,
+              date: patientProfile.termsAcceptedDate?.toISOString(),
+            },
+          }
+        : null,
+      notificationPreferences: patientProfile?.notificationPreferences ?? null,
       intakes: intakes.map((intake) => ({
           id: intake.id,
           status: intake.status,
@@ -291,8 +304,8 @@ export async function GET(
       })),
       notes: formattedNotes,
       messages: formattedMessages,
-      createdAt: patientProfile.createdAt.toISOString(),
-      updatedAt: patientProfile.updatedAt.toISOString(),
+      createdAt: (patientProfile?.createdAt ?? user.createdAt).toISOString(),
+      updatedAt: (patientProfile?.updatedAt ?? user.createdAt).toISOString(),
       lastVisit: intakes.length > 0 ? intakes[0].createdAt.toISOString() : null,
     };
 

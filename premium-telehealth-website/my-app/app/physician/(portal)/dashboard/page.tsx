@@ -48,6 +48,7 @@ const defaultStats: PhysicianDashboardStats = {
 export default async function PhysicianDashboardPage() {
   let stats: PhysicianDashboardStats = defaultStats;
   let queueApiStats: { totalPending?: number; overdueCount?: number } | null = null;
+  let queueItemCount: number | null = null;
   let allFetchesFailed = false;
   let queueFetchFailed = false;
   let statsFetchFailed = false;
@@ -72,9 +73,14 @@ export default async function PhysicianDashboardPage() {
 
       if (queueRes.status === 'fulfilled' && queueRes.value.ok) {
         const queueData = await queueRes.value.json();
-        // Capture queue API stats (DB-backed counts) for stats fallback
         if (queueData.stats) {
           queueApiStats = queueData.stats;
+        }
+        // Capture actual queue item count so the dashboard "Pending Reviews"
+        // card matches the number of rows on the queue page. Using the count
+        // alone can drift from the rendered list (missing relations, filters).
+        if (Array.isArray(queueData.queue)) {
+          queueItemCount = queueData.queue.length;
         }
       } else {
         queueFetchFailed = true;
@@ -95,6 +101,12 @@ export default async function PhysicianDashboardPage() {
             overdueReviews: queueApiStats.overdueCount ?? 0,
           };
         }
+      }
+
+      // Always prefer the real queue-items count for pendingReviews so the
+      // dashboard stat and the queue page agree on the same number.
+      if (queueItemCount !== null) {
+        stats = { ...stats, pendingReviews: queueItemCount };
       }
 
       allFetchesFailed = queueFetchFailed && statsFetchFailed;

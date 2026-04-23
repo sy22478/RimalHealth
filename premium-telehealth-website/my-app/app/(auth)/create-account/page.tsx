@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2, Eye, EyeOff, CheckCircle2, Mail, Shield, Lock, ArrowRight } from 'lucide-react';
+import { Loader2, Eye, EyeOff, CheckCircle2, Mail, Shield, Lock, ArrowRight, Send } from 'lucide-react';
 import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
@@ -153,6 +153,132 @@ function PasswordStrengthBar({ password }: { password: string }): React.JSX.Elem
 }
 
 // ============================================
+// Resend Verification Email form
+// ============================================
+
+const RESEND_COOLDOWN_SECONDS = 60;
+
+function ResendVerificationEmail(): React.JSX.Element {
+  const [email, setEmail] = useState('');
+  const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const [message, setMessage] = useState('');
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const interval = setInterval(() => {
+      setCooldown((prev) => Math.max(0, prev - 1));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [cooldown]);
+
+  const handleResend = async (e: React.FormEvent): Promise<void> => {
+    e.preventDefault();
+    if (!email || cooldown > 0 || state === 'sending') return;
+
+    setState('sending');
+    setMessage('');
+
+    try {
+      const response = await fetch('/api/auth/send-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      const result = await response.json().catch(() => ({}));
+
+      if (response.ok) {
+        setState('sent');
+        setMessage('Email resent! Check your inbox.');
+        setCooldown(RESEND_COOLDOWN_SECONDS);
+      } else if (response.status === 429) {
+        setState('error');
+        setMessage(
+          result.error || 'Too many requests. Please wait a few minutes and try again.'
+        );
+        setCooldown(RESEND_COOLDOWN_SECONDS);
+      } else {
+        setState('error');
+        setMessage(result.error || 'Failed to send email. Please try again.');
+      }
+    } catch {
+      setState('error');
+      setMessage('Unable to reach the server. Please try again.');
+    }
+  };
+
+  const disabled = cooldown > 0 || state === 'sending' || !email;
+  const buttonLabel =
+    state === 'sending'
+      ? 'Sending...'
+      : cooldown > 0
+        ? `Resend in ${cooldown}s`
+        : 'Resend Email';
+
+  return (
+    <div className="mt-8 pt-6 border-t border-gray-100 text-left">
+      <h2 className="text-sm font-semibold text-navy mb-1">
+        Didn&apos;t get the email?
+      </h2>
+      <p className="text-xs text-muted-foreground mb-4">
+        Enter your email below and we&apos;ll send a new verification link.
+      </p>
+
+      <form onSubmit={handleResend} className="space-y-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="resend-email" className="text-xs font-medium text-navy">
+            Email Address
+          </Label>
+          <Input
+            id="resend-email"
+            type="email"
+            autoComplete="email"
+            placeholder="you@example.com"
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              if (state !== 'idle' && state !== 'sending') {
+                setState('idle');
+                setMessage('');
+              }
+            }}
+            className="h-10"
+            disabled={state === 'sending'}
+          />
+        </div>
+
+        {message && (
+          <div
+            className={`p-3 rounded-lg text-xs ${
+              state === 'sent'
+                ? 'bg-green-50 border border-green-200 text-green-700'
+                : 'bg-red-50 border border-red-200 text-red-700'
+            }`}
+            role={state === 'sent' ? 'status' : 'alert'}
+          >
+            {message}
+          </div>
+        )}
+
+        <Button
+          type="submit"
+          disabled={disabled}
+          className="w-full h-10 rounded-full bg-gradient-to-r from-navy-500 to-ocean-500 hover:from-navy-600 hover:to-ocean-500 text-white text-sm font-semibold"
+        >
+          {state === 'sending' ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Send className="mr-2 h-3.5 w-3.5" />
+          )}
+          {buttonLabel}
+        </Button>
+      </form>
+    </div>
+  );
+}
+
+// ============================================
 // Main Content
 // ============================================
 
@@ -272,6 +398,8 @@ function CreateAccountContent(): React.JSX.Element {
               Go to Login
               <ArrowRight className="h-4 w-4" />
             </Link>
+
+            <ResendVerificationEmail />
           </CardContent>
         </Card>
       </div>
