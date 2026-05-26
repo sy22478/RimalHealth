@@ -17,10 +17,11 @@ import {
   formatCurrency,
   getProfileCompletionStatus
 } from '@/types/dashboard';
-import { 
-  IntakeStatus, 
-  SubscriptionStatus, 
-  PrescriptionStatus 
+import {
+  IntakeStatus,
+  SubscriptionStatus,
+  PrescriptionStatus,
+  ReviewDecision,
 } from '@prisma/client';
 import { AlertCircle, CheckCircle2, ChevronDown, ChevronRight, ChevronUp, ShieldCheck, Sparkles, User, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -403,14 +404,20 @@ function DashboardBanners({
                   Your intake was not approved. No charges were applied.
                 </p>
                 {data.intake?.review?.rejectionReason && (
-                  <p className="text-sm text-red-700 mt-1">
+                  <p className="text-sm text-red-700 mt-1 whitespace-pre-wrap break-words">
                     <span className="font-medium">Reason:</span> {data.intake.review.rejectionReason}
                   </p>
                 )}
                 {data.intake?.review?.alternativeRecommendation && (
-                  <p className="text-sm text-red-700 mt-1">
+                  <p className="text-sm text-red-700 mt-1 whitespace-pre-wrap break-words">
                     <span className="font-medium">Recommendation:</span>{' '}
                     {data.intake.review.alternativeRecommendation}
+                  </p>
+                )}
+                {data.intake?.review?.clinicalNotes && (
+                  <p className="text-sm text-red-700 mt-1 whitespace-pre-wrap break-words">
+                    <span className="font-medium">Physician&apos;s note:</span>{' '}
+                    {data.intake.review.clinicalNotes}
                   </p>
                 )}
                 <p className="text-sm text-red-600 mt-2">
@@ -470,7 +477,11 @@ function DashboardBanners({
     });
   }
 
-  if (data.intake?.review?.decision === 'APPROVED' && data.intake.review.clinicalNotes) {
+  // Surface the physician's clinical note for approved intakes.
+  // The DB stores the decision as the ReviewDecision enum ("APPROVE" / "REJECT" /
+  // "NEEDS_INFO") — the prior comparison against "APPROVED" never matched, so
+  // patients couldn't see their physician's notes after approval.
+  if (data.intake?.review?.decision === ReviewDecision.APPROVE && data.intake.review.clinicalNotes) {
     banners.push({
       key: 'physician-note',
       element: (
@@ -480,7 +491,7 @@ function DashboardBanners({
               <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="font-medium text-green-900">Your physician&apos;s note</p>
-                <p className="text-sm text-green-700 mt-1">{data.intake.review.clinicalNotes}</p>
+                <p className="text-sm text-green-700 mt-1 whitespace-pre-wrap break-words">{data.intake.review.clinicalNotes}</p>
               </div>
             </div>
           </CardContent>
