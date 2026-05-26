@@ -127,29 +127,6 @@ function getConcernConfig(concernType: string): {
 }
 
 /**
- * Calculate age from date of birth string.
- * Parses YYYY-MM-DD as local date to avoid timezone shift.
- */
-function calculateAge(dateOfBirth: string | Date): number {
-  let dob: Date;
-  if (typeof dateOfBirth === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth)) {
-    const [year, month, day] = dateOfBirth.split('-').map(Number);
-    dob = new Date(year, month - 1, day);
-  } else {
-    dob = new Date(dateOfBirth);
-  }
-  const today = new Date();
-  let age = today.getFullYear() - dob.getFullYear();
-  const monthDiff = today.getMonth() - dob.getMonth();
-
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
-    age--;
-  }
-
-  return age;
-}
-
-/**
  * Format relative time (e.g., "2 hours ago")
  */
 function formatRelativeTime(dateString: string): string {
@@ -193,7 +170,14 @@ export function QueueItemEnhanced({
   const concern = getConcernConfig(item.concernType);
   const riskConfig = getRiskScoreConfig(item.riskScore);
   const waitTimeFormatted = formatWaitTime(item.waitTimeHours);
-  const relativeTime = formatRelativeTime(item.submittedAt);
+  const [relativeTime, setRelativeTime] = React.useState('');
+  React.useEffect(() => {
+    setRelativeTime(formatRelativeTime(item.submittedAt));
+    const interval = setInterval(() => {
+      setRelativeTime(formatRelativeTime(item.submittedAt));
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, [item.submittedAt]);
   
   // Card styling based on priority
   const cardStyles = cn(

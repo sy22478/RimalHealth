@@ -1,6 +1,6 @@
 # Feature Decisions & Future Expansion Notes
 
-**Last updated:** 2026-04-16
+**Last updated:** 2026-05-26
 
 This document captures product/business decisions made during development — especially decisions that affect how features should evolve when the platform expands. Unlike AWS_MIGRATION_STATUS.md (infrastructure), this file covers feature logic, regulatory considerations, and planned scaling behavior.
 
@@ -175,7 +175,53 @@ When expanding beyond California, update these areas:
 
 ---
 
-## 8. Conventions for This File
+## 8. Invoice / Charge Timing (2026-04-21)
+
+**Decision:** Use Stripe's 30-day trial to defer the $50 charge until physician approval.
+
+**How it works:**
+- Checkout creates a subscription with `trial_period_days: 30`
+- During trial: Billing page shows a synthetic "Pending $50" invoice
+- Physician approves → `trial_end: 'now'` → Stripe charges $50 immediately
+- Physician rejects → `subscriptions.cancel()` → no charge ever processed
+- Patient's payment method from checkout is saved and shown on Billing page
+
+**Why not manual capture (authorize-then-capture)?**
+- Would require rewriting checkout flow, webhook handlers, and billing display
+- Trial-based approach uses Stripe's native subscription lifecycle
+- Same end result: charge only on approval, no charge on rejection
+
+**Edge cases:**
+- 30-day trial expires before physician reviews → Stripe auto-charges. Mitigated by 24h physician response SLA.
+- Webhook failure → charge might succeed but local DB not updated. Mitigated by webhook retry + manual reconciliation.
+
+**Key files:** `app/api/stripe/public-checkout-session/route.ts` (creates the trial subscription), `app/api/physician/reviews/[id]/approve/route.ts` (ends trial, charges), `app/api/physician/reviews/[id]/deny/route.ts` (cancels subscription, no charge).
+
+---
+
+## 9. Medical Information Editability (2026-05-26)
+
+**Decision:** Patients CAN edit `medicalHistory`, `currentMedications`, `allergies`, and `biologicalSex` after intake submission, via the profile settings page. The submitted intake record itself is NOT modified — it remains a point-in-time clinical snapshot.
+
+**Rationale:**
+- HIPAA §164.526 gives patients the right to request amendment to their PHI; blocking edits would conflict with that right.
+- 42 CFR Part 2 requires an audit trail for SUD record modifications; the original intake must be preserved as the clinical record of record.
+- Post-launch, material changes (e.g., a newly disclosed allergy or contraindication) need a physician notification path. Today this is not surfaced — flagged as a follow-up.
+
+**How it works today:**
+- Patient edits a field on `/patient/profile/settings` → `PUT /api/patient/profile` updates `PatientProfile.*`.
+- The originating `Intake.formData` is untouched.
+- Physician's patient detail view reads from `PatientProfile`, so the latest patient-asserted values are what shows up clinically.
+
+**Post-launch follow-ups (deferred):**
+- Audit log entry (`AuditLog`) on every profile edit that touches medical fields, with before/after values.
+- Physician notification (in-app banner or email) when a patient changes a medical-history field after their last approved review — so contraindications can be re-evaluated.
+
+**Key files:** `components/patient/PersonalInfoForm.tsx`, `app/api/patient/profile/route.ts` (PUT), `app/api/patient/intake/[id]/submit/route.ts` (one-time sync, no longer overwrites profile after submit).
+
+---
+
+## 10. Conventions for This File
 
 - Update when a product/business decision is made that affects future scaling
 - Include the **regulatory reasoning** (not just the technical decision)

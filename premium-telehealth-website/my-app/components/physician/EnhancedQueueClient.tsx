@@ -161,6 +161,11 @@ export function EnhancedQueueClient({
   const [error, setError] = React.useState<string | null>(null);
   const [secondsUntilRefresh, setSecondsUntilRefresh] = React.useState(AUTO_REFRESH_INTERVAL / 1000);
   const [lastUpdated, setLastUpdated] = React.useState<Date>(new Date(initialData.lastUpdated));
+  const [lastUpdatedText, setLastUpdatedText] = React.useState('');
+
+  React.useEffect(() => {
+    setLastUpdatedText(lastUpdated.toLocaleTimeString());
+  }, [lastUpdated]);
 
   // Apply filters and sorting
   const filteredItems = React.useMemo(() => {
@@ -419,9 +424,11 @@ export function EnhancedQueueClient({
             </span>
           )}
         </p>
-        <p className="text-xs text-muted-foreground" suppressHydrationWarning>
-          Last updated: {lastUpdated.toLocaleTimeString()}
-        </p>
+        {lastUpdatedText && (
+          <p className="text-xs text-muted-foreground">
+            Last updated: {lastUpdatedText}
+          </p>
+        )}
       </div>
 
       {/* Queue Items */}

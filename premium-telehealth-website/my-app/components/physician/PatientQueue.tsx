@@ -69,6 +69,11 @@ export function PatientQueue({
   const [lastUpdated, setLastUpdated] = React.useState<Date | null>(
     initialData?.lastUpdated ? new Date(initialData.lastUpdated) : null
   );
+  const [lastUpdatedText, setLastUpdatedText] = React.useState('');
+
+  React.useEffect(() => {
+    if (lastUpdated) setLastUpdatedText(lastUpdated.toLocaleTimeString());
+  }, [lastUpdated]);
 
   // Fetch queue data
   const fetchQueueData = React.useCallback(async () => {
@@ -241,9 +246,9 @@ export function PatientQueue({
         )}
 
         {/* Last Updated */}
-        {lastUpdated && !error && (
-          <p className="mt-4 text-xs text-muted-foreground" suppressHydrationWarning>
-            Last updated: {lastUpdated.toLocaleTimeString()}
+        {lastUpdatedText && !error && (
+          <p className="mt-4 text-xs text-muted-foreground">
+            Last updated: {lastUpdatedText}
           </p>
         )}
       </CardContent>
