@@ -39,6 +39,9 @@ export async function getPatientPrescriptions(patientId: string): Promise<Prescr
       quantity: true,
       refills: true,
       refillsRemaining: true,
+      // Surface instructions on the patient dashboard so the pending card can
+      // show "Take once daily with food" etc. before the pharmacy is set.
+      instructions: true,
       pharmacyName: true,
       pharmacyAddress: true,
       status: true,

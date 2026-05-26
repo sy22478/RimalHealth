@@ -554,6 +554,10 @@ export async function ensureCSRFToken(): Promise<string | null> {
  * via /api/csrf when necessary and attaches it as X-CSRF-Token. Forces
  * credentials: 'include' so double-submit cookies travel with the request.
  *
+ * On a 401 response, transparently calls /api/auth/refresh once and retries
+ * the original request. This means a 15-minute access-token expiry during
+ * long-running edits (e.g. profile form) no longer dead-ends the user.
+ *
  * @param input - Fetch input (URL or Request)
  * @param options - Fetch options
  */
@@ -561,16 +565,79 @@ export async function fetchWithCSRF(
   input: RequestInfo | URL,
   options: RequestInit = {}
 ): Promise<Response> {
-  const token = await ensureCSRFToken();
+  const doFetch = async (): Promise<Response> => {
+    const token = await ensureCSRFToken();
+    const headers = new Headers(options.headers);
+    if (token) {
+      headers.set(DEFAULT_OPTIONS.headerName, token);
+    }
+    return fetch(input, {
+      ...options,
+      credentials: options.credentials ?? 'include',
+      headers,
+    });
+  };
 
-  const headers = new Headers(options.headers);
-  if (token) {
-    headers.set(DEFAULT_OPTIONS.headerName, token);
+  const response = await doFetch();
+
+  if (response.status !== 401 || typeof window === 'undefined') {
+    return response;
   }
 
-  return fetch(input, {
-    ...options,
-    credentials: options.credentials ?? 'include',
-    headers,
-  });
+  // Don't try to refresh on auth-system routes themselves — that would loop.
+  const urlStr =
+    typeof input === 'string'
+      ? input
+      : input instanceof URL
+        ? input.toString()
+        : (input as Request).url;
+  if (
+    urlStr.includes('/api/auth/refresh') ||
+    urlStr.includes('/api/auth/login') ||
+    urlStr.includes('/api/auth/logout')
+  ) {
+    return response;
+  }
+
+  const refreshed = await refreshAccessToken();
+  if (!refreshed) {
+    // Refresh failed — refresh token is also expired/invalid. Redirect to login
+    // so the user can re-authenticate instead of staring at a generic 401 toast.
+    const from = window.location.pathname + window.location.search;
+    window.location.href = `/login?from=${encodeURIComponent(from)}`;
+    return response;
+  }
+
+  return doFetch();
+}
+
+/**
+ * Single in-flight refresh promise so concurrent 401s from multiple requests
+ * don't trigger a thundering herd of /api/auth/refresh calls.
+ */
+let inFlightRefresh: Promise<boolean> | null = null;
+
+async function refreshAccessToken(): Promise<boolean> {
+  if (inFlightRefresh) return inFlightRefresh;
+
+  inFlightRefresh = (async () => {
+    try {
+      const res = await fetch('/api/auth/refresh', {
+        method: 'POST',
+        credentials: 'include',
+        cache: 'no-store',
+      });
+      return res.ok;
+    } catch {
+      return false;
+    } finally {
+      // Allow future refresh attempts (e.g., after another expiry cycle).
+      // Defer-clear so callers awaiting the same promise still see the result.
+      setTimeout(() => {
+        inFlightRefresh = null;
+      }, 0);
+    }
+  })();
+
+  return inFlightRefresh;
 }

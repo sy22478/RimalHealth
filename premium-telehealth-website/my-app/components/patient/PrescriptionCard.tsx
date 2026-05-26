@@ -73,8 +73,10 @@ export function PrescriptionCard({
 
   // PENDING means the physician approved treatment but no pharmacy has been
   // assigned yet — the prescription has no fill date, refill window, or
-  // pharmacy. Showing refill counts/progress/refill-overdue text in this state
-  // is contradictory and confusing, so render a dedicated pending card.
+  // pharmacy. We still show medication details (dosage / quantity / refills /
+  // instructions) so the patient can see what was prescribed; refill-progress
+  // and "available in N days" copy is suppressed because it makes no sense
+  // before the Rx is even sent.
   if (prescription.status === PrescriptionStatus.PENDING) {
     return (
       <Card className="overflow-hidden">
@@ -100,7 +102,36 @@ export function PrescriptionCard({
             </Badge>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {/* Dosage / quantity / refills — the same details a non-PENDING card
+              shows. Patients want to see what they'll be getting before the
+              pharmacy hand-off. */}
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <span className="text-muted-foreground">Dosage:</span>
+              <p className="font-medium text-gray-900">{prescription.dosage}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Quantity:</span>
+              <p className="font-medium text-gray-900">{prescription.quantity} tablets</p>
+            </div>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Refills:</span>
+            <span className="font-medium text-gray-900">
+              {prescription.refills} authorized
+            </span>
+          </div>
+          {prescription.instructions && (
+            <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 text-sm">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
+                Instructions
+              </p>
+              <p className="text-gray-700 whitespace-pre-wrap">
+                {prescription.instructions}
+              </p>
+            </div>
+          )}
           <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm">
             <div className="flex items-start gap-2">
               <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
@@ -179,6 +210,18 @@ export function PrescriptionCard({
             {prescription.refillsRemaining} of {prescription.refills}
           </span>
         </div>
+
+        {/* Instructions */}
+        {prescription.instructions && (
+          <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 text-sm">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
+              Instructions
+            </p>
+            <p className="text-gray-700 whitespace-pre-wrap">
+              {prescription.instructions}
+            </p>
+          </div>
+        )}
 
         {/* Days Remaining Progress */}
         <div className="space-y-2">

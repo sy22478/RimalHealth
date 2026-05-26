@@ -405,6 +405,7 @@ export function PrescriptionList({
                       </button>
                     </TableHead>
                     <TableHead>Medication</TableHead>
+                    <TableHead className="hidden lg:table-cell">Pharmacy</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Refills</TableHead>
                     <TableHead>
@@ -447,6 +448,22 @@ export function PrescriptionList({
                             {rx.dosage}
                           </p>
                         </div>
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell">
+                        {rx.pharmacyName && rx.pharmacyName !== 'Pending' ? (
+                          <div className="max-w-[220px]">
+                            <p className="text-sm font-medium truncate" title={rx.pharmacyName}>
+                              {rx.pharmacyName}
+                            </p>
+                            {rx.pharmacyAddress && (
+                              <p className="text-xs text-muted-foreground truncate" title={rx.pharmacyAddress}>
+                                {rx.pharmacyAddress}
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">Not set</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <PrescriptionStatusBadge status={rx.status} />

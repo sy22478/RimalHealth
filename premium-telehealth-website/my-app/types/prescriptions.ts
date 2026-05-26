@@ -46,6 +46,8 @@ export interface PrescriptionSummary {
   quantity: number;
   refills: number;
   refillsRemaining: number;
+  /** Patient-facing instructions (e.g., "Take once daily with food"). */
+  instructions?: string | null;
   pharmacyName: string;
   pharmacyAddress?: string | null;
   status: PrescriptionStatus;

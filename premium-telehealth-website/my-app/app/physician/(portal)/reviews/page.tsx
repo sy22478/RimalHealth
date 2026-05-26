@@ -133,6 +133,7 @@ export default function ReviewHistoryPage() {
                     <TableRow>
                       <TableHead>Patient</TableHead>
                       <TableHead>Decision</TableHead>
+                      <TableHead>Reviewer</TableHead>
                       <TableHead>Date Reviewed</TableHead>
                       <TableHead>Physician Notes</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -151,6 +152,13 @@ export default function ReviewHistoryPage() {
                         </TableCell>
                         <TableCell>
                           <DecisionBadge decision={review.decision} />
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {review.physicianName ? (
+                            <span className="text-gray-700">Dr. {review.physicianName}</span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {new Date(review.reviewedAt).toLocaleDateString('en-US', {

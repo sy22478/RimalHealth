@@ -40,6 +40,10 @@ interface SubmissionState {
   status: 'idle' | 'submitting' | 'success' | 'error';
   error?: string;
   reviewId?: string;
+  /** Decision the submission settled on — used to tailor the success message. */
+  decision?: 'APPROVE' | 'REJECT' | 'NEEDS_INFO' | null;
+  /** Medication name shown in the approval success message. */
+  medicationName?: string;
 }
 
 /**
@@ -204,13 +208,18 @@ export function IntakeReview({ intake, physicianId, physicianName, isDeactivated
       setSubmission({
         status: 'success',
         reviewId: data.review?.id || data.reviewId,
+        decision: decisionData.decision,
+        medicationName: decisionData.medication?.name,
       });
 
-      // Redirect after successful submission
+      // Redirect after successful submission.
+      // Approvals go to the prescriptions list (the newly created Rx will be
+      // at the top, awaiting "Send to pharmacy"). The per-prescription detail
+      // page doesn't exist yet, so the old /physician/prescriptions/{id}
+      // redirect 404'd.
       setTimeout(() => {
-        const prescriptionId = data.prescription?.id || data.prescriptionId;
-        if (decisionData.decision === 'APPROVE' && prescriptionId) {
-          router.push(`/physician/prescriptions/${prescriptionId}`);
+        if (decisionData.decision === 'APPROVE') {
+          router.push('/physician/prescriptions');
         } else {
           router.push('/physician/dashboard');
         }
@@ -303,9 +312,19 @@ export function IntakeReview({ intake, physicianId, physicianName, isDeactivated
         {submission.status === 'success' && (
           <Alert className="mb-6 border-success bg-success/10">
             <CheckCircle2 className="h-4 w-4 text-success" />
-            <AlertTitle className="text-success-foreground">Review Submitted</AlertTitle>
+            <AlertTitle className="text-success-foreground">
+              {submission.decision === 'APPROVE'
+                ? 'Intake Approved'
+                : submission.decision === 'REJECT'
+                  ? 'Intake Declined'
+                  : 'Review Submitted'}
+            </AlertTitle>
             <AlertDescription className="text-success-foreground">
-              Your review has been recorded. The patient will be notified.
+              {submission.decision === 'APPROVE' && submission.medicationName
+                ? `Prescription created for ${submission.medicationName}. Redirecting to prescriptions…`
+                : submission.decision === 'APPROVE'
+                  ? 'Prescription created. Redirecting to prescriptions…'
+                  : 'Your review has been recorded. The patient will be notified.'}
             </AlertDescription>
           </Alert>
         )}
