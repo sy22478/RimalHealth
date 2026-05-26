@@ -320,25 +320,31 @@ function MultiSelectCombobox({
           inputRef.current?.focus();
         }}
       >
-        {selectedItems.map((item) => (
-          <span
-            key={item}
-            className="inline-flex items-center gap-1 bg-ocean-50 text-ocean-700 text-sm px-2 py-0.5 rounded-md border border-ocean-200"
-          >
-            {item}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                removeItem(item);
-              }}
-              className="text-ocean-400 hover:text-ocean-700 transition-colors"
-              aria-label={`Remove ${item}`}
+        {selectedItems.map((item) => {
+          // Display the human-readable label (e.g. "Depression / Anxiety") but
+          // keep the raw value for removeItem / dedupe so the persisted string
+          // continues to match what's already in the DB.
+          const display = humanizeValue(item) || item;
+          return (
+            <span
+              key={item}
+              className="inline-flex items-center gap-1 bg-ocean-50 text-ocean-700 text-sm px-2 py-0.5 rounded-md border border-ocean-200"
             >
-              <X className="h-3 w-3" />
-            </button>
-          </span>
-        ))}
+              {display}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeItem(item);
+                }}
+                className="text-ocean-400 hover:text-ocean-700 transition-colors"
+                aria-label={`Remove ${display}`}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          );
+        })}
         <div className="flex-1 min-w-[120px] flex items-center gap-1">
           <input
             ref={inputRef}
