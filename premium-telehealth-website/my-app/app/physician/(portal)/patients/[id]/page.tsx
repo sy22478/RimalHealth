@@ -19,6 +19,7 @@ import { getPhysicianDisplayName } from '@/lib/physician/patients';
 import type { PhysicianPatientDetail, RiskLevel } from '@/types/physician-dashboard';
 import { getRiskLevelFromScore } from '@/types/physician-dashboard';
 import { maskPhone } from '@/lib/utils/string-helpers';
+import { humanizeValue } from '@/lib/utils/labels';
 
 // ============================================================================
 // Helpers
@@ -76,11 +77,15 @@ function mapApiResponseToPatientDetail(raw: Record<string, unknown>): PhysicianP
   const riskLevel: RiskLevel =
     (raw.riskLevel as RiskLevel | undefined) ?? getRiskLevelFromScore(latestIntakeScore);
 
+  // Prefer biologicalSex from the patient profile (synced from intake formData);
+  // fall back to raw.gender for legacy rows. Humanize ("MALE" -> "Male") for display.
+  const rawSex = (raw.biologicalSex as string | undefined) || (raw.gender as string | undefined);
+
   return {
     id: (raw.id as string) || '',
     name,
     age: calculateAge(dob),
-    gender: (raw.gender as string) || undefined,
+    gender: rawSex ? humanizeValue(rawSex) : undefined,
     treatmentType: (raw.primaryConcern as string) || 'ALCOHOL',
     status: (raw.status as string) || 'ACTIVE',
     enrolledAt: raw.createdAt ? new Date(raw.createdAt as string) : new Date(),
@@ -101,15 +106,80 @@ function mapApiResponseToPatientDetail(raw: Record<string, unknown>): PhysicianP
       zipCode: address.zip || address.zipCode || '',
     } : undefined,
     emergencyContact: raw.emergencyContact as PhysicianPatientDetail['emergencyContact'],
-    medicalHistory: raw.medicalHistory ? {
-      conditions: Array.isArray((raw.medicalHistory as Record<string, unknown>).conditions)
-        ? (raw.medicalHistory as Record<string, unknown>).conditions as string[]
-        : [],
-      medications: Array.isArray(raw.currentMedications)
-        ? raw.currentMedications as string[]
-        : [],
-      allergies: Array.isArray(raw.allergies) ? raw.allergies as string[] : [],
-    } : undefined,
+    medicalHistory: (() => {
+      // The patient profile stores medicalHistory as a JSON object with boolean
+      // flags plus arrays under medicalHistoryItems / conditions. Older callers
+      // pass plain arrays; newer ones (post-intake-submit) store labeled arrays.
+      // Coalesce every shape into the flat { conditions, medications, allergies }
+      // expected by PatientDetailView so the chips actually render.
+      const mh = raw.medicalHistory;
+      const conditions: string[] = [];
+      if (Array.isArray(mh)) {
+        for (const item of mh) {
+          if (typeof item === 'string' && item.trim()) conditions.push(humanizeValue(item));
+        }
+      } else if (mh && typeof mh === 'object') {
+        const obj = mh as Record<string, unknown>;
+        if (Array.isArray(obj.medicalHistoryItems)) {
+          for (const item of obj.medicalHistoryItems) {
+            if (typeof item === 'string' && item.trim()) conditions.push(humanizeValue(item));
+          }
+        }
+        if (Array.isArray(obj.conditions)) {
+          for (const item of obj.conditions) {
+            if (typeof item === 'string' && item.trim()) conditions.push(humanizeValue(item));
+          }
+        }
+        if (typeof obj.otherConditions === 'string' && obj.otherConditions.trim()) {
+          conditions.push(obj.otherConditions.trim());
+        }
+        if (obj.hasLiverDisease === true) conditions.push('Liver Disease');
+        if (obj.hasKidneyDisease === true) conditions.push('Kidney Disease');
+        if (obj.hasHeartCondition === true) conditions.push('Heart Condition');
+        if (obj.hasSeizureHistory === true) conditions.push('Seizure History');
+        if (obj.hasPsychiatricHistory === true) conditions.push('Psychiatric History');
+        if (obj.isPregnant === true) conditions.push('Pregnant');
+      } else if (typeof mh === 'string' && mh.trim()) {
+        for (const part of mh.split(',')) {
+          const t = part.trim();
+          if (t) conditions.push(humanizeValue(t));
+        }
+      }
+
+      const medications: string[] = [];
+      const cm = raw.currentMedications;
+      if (Array.isArray(cm)) {
+        for (const m of cm) if (typeof m === 'string' && m.trim()) medications.push(m.trim());
+      } else if (cm && typeof cm === 'object') {
+        const obj = cm as Record<string, unknown>;
+        if (typeof obj.medicationList === 'string' && obj.medicationList.trim()) {
+          medications.push(obj.medicationList.trim());
+        }
+      } else if (typeof cm === 'string' && cm.trim()) {
+        for (const part of cm.split(',')) {
+          const t = part.trim();
+          if (t) medications.push(t);
+        }
+      }
+
+      const allergies: string[] = [];
+      const al = raw.allergies;
+      if (Array.isArray(al)) {
+        for (const a of al) if (typeof a === 'string' && a.trim()) allergies.push(humanizeValue(a));
+      } else if (typeof al === 'string' && al.trim()) {
+        for (const part of al.split(',')) {
+          const t = part.trim();
+          if (t) allergies.push(humanizeValue(t));
+        }
+      }
+
+      const deduped = (arr: string[]) => Array.from(new Set(arr));
+      return {
+        conditions: deduped(conditions),
+        medications: deduped(medications),
+        allergies: deduped(allergies),
+      };
+    })(),
     treatmentPreferences: {
       preferredPharmacy: raw.prescriptions && Array.isArray(raw.prescriptions) && (raw.prescriptions as Record<string, unknown>[]).length > 0
         ? ((raw.prescriptions as Record<string, unknown>[])[0].pharmacyName as string) || undefined

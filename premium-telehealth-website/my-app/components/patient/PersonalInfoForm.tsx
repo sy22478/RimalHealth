@@ -37,6 +37,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { PatientPharmacySearch, SelectedPharmacy } from '@/components/patient/PharmacySearch';
 import { fetchWithCSRF } from '@/lib/security/csrf';
+import { humanizeValue } from '@/lib/utils/labels';
 
 // ============================================================================
 // Preset Options
@@ -709,8 +710,8 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
                   <Lock className="h-3.5 w-3.5" />
                   Treatment Type
                 </Label>
-                <p className="font-medium text-gray-900 capitalize">
-                  {profile.primaryConcern?.toLowerCase().replace('_', ' ') || 'Not specified'}
+                <p className="font-medium text-gray-900">
+                  {profile.primaryConcern ? humanizeValue(profile.primaryConcern) : 'Not specified'}
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Treatment type cannot be changed.
@@ -722,8 +723,8 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
             {profile.treatmentGoal && (
               <div className="p-4 bg-gray-50 rounded-lg">
                 <Label className="text-muted-foreground">Treatment Goal</Label>
-                <p className="font-medium text-gray-900 capitalize">
-                  {profile.treatmentGoal.toLowerCase().replace('_', ' ')}
+                <p className="font-medium text-gray-900">
+                  {humanizeValue(profile.treatmentGoal)}
                 </p>
               </div>
             )}

@@ -10,6 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { IntakeFormData, IntakeScores, RiskAssessment, CONCERN_TYPE_LABELS, TREATMENT_GOAL_LABELS } from '@/types/intake';
 import { cn } from '@/lib/utils';
 import type { ProviderDecisionSummary } from '@/lib/intake/scoring';
+import { humanizeValue } from '@/lib/utils/labels';
 
 interface PreferredPharmacyInfo {
   name: string;
@@ -149,7 +150,9 @@ function formatMedicalCondition(condition: string): string {
     diabetes: 'Diabetes',
     thyroid: 'Thyroid condition',
   };
-  return labels[condition] || condition;
+  // Fall back to the shared label map so e.g. "depression-anxiety" or "other-medical"
+  // render cleanly instead of leaking the raw key.
+  return labels[condition] || humanizeValue(condition);
 }
 
 function formatTreatmentType(treatment: string): string {
@@ -392,7 +395,7 @@ export function IntakeDataView({ formData: rawFormData, scores, riskAssessment, 
                   value={
                     formData.biologicalSex === 'OTHER' && formData.biologicalSexOther
                       ? formData.biologicalSexOther
-                      : formData.biologicalSex
+                      : humanizeValue(formData.biologicalSex)
                   }
                 />
               )}

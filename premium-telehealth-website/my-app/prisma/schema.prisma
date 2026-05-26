@@ -103,6 +103,10 @@ model PatientProfile {
   dateOfBirth String // Encrypted (MM/DD/YYYY format, no year stored)
   phone       String // Encrypted
 
+  // Demographics (not encrypted — demographic, not PHI per HIPAA Safe Harbor)
+  // Values: "MALE" | "FEMALE" | "OTHER" (sourced from intake formData.biologicalSex)
+  biologicalSex String?
+
   // Address (PHI - Encrypted)
   addressStreet String // Encrypted
   addressCity   String // Encrypted

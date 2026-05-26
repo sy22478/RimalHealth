@@ -160,6 +160,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         dateOfBirth: profile?.dateOfBirth ?? null,
         primaryConcern: profile?.primaryConcern ?? null,
         treatmentGoal: profile?.treatmentGoal ?? null,
+        biologicalSex: profile?.biologicalSex ?? null,
         createdAt: user.createdAt.toISOString(),
         status,
         intakeStatus: latestIntake?.status || null,

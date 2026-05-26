@@ -18,9 +18,18 @@ import { ValidationService } from '@/lib/services/validation-service';
 import { NotificationService } from '@/lib/services/notification-service';
 import { submitIntakeSchema, dsm5IntakeFormDataSchema } from '@/lib/validation/schemas';
 import { generateProviderDecisionSummary } from '@/lib/intake/scoring';
-import { Role, IntakeStatus, DocumentType, DocumentStatus, Prisma } from '@prisma/client';
+import { Role, IntakeStatus, DocumentType, DocumentStatus, TreatmentGoal, Prisma } from '@prisma/client';
 import { DataModificationAction } from '@/lib/audit/index';
 import { validateAddress } from '@/lib/integrations/location';
+import { humanizeValue } from '@/lib/utils/labels';
+
+// Map intake form's primaryGoal values to the DB's TreatmentGoal enum.
+// Intake uses 'abstinence' | 'harm-reduction' | 'unsure'; DB enum is QUIT | REDUCE | EXPLORE.
+const PRIMARY_GOAL_TO_TREATMENT_GOAL: Record<string, TreatmentGoal> = {
+  abstinence: TreatmentGoal.QUIT,
+  'harm-reduction': TreatmentGoal.REDUCE,
+  unsure: TreatmentGoal.EXPLORE,
+};
 
 // ============================================================================
 // POST - Submit Intake
@@ -361,7 +370,23 @@ export async function POST(
 
     // Treatment info
     const primaryConcern = (fd.primaryConcern as string | undefined) || 'ALCOHOL';
-    const treatmentGoal = fd.treatmentGoal as string | undefined;
+    // treatmentGoal: prefer explicit DB enum value, fall back to mapping intake's primaryGoal.
+    const rawTreatmentGoal = fd.treatmentGoal as string | undefined;
+    const rawPrimaryGoal = fd.primaryGoal as string | undefined;
+    const treatmentGoal: TreatmentGoal | undefined =
+      (rawTreatmentGoal && (TreatmentGoal as Record<string, TreatmentGoal>)[rawTreatmentGoal]) ||
+      (rawPrimaryGoal ? PRIMARY_GOAL_TO_TREATMENT_GOAL[rawPrimaryGoal] : undefined);
+
+    // Biological sex (demographic — not encrypted, MALE/FEMALE/OTHER)
+    const biologicalSex = fd.biologicalSex as string | undefined;
+
+    // Allergies: intake stores as drugAllergies enum ('naltrexone' | 'other' | 'none').
+    // Translate to a human-readable label for the profile; only persist when meaningful.
+    const drugAllergies = fd.drugAllergies as string | undefined;
+    let allergiesForProfile: string | null = null;
+    if (drugAllergies && drugAllergies !== 'none') {
+      allergiesForProfile = humanizeValue(drugAllergies);
+    }
 
     // Map DSM-5 safety screening fields to medical history booleans
     // DSM-5 format uses: liverCondition, pregnancyStatus, medicalHistory (array), etc.
@@ -369,6 +394,12 @@ export async function POST(
     const liverCondition = fd.liverCondition as string | undefined;
     const pregnancyStatus = fd.pregnancyStatus as string | undefined;
     const medicalHistoryArray = fd.medicalHistory as string[] | undefined;
+    // Persist human-readable labels (e.g., "Depression / Anxiety") instead of raw
+    // intake keys (e.g., "depression-anxiety") so the profile and physician chips
+    // render cleanly without per-component mapping.
+    const medicalHistoryLabels = Array.isArray(medicalHistoryArray)
+      ? medicalHistoryArray.map((k) => humanizeValue(k)).filter((s) => s.length > 0)
+      : undefined;
     const withdrawalSeizure = fd.withdrawalSeizure as boolean | undefined;
 
     const isPregnant = fd.isPregnant === true
@@ -415,7 +446,9 @@ export async function POST(
         heartConditionDetails: fd.heartConditionDetails || '',
         otherConditions: fd.otherConditions || '',
         // Preserve DSM-5 specific data
-        ...(medicalHistoryArray ? { medicalHistoryItems: medicalHistoryArray } : {}),
+        ...(medicalHistoryLabels && medicalHistoryLabels.length > 0
+          ? { medicalHistoryItems: medicalHistoryLabels }
+          : {}),
         ...(fd.withdrawalSeizure !== undefined ? { withdrawalSeizure: fd.withdrawalSeizure } : {}),
         ...(fd.withdrawalDTs !== undefined ? { withdrawalDTs: fd.withdrawalDTs } : {}),
         ...(fd.withdrawalHospitalized !== undefined ? { withdrawalHospitalized: fd.withdrawalHospitalized } : {}),
@@ -450,6 +483,8 @@ export async function POST(
     if (addressZip) profileUpdate.addressZip = addressZip;
     if (primaryConcern) profileUpdate.primaryConcern = primaryConcern;
     if (treatmentGoal) profileUpdate.treatmentGoal = treatmentGoal;
+    if (biologicalSex) profileUpdate.biologicalSex = biologicalSex;
+    if (allergiesForProfile) profileUpdate.allergies = allergiesForProfile;
 
     // Update patient profile with form data
     // Note: PHI fields (firstName, lastName, phone, etc.) are auto-encrypted

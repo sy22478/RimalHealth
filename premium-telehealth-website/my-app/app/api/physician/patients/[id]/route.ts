@@ -208,6 +208,7 @@ export async function GET(
         : null,
       primaryConcern: patientProfile?.primaryConcern ?? null,
       treatmentGoal: patientProfile?.treatmentGoal ?? null,
+      biologicalSex: patientProfile?.biologicalSex ?? null,
       medicalHistory,
       currentMedications,
       allergies,

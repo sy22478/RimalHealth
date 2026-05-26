@@ -21,6 +21,7 @@ import { DataModificationAction } from '@/lib/audit/index';
 import { validateAddress } from '@/lib/integrations/location';
 import { requireCSRF } from '@/lib/security/csrf';
 import { DEFAULT_ALLOWED_STATE } from '@/lib/constants';
+import { humanizeValue } from '@/lib/utils/labels';
 // PHI encryption/decryption is handled automatically by the Prisma encryption extension
 // in lib/db/encryption-extension.ts. Do NOT manually call encryptPHI/decryptPHI on fields
 // that are listed in PHI_FIELDS — doing so causes double-encryption (data corruption).
@@ -119,11 +120,23 @@ function extractMedicalConditions(data: unknown): string | null {
 
     // Extract array-based condition lists. Items may be strings OR objects
     // like { name: 'High Cholesterol' } — itemToString handles both.
+    // Raw intake keys (e.g., "depression-anxiety") are mapped to labels so older
+    // rows render cleanly even though new submissions store labels directly.
     if (Array.isArray(obj.medicalHistoryItems)) {
-      conditions.push(...obj.medicalHistoryItems.map(itemToString).filter((s): s is string => !!s));
+      conditions.push(
+        ...obj.medicalHistoryItems
+          .map(itemToString)
+          .filter((s): s is string => !!s)
+          .map((s) => humanizeValue(s)),
+      );
     }
     if (Array.isArray(obj.conditions)) {
-      conditions.push(...obj.conditions.map(itemToString).filter((s): s is string => !!s));
+      conditions.push(
+        ...obj.conditions
+          .map(itemToString)
+          .filter((s): s is string => !!s)
+          .map((s) => humanizeValue(s)),
+      );
     }
 
     // Extract free-text conditions
@@ -143,7 +156,9 @@ function extractMedicalConditions(data: unknown): string | null {
     if (obj.isPregnant === true || obj.isPregnant === 'true') conditions.push('Pregnant');
     if (obj.liverCondition === true || obj.liverCondition === 'true') conditions.push('Liver Condition');
 
-    return conditions.filter(Boolean).join(', ') || null;
+    // De-duplicate (e.g., if "Liver Disease" came from both the array and the flag)
+    const deduped = Array.from(new Set(conditions.filter(Boolean)));
+    return deduped.join(', ') || null;
   }
   return String(data);
 }
@@ -283,7 +298,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       addressState: profile.addressState,
       addressZip: safeField('addressZip', () => profile.addressZip),
       primaryConcern: profile.primaryConcern,
+      primaryConcernLabel: profile.primaryConcern ? humanizeValue(profile.primaryConcern) : null,
       treatmentGoal: profile.treatmentGoal,
+      treatmentGoalLabel: profile.treatmentGoal ? humanizeValue(profile.treatmentGoal) : null,
+      biologicalSex: profile.biologicalSex ?? null,
+      biologicalSexLabel: profile.biologicalSex ? humanizeValue(profile.biologicalSex) : null,
       medicalHistory: safeField('medicalHistory', () => extractMedicalConditions(profile.medicalHistory)),
       currentMedications: safeField('currentMedications', () => extractMedications(profile.currentMedications)),
       allergies: safeField('allergies', () => serializePHIField(profile.allergies)),
@@ -602,7 +621,11 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
         addressState: refreshedProfile.addressState,
         addressZip: safeField('addressZip', () => refreshedProfile.addressZip),
         primaryConcern: refreshedProfile.primaryConcern,
+        primaryConcernLabel: refreshedProfile.primaryConcern ? humanizeValue(refreshedProfile.primaryConcern) : null,
         treatmentGoal: refreshedProfile.treatmentGoal,
+        treatmentGoalLabel: refreshedProfile.treatmentGoal ? humanizeValue(refreshedProfile.treatmentGoal) : null,
+        biologicalSex: refreshedProfile.biologicalSex ?? null,
+        biologicalSexLabel: refreshedProfile.biologicalSex ? humanizeValue(refreshedProfile.biologicalSex) : null,
         medicalHistory: safeField('medicalHistory', () => extractMedicalConditions(refreshedProfile.medicalHistory)),
         currentMedications: safeField('currentMedications', () => extractMedications(refreshedProfile.currentMedications)),
         allergies: safeField('allergies', () => serializePHIField(refreshedProfile.allergies)),

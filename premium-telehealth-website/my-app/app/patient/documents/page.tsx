@@ -29,6 +29,7 @@ import {
 import { cn } from '@/lib/utils';
 import { DeleteConfirmDialog } from '@/components/patient/DocumentCard';
 import { formatDocumentDate } from '@/lib/patient/documents';
+import { humanizeFieldKey, humanizeValue } from '@/lib/utils/labels';
 
 // ============================================================================
 // Types
@@ -429,8 +430,14 @@ function IntakeFormViewer({
   function renderValue(value: unknown): string {
     if (value === null || value === undefined || value === '') return '\u2014';
     if (typeof value === 'boolean') return value ? 'Yes' : 'No';
-    if (Array.isArray(value)) return value.join(', ') || '\u2014';
+    if (Array.isArray(value)) {
+      const mapped = value
+        .map((v) => (typeof v === 'string' ? humanizeValue(v) : String(v)))
+        .filter(Boolean);
+      return mapped.length > 0 ? mapped.join(', ') : '\u2014';
+    }
     if (typeof value === 'object') return JSON.stringify(value, null, 2);
+    if (typeof value === 'string') return humanizeValue(value);
     return String(value);
   }
 
@@ -468,7 +475,7 @@ function IntakeFormViewer({
               .map(([key, value]) => (
                 <div key={key} className="flex flex-col sm:flex-row sm:gap-4 py-2 border-b border-gray-100 last:border-0">
                   <dt className="text-sm font-medium text-gray-700 sm:w-1/3 shrink-0">
-                    {INTAKE_FIELD_LABELS[key] || key}
+                    {INTAKE_FIELD_LABELS[key] || humanizeFieldKey(key)}
                   </dt>
                   <dd className="text-sm text-gray-900 sm:w-2/3 mt-1 sm:mt-0 whitespace-pre-wrap break-words">
                     {renderValue(value)}
