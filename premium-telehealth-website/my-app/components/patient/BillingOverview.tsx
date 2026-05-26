@@ -279,9 +279,12 @@ export function BillingOverview({
               <h4 className="text-sm font-medium text-foreground mb-2">
                 Cancel Subscription
               </h4>
+              {/* Conditional language ("If you cancel...") — declarative
+                  "Your subscription will remain active until..." read as if
+                  cancellation was already scheduled, which it isn't on this panel. */}
               <p className="text-sm text-muted-foreground mb-3">
-                Your subscription will remain active until {formatDate(periodEnd)}. 
-                You can resume anytime before this date.
+                If you cancel, your access will continue until your current billing period
+                ends on {formatDate(periodEnd)}. You will not be charged again after cancellation.
               </p>
               <Button
                 onClick={onCancel}

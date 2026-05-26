@@ -105,29 +105,30 @@ export function PrescriptionCard({
         <CardContent className="space-y-4">
           {/* Dosage / quantity / refills — the same details a non-PENDING card
               shows. Patients want to see what they'll be getting before the
-              pharmacy hand-off. */}
+              pharmacy hand-off. min-w-0 + break-words on the values so the
+              card doesn't grow past its track in narrow dashboard columns. */}
           <div className="grid grid-cols-2 gap-3 text-sm">
-            <div>
+            <div className="min-w-0">
               <span className="text-muted-foreground">Dosage:</span>
-              <p className="font-medium text-gray-900">{prescription.dosage}</p>
+              <p className="font-medium text-gray-900 break-words">{prescription.dosage}</p>
             </div>
-            <div>
+            <div className="min-w-0">
               <span className="text-muted-foreground">Quantity:</span>
-              <p className="font-medium text-gray-900">{prescription.quantity} tablets</p>
+              <p className="font-medium text-gray-900 break-words">{prescription.quantity} tablets</p>
             </div>
           </div>
-          <div className="flex items-center justify-between text-sm">
+          <div className="flex items-center justify-between gap-2 text-sm">
             <span className="text-muted-foreground">Refills:</span>
-            <span className="font-medium text-gray-900">
+            <span className="font-medium text-gray-900 text-right">
               {prescription.refills} authorized
             </span>
           </div>
           {prescription.instructions && (
-            <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 text-sm">
+            <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 text-sm min-w-0">
               <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
                 Instructions
               </p>
-              <p className="text-gray-700 whitespace-pre-wrap">
+              <p className="text-gray-700 whitespace-pre-wrap break-words">
                 {prescription.instructions}
               </p>
             </div>
@@ -135,11 +136,11 @@ export function PrescriptionCard({
           <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm">
             <div className="flex items-start gap-2">
               <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-medium text-amber-800">
+              <div className="min-w-0">
+                <p className="font-medium text-amber-800 break-words">
                   Prescription pending — awaiting pharmacy assignment
                 </p>
-                <p className="text-amber-700 mt-1">
+                <p className="text-amber-700 mt-1 break-words">
                   Your physician has approved your treatment. We&apos;ll send your
                   prescription to your pharmacy shortly.
                 </p>

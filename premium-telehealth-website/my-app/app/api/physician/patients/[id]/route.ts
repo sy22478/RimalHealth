@@ -66,6 +66,7 @@ export async function GET(
     const [patientProfile, user, intakes, prescriptions, documents, notes, messages] = await Promise.all([
       prisma.patientProfile.findUnique({
         where: { userId: patientId },
+        include: { preferredPharmacy: true },
       }),
       prisma.user.findUnique({
         where: { id: patientId },
@@ -212,6 +213,18 @@ export async function GET(
       medicalHistory,
       currentMedications,
       allergies,
+      // Preferred pharmacy from PatientProfile.preferredPharmacy join.
+      // Mirrors the shape returned by /api/patient/profile so UI can share code.
+      pharmacy: patientProfile?.preferredPharmacy
+        ? {
+            name: patientProfile.preferredPharmacy.name,
+            address: patientProfile.preferredPharmacy.address,
+            city: patientProfile.preferredPharmacy.city,
+            state: patientProfile.preferredPharmacy.state || 'CA',
+            zip: patientProfile.preferredPharmacy.zipCode,
+            phone: patientProfile.preferredPharmacy.phone || null,
+          }
+        : null,
       insurance,
       consent: patientProfile
         ? {

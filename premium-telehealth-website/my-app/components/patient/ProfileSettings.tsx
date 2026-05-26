@@ -42,6 +42,7 @@ interface ProfileData {
     name: string;
     address: string;
     city: string;
+    state: string;
     zip: string;
     phone?: string;
     source: 'pharmacy_record' | 'intake';

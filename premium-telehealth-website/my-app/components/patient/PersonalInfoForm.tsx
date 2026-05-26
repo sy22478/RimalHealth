@@ -153,6 +153,7 @@ interface ProfileData {
     name: string;
     address: string;
     city: string;
+    state: string;
     zip: string;
     phone?: string;
     source: 'pharmacy_record' | 'intake';
@@ -559,7 +560,7 @@ export function PersonalInfoForm({ profile, onUpdate }: PersonalInfoFormProps): 
   const displayPharmacy = selectedPharmacy
     ? { name: selectedPharmacy.name, address: `${selectedPharmacy.address}, ${selectedPharmacy.city}, ${selectedPharmacy.state} ${selectedPharmacy.zipCode}`, phone: selectedPharmacy.phone }
     : profile.pharmacy
-      ? { name: profile.pharmacy.name, address: [profile.pharmacy.address, profile.pharmacy.city, 'CA', profile.pharmacy.zip].filter(Boolean).join(', '), phone: profile.pharmacy.phone ?? null }
+      ? { name: profile.pharmacy.name, address: [profile.pharmacy.address, profile.pharmacy.city, profile.pharmacy.state || 'CA', profile.pharmacy.zip].filter(Boolean).join(', '), phone: profile.pharmacy.phone ?? null }
       : null;
 
   // Handle pharmacy selection from search component

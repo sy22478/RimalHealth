@@ -249,9 +249,11 @@ export function IntakeDataView({ formData: rawFormData, scores, riskAssessment, 
       {providerSummary && (
         <Card className="border-2 border-navy-200 bg-navy-50/50">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Activity className="h-5 w-5 text-navy-700" />
-              Provider Decision Summary
+            {/* flex-wrap so the priority badge drops to its own line at 1024px
+                instead of pushing the title text out of the card. */}
+            <CardTitle className="text-base flex flex-wrap items-center gap-2">
+              <Activity className="h-5 w-5 text-navy-700 shrink-0" />
+              <span className="break-words">Provider Decision Summary</span>
               <Badge
                 variant={
                   providerSummary.priority === 'CONTRAINDICATED' ? 'destructive' :
@@ -259,16 +261,17 @@ export function IntakeDataView({ formData: rawFormData, scores, riskAssessment, 
                   providerSummary.priority === 'ELEVATED' ? 'secondary' :
                   'default'
                 }
-                className="ml-auto"
+                className="sm:ml-auto"
               >
                 {providerSummary.priority}
               </Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* DSM-5 Score */}
-            <div className="flex items-center justify-between">
-              <div>
+            {/* DSM-5 Score — flex-wrap + gap so the "Meets AUD Criteria" badge
+                wraps below the score on narrow viewports (1024px lg with sidebar). */}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="min-w-0">
                 <p className="text-sm text-muted-foreground">DSM-5 AUD Score</p>
                 <p className="text-lg font-semibold">
                   {providerSummary.dsm5.score} / 11
@@ -284,21 +287,21 @@ export function IntakeDataView({ formData: rawFormData, scores, riskAssessment, 
                   providerSummary.dsm5.severity === 'MILD' ? 'outline' :
                   'default'
                 }
-                className="text-sm px-3 py-1"
+                className="text-sm px-3 py-1 whitespace-normal text-left"
               >
                 {providerSummary.dsm5.meetsCriteria ? 'Meets AUD Criteria' : 'Below Threshold'}
               </Badge>
             </div>
-            <p className="text-sm text-muted-foreground">{providerSummary.dsm5.interpretation}</p>
+            <p className="text-sm text-muted-foreground break-words">{providerSummary.dsm5.interpretation}</p>
 
             <Separator />
 
             {/* Naltrexone Eligibility */}
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {providerSummary.eligibleForNaltrexone ? (
-                <Badge variant="default" className="bg-green-600">Eligible for Naltrexone</Badge>
+                <Badge variant="default" className="bg-green-600 whitespace-normal text-left">Eligible for Naltrexone</Badge>
               ) : (
-                <Badge variant="destructive">NOT Eligible for Naltrexone</Badge>
+                <Badge variant="destructive" className="whitespace-normal text-left">NOT Eligible for Naltrexone</Badge>
               )}
             </div>
 

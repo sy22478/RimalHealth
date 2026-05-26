@@ -612,8 +612,11 @@ export function PatientDashboard({ data, userId, mfaEnabled = true, accountAgeDa
           )}
         </div>
 
-        {/* Right Column - Takes up 1/3 on large screens */}
-        <div className="space-y-6">
+        {/* Right Column - Takes up 1/3 on large screens.
+            min-w-0 lets nested truncate/break-words actually fire — without it
+            the column can grow past its track and force horizontal scroll at
+            1024px where the column is ~195px wide. */}
+        <div className="space-y-6 min-w-0">
           {/* Prescription Card */}
           <PrescriptionCard prescription={activePrescription as unknown as import('@/types/prescriptions').PrescriptionSummary} onRequestRefill={() => {}} />
           
@@ -639,6 +642,7 @@ export function PatientDashboard({ data, userId, mfaEnabled = true, accountAgeDa
                     Renews {new Date(data.subscription.currentPeriodEnd).toLocaleDateString('en-US', {
                       month: 'short',
                       day: 'numeric',
+                      year: 'numeric',
                       timeZone: 'America/Los_Angeles',
                     })}
                   </p>

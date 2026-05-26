@@ -248,6 +248,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       name: string;
       address: string;
       city: string;
+      state: string;
       zip: string;
       phone?: string;
       source: 'pharmacy_record' | 'intake';
@@ -258,6 +259,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         name: profile.preferredPharmacy.name,
         address: profile.preferredPharmacy.address,
         city: profile.preferredPharmacy.city,
+        // CA-only service; pharmacies should always have state set, but fall
+        // back so the UI doesn't render "undefined".
+        state: profile.preferredPharmacy.state || 'CA',
         zip: profile.preferredPharmacy.zipCode,
         phone: profile.preferredPharmacy.phone || undefined,
         source: 'pharmacy_record',
@@ -277,6 +281,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             name: fd.pharmacyName,
             address: typeof fd.pharmacyAddress === 'string' ? fd.pharmacyAddress : '',
             city: typeof fd.pharmacyCity === 'string' ? fd.pharmacyCity : '',
+            state: typeof fd.pharmacyState === 'string' && fd.pharmacyState ? fd.pharmacyState : 'CA',
             zip: typeof fd.pharmacyZip === 'string' ? fd.pharmacyZip : '',
             phone: typeof fd.pharmacyPhone === 'string' ? fd.pharmacyPhone : undefined,
             source: 'intake',
@@ -590,6 +595,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
       name: string;
       address: string;
       city: string;
+      state: string;
       zip: string;
       phone?: string;
       source: 'pharmacy_record' | 'intake';
@@ -600,6 +606,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
         name: refreshedProfile.preferredPharmacy.name,
         address: refreshedProfile.preferredPharmacy.address,
         city: refreshedProfile.preferredPharmacy.city,
+        state: refreshedProfile.preferredPharmacy.state || 'CA',
         zip: refreshedProfile.preferredPharmacy.zipCode,
         phone: refreshedProfile.preferredPharmacy.phone || undefined,
         source: 'pharmacy_record',

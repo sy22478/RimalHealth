@@ -108,10 +108,15 @@ export function InvoiceCard({
   const isPending = invoice.id === 'pending-review';
   const isPaid = invoice.status === 'PAID';
   const isDownloadable = (isPaid || invoice.pdfUrl) && !isPending;
+  // $0 invoices are the initial trial holds; showing them as "paid $0.00" next
+  // to real $50 charges confuses patients. Label the row as a trial instead.
+  const isTrialZero = !isPending && invoice.amount === 0;
 
   const statusLabel = isPending
     ? 'pending approval'
-    : invoice.status.toLowerCase().replace('_', ' ');
+    : isTrialZero
+      ? 'trial'
+      : invoice.status.toLowerCase().replace('_', ' ');
 
   return (
     <Card className={cn('w-full', className)}>
@@ -145,8 +150,11 @@ export function InvoiceCard({
 
           {/* Amount & Actions */}
           <div className="flex items-center gap-4 flex-shrink-0">
-            <span className="font-semibold text-foreground text-right">
-              {formatAmount(invoice.amount)}
+            <span className={cn(
+              'font-semibold text-right',
+              isTrialZero ? 'text-muted-foreground' : 'text-foreground'
+            )}>
+              {isTrialZero ? 'Trial — no charge' : formatAmount(invoice.amount)}
             </span>
 
             <div className="flex items-center gap-1">

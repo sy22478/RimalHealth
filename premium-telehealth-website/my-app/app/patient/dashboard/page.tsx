@@ -1,10 +1,15 @@
 import * as React from "react";
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { PatientDashboard } from "@/components/patient/PatientDashboard";
 import { DashboardData } from "@/types/dashboard";
 import { prisma } from "@/lib/db/prisma";
 import { IntakeStatus, SenderType, Role } from "@prisma/client";
 import { requireRole } from "@/lib/auth/session-helpers";
+
+export const metadata: Metadata = {
+  title: "Dashboard",
+};
 
 interface UserMFAInfo {
   mfaEnabled: boolean;

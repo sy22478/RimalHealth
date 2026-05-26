@@ -2,8 +2,10 @@ import * as React from 'react';
 import type { Metadata } from 'next';
 import { ProfileSettings } from '@/components/patient/ProfileSettings';
 
+// Title is just the page name — the root layout's title.template ("%s | Rimal Health")
+// appends the suffix. Setting "Profile Settings | Rimal Health" here would duplicate it.
 export const metadata: Metadata = {
-  title: 'Profile Settings | Rimal Health',
+  title: 'Profile Settings',
   description: 'Manage your personal information, password, notifications, and privacy settings.',
 };
 
