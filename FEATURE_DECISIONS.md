@@ -1,6 +1,6 @@
 # Feature Decisions & Future Expansion Notes
 
-**Last updated:** 2026-05-26
+**Last updated:** 2026-05-27
 
 This document captures product/business decisions made during development — especially decisions that affect how features should evolve when the platform expands. Unlike AWS_MIGRATION_STATUS.md (infrastructure), this file covers feature logic, regulatory considerations, and planned scaling behavior.
 
@@ -215,7 +215,7 @@ When expanding beyond California, update these areas:
 
 **Post-launch follow-ups (deferred):**
 - Audit log entry (`AuditLog`) on every profile edit that touches medical fields, with before/after values.
-- Physician notification (in-app banner or email) when a patient changes a medical-history field after their last approved review — so contraindications can be re-evaluated.
+- Physician notification (in-app banner or email) only for **material** changes after the last approved review — newly disclosed conditions or allergies that could be contraindications — **not** routine medication-list edits, to avoid alert fatigue.
 
 **Key files:** `components/patient/PersonalInfoForm.tsx`, `app/api/patient/profile/route.ts` (PUT), `app/api/patient/intake/[id]/submit/route.ts` (one-time sync, no longer overwrites profile after submit).
 
