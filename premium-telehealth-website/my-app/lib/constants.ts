@@ -28,6 +28,7 @@ export const footerLinks = {
   product: [
     { href: "/how-it-works", label: "How It Works" },
     { href: "/alcohol-treatment", label: "Alcohol Treatment" },
+    { href: "/weight-management", label: "Weight Management" },
     { href: "/pricing", label: "Pricing" },
   ],
   company: [

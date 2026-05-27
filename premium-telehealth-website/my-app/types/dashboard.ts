@@ -446,6 +446,7 @@ export function formatConcernType(concern: ConcernType | null): string {
     ALCOHOL: 'Alcohol Use',
     SMOKING: 'Discontinued',
     BOTH: 'Discontinued',
+    WEIGHT_MANAGEMENT: 'Weight Management',
   };
   return concernMap[concern];
 }

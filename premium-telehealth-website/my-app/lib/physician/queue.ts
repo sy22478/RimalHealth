@@ -59,11 +59,12 @@ function calculateWaitTime(submittedAt: Date): number {
 
 /**
  * Map database concern type to queue concern type
- * Note: Only ALCOHOL is actively used. SMOKING and BOTH are discontinued.
+ * Note: ALCOHOL and WEIGHT_MANAGEMENT are active. SMOKING and BOTH are discontinued.
  */
 function mapConcernType(dbConcernType: string): ConcernType {
   const upperType = dbConcernType.toUpperCase();
   if (upperType === 'ALCOHOL') return 'ALCOHOL';
+  if (upperType === 'WEIGHT_MANAGEMENT') return 'WEIGHT_MANAGEMENT';
   // SMOKING and BOTH are discontinued but may exist in legacy records
   if (upperType === 'SMOKING') return 'SMOKING';
   if (upperType === 'BOTH') return 'BOTH';

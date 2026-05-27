@@ -131,6 +131,7 @@ export function QueueFilters({
   const concernTypes: (ConcernType | 'ALL')[] = [
     'ALL',
     'ALCOHOL',
+    'WEIGHT_MANAGEMENT',
   ];
   const statuses: (QueueIntakeStatus | 'ALL')[] = [
     'ALL',

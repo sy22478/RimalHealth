@@ -16,6 +16,7 @@ import {
   TrendingUp,
   RefreshCw,
   Wine,
+  Scale,
   LayoutGrid,
   List,
   ArrowUpDown,
@@ -65,7 +66,7 @@ interface EnhancedQueueClientProps {
   initialEnhancedStats: EnhancedQueueStats;
 }
 
-type FilterType = 'ALL' | 'HIGH_PRIORITY' | 'ALCOHOL';
+type FilterType = 'ALL' | 'HIGH_PRIORITY' | 'ALCOHOL' | 'WEIGHT_MANAGEMENT';
 type SortType = 'PRIORITY' | 'WAIT_TIME';
 type ViewMode = 'GRID' | 'LIST';
 
@@ -86,6 +87,7 @@ const FILTER_OPTIONS: { type: FilterType; label: string; icon: React.ReactNode }
   { type: 'ALL', label: 'All Intakes', icon: <Filter className="size-4" /> },
   { type: 'HIGH_PRIORITY', label: 'High Priority', icon: <AlertCircle className="size-4" /> },
   { type: 'ALCOHOL', label: 'Alcohol', icon: <Wine className="size-4" /> },
+  { type: 'WEIGHT_MANAGEMENT', label: 'Weight Management', icon: <Scale className="size-4" /> },
 ];
 
 const SORT_OPTIONS: { type: SortType; label: string; description: string }[] = [
@@ -106,6 +108,8 @@ function filterItems(items: QueueItem[], filter: FilterType): QueueItem[] {
       return items.filter(item => (item.riskScore || 0) >= 70);
     case 'ALCOHOL':
       return items.filter(item => item.concernType === 'ALCOHOL');
+    case 'WEIGHT_MANAGEMENT':
+      return items.filter(item => item.concernType === 'WEIGHT_MANAGEMENT');
     case 'ALL':
     default:
       return items;

@@ -112,7 +112,7 @@ export const MEDICATIONS = {
 export interface MedicationOption {
   name: string;
   genericName: string;
-  category: 'ALCOHOL';
+  category: 'ALCOHOL' | 'WEIGHT_MANAGEMENT';
   dosages: string[];
   defaultDosage: string;
   defaultQuantity: number;
@@ -170,8 +170,9 @@ export const MEDICATION_OPTIONS: MedicationOption[] = [
  * Get medications filtered by concern type
  */
 export function getMedicationsForConcern(concernType: string): MedicationOption[] {
-  // Platform now focuses exclusively on alcohol use disorder (smoking removed 2026-02-28)
-  return MEDICATION_OPTIONS.filter(med => med.category === 'ALCOHOL');
+  // Filter by the requested concern. Only ALCOHOL medications exist today;
+  // WEIGHT_MANAGEMENT (GLP-1) options are added in Phase 3.
+  return MEDICATION_OPTIONS.filter((med) => med.category === concernType);
 }
 
 /**

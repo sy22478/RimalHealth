@@ -167,12 +167,38 @@ enum ConcernType {
   ALCOHOL
   SMOKING
   BOTH
+  WEIGHT_MANAGEMENT
 }
 
 enum TreatmentGoal {
   QUIT
   REDUCE
   EXPLORE
+}
+
+// ============================================
+// PRODUCT CATALOG (multi-treatment spine)
+// ============================================
+
+// Product is the spine for multi-treatment support. AUD is the first row,
+// GLP-1 weight management the second. Intake and Prescription FK into it so a
+// patient can later carry distinct treatments. One treatment per patient is
+// enforced in application logic for now; the data model allows multiple.
+model Product {
+  id            String      @id @default(uuid())
+  slug          String      @unique // "alcohol-aud", "weight-management"
+  name          String // "Alcohol Use Disorder", "Weight Management"
+  concernType   ConcernType // bridges to existing display/filter code
+  stripePriceId String? // per-product pricing, nullable for now
+  isActive      Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  intakes       Intake[]
+  prescriptions Prescription[]
+
+  @@index([slug])
+  @@index([isActive])
 }
 
 // ============================================
@@ -263,6 +289,9 @@ model Intake {
   paymentIntentId String?
   subscriptionId  String?
 
+  // Product (multi-treatment spine; nullable during backfill)
+  productId String?
+
   // Data Retention (soft delete)
   deletedAt DateTime?
 
@@ -271,12 +300,14 @@ model Intake {
   patient      User          @relation(fields: [patientId], references: [id], onDelete: Restrict)
   review       Review?
   prescription Prescription?
+  product      Product?      @relation(fields: [productId], references: [id], onDelete: Restrict)
 
   @@index([patientId])
   @@index([status])
   @@index([createdAt])
   @@index([submittedAt])
   @@index([status, submittedAt])
+  @@index([patientId, productId])
 }
 
 enum IntakeStatus {
@@ -393,6 +424,9 @@ model Prescription {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Product (multi-treatment spine; nullable during backfill)
+  productId String?
+
   // Data Retention (soft delete)
   deletedAt DateTime?
 
@@ -402,12 +436,15 @@ model Prescription {
   patient        User            @relation("PatientPrescriptions", fields: [patientId], references: [id], onDelete: Restrict)
   refillRequests RefillRequest[]
   pharmacy       Pharmacy?       @relation("PharmacyPrescriptions", fields: [pharmacyId], references: [id])
+  // onDelete: Restrict — match Part 2 retention posture for linked product
+  product        Product?        @relation(fields: [productId], references: [id], onDelete: Restrict)
 
   @@index([patientId])
   @@index([pharmacyId])
   @@index([status])
   @@index([nextRefillAvailable])
   @@index([patientId, status])
+  @@index([productId])
 }
 
 enum PrescriptionStatus {

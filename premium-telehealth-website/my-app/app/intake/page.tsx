@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { IntakeStatus } from '@prisma/client';
 import { verifyAccessToken } from '@/lib/auth/jwt';
 import { prisma } from '@/lib/db/prisma';
+import { resolveProductId } from '@/lib/products/product';
 import IntakeClient from './IntakeClient';
 
 export const metadata: Metadata = {
@@ -32,7 +33,13 @@ const NON_DRAFT_INTAKE_STATUSES: IntakeStatus[] = [
   IntakeStatus.NEEDS_INFO,
 ];
 
-export default async function IntakePage() {
+export default async function IntakePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ product?: string }>;
+}) {
+  const { product: productSlug } = await searchParams;
+
   const headerStore = await headers();
   let userId = headerStore.get('x-user-id');
 
@@ -51,10 +58,16 @@ export default async function IntakePage() {
 
   if (userId) {
     try {
+      // Resolve the product so the gate is per-(patient, product): a patient
+      // with a completed AUD intake can still start a different treatment
+      // (e.g. GLP-1). Defaults to the AUD product when no slug is given.
+      const productId = await resolveProductId(productSlug);
+
       const existingIntake = await prisma.intake.findFirst({
         where: {
           patientId: userId,
           status: { in: NON_DRAFT_INTAKE_STATUSES },
+          productId,
         },
         select: { id: true },
       });

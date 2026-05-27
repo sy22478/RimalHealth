@@ -255,6 +255,7 @@ export const CONCERN_TYPE_LABELS: Record<ConcernType, string> = {
   ALCOHOL: 'Alcohol Use',
   SMOKING: 'Discontinued',
   BOTH: 'Discontinued',
+  WEIGHT_MANAGEMENT: 'Weight Management',
 };
 
 export const TREATMENT_GOAL_LABELS: Record<TreatmentGoal, string> = {

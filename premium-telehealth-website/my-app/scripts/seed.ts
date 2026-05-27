@@ -16,10 +16,26 @@
  *   npx tsx scripts/seed.ts
  */
 
-import { PrismaClient, Role, PlanType, SubscriptionStatus } from '@prisma/client';
+import { PrismaClient, Role, PlanType, SubscriptionStatus, ConcernType } from '@prisma/client';
 import bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
+
+// Treatment products (multi-product spine). AUD is the first treatment,
+// GLP-1 weight management the second. Mirrors the data migration
+// (20260526010001_seed_products_backfill) so fresh dev DBs match production.
+const PRODUCTS = [
+  {
+    slug: 'alcohol-aud',
+    name: 'Alcohol Use Disorder',
+    concernType: ConcernType.ALCOHOL,
+  },
+  {
+    slug: 'weight-management',
+    name: 'Weight Management',
+    concernType: ConcernType.WEIGHT_MANAGEMENT,
+  },
+];
 
 // Test physician credentials (for development only)
 const TEST_PHYSICIAN = {
@@ -208,6 +224,44 @@ async function seedPharmacies() {
 }
 
 /**
+ * Seed treatment products (idempotent) and backfill any unlinked AUD records.
+ */
+async function seedProducts() {
+  console.log('🧬 Seeding treatment products...');
+
+  for (const product of PRODUCTS) {
+    await prisma.product.upsert({
+      where: { slug: product.slug },
+      update: { name: product.name, concernType: product.concernType },
+      create: product,
+    });
+    console.log(`  ✅ Upserted product: ${product.name} (${product.slug})`);
+  }
+
+  // Backfill existing intakes/prescriptions to the AUD product (the only
+  // treatment that existed before the multi-product foundation).
+  const audProduct = await prisma.product.findUnique({
+    where: { slug: 'alcohol-aud' },
+  });
+
+  if (audProduct) {
+    const intakes = await prisma.intake.updateMany({
+      where: { productId: null },
+      data: { productId: audProduct.id },
+    });
+    const prescriptions = await prisma.prescription.updateMany({
+      where: { productId: null },
+      data: { productId: audProduct.id },
+    });
+    if (intakes.count || prescriptions.count) {
+      console.log(
+        `  ✅ Backfilled ${intakes.count} intake(s) and ${prescriptions.count} prescription(s) to AUD`
+      );
+    }
+  }
+}
+
+/**
  * Seed audit log with system events
  */
 async function seedAuditLogs(physicianId: string) {
@@ -263,6 +317,7 @@ async function main() {
     // Seed in order of dependencies
     const physician = await seedPhysician();
     await seedAdmin();
+    await seedProducts();
     await seedPharmacies();
     await seedAuditLogs(physician.id);
 

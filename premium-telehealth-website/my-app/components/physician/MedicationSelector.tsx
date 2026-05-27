@@ -14,6 +14,7 @@ import {
   MEDICATION_OPTIONS,
   MedicationOption,
   checkContraindications,
+  getMedicationsForConcern,
 } from '@/lib/physician/review-types';
 import { IntakeFormData } from '@/types/intake';
 
@@ -49,9 +50,10 @@ export function MedicationSelector({
   formData,
   disabled = false,
 }: MedicationSelectorProps) {
-  // Get medications appropriate for the concern type (alcohol only)
+  // Get medications appropriate for the concern type. Only ALCOHOL options
+  // exist today; WEIGHT_MANAGEMENT (GLP-1) options arrive in Phase 3.
   const availableMedications = React.useMemo(() => {
-    return MEDICATION_OPTIONS.filter((med) => med.category === 'ALCOHOL');
+    return getMedicationsForConcern(concernType);
   }, [concernType]);
 
   // Get selected medication details
@@ -135,7 +137,11 @@ export function MedicationSelector({
                     {med.genericName}
                   </p>
                   <Badge variant="secondary" className="mt-2 text-xs">
-                    {med.category === 'ALCOHOL' ? 'Alcohol' : 'Other'}
+                    {med.category === 'ALCOHOL'
+                      ? 'Alcohol'
+                      : med.category === 'WEIGHT_MANAGEMENT'
+                        ? 'Weight Management'
+                        : 'Other'}
                   </Badge>
                 </div>
               </div>

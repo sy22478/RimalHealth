@@ -44,6 +44,7 @@ const PUBLIC_ROUTES = [
   '/faq',
   '/contact',
   '/alcohol-treatment',
+  '/weight-management',
   '/privacy',
   '/terms',
   '/hipaa',

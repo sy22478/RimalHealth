@@ -16,6 +16,7 @@ import { ValidationService } from '@/lib/services/validation-service';
 import { createIntakeSchema } from '@/lib/validation/schemas';
 import { Role, IntakeStatus, PaymentStatus, Prisma } from '@prisma/client';
 import { calculateAge } from '@/lib/utils/date-helpers';
+import { resolveProductId } from '@/lib/products/product';
 
 // ============================================================================
 // POST - Create Intake Draft
@@ -50,6 +51,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const { primaryConcern, formData } = validation.data!;
 
+    // Resolve which treatment this intake belongs to. Defaults to the AUD
+    // product when no slug is given, so the existing AUD flow is unchanged.
+    // Resolves to null on un-migrated databases (behavior-neutral).
+    const productSlug = request.nextUrl.searchParams.get('product');
+    const productId = await resolveProductId(productSlug);
+
     // Reject minors before the draft is stored — prevents a minor from entering
     // SUD and medical PHI into the 33-question form before /submit rejects them.
     if (formData && typeof formData === 'object') {
@@ -80,6 +87,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           status: {
             in: [IntakeStatus.DRAFT, IntakeStatus.SUBMITTED, IntakeStatus.UNDER_REVIEW],
           },
+          // Per-(patient, product) gate: an active intake for one treatment
+          // doesn't block starting an intake for a different treatment.
+          productId,
         },
       });
 
@@ -109,6 +119,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           status: IntakeStatus.DRAFT,
           formData: (formData ?? {}) as Prisma.InputJsonValue,
           paymentStatus: PaymentStatus.PENDING,
+          productId,
         },
       });
 
