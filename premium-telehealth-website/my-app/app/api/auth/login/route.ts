@@ -47,6 +47,9 @@ import {
 // Database
 import { prisma } from '@/lib/db/prisma';
 
+// Token hashing (verification tokens stored hashed at rest)
+import { hashToken } from '@/lib/auth/token-utils';
+
 // Audit
 import { auditLogin } from '@/lib/audit/logger';
 import { AuditContext, AuthenticationMetadata } from '@/lib/audit/types';
@@ -404,10 +407,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         // Generate a verification token
         const verifyToken = `verify-${crypto.randomUUID()}`;
+        // Store the hash, not the raw token — the raw token goes in the email link.
         await prisma.passwordReset.create({
           data: {
             userId: user.id,
-            token: verifyToken,
+            token: hashToken(verifyToken),
             expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
           },
         });
@@ -570,15 +574,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       path: '/',
     });
 
-    // Return success response (never include passwordHash)
+    // Return success response (never include passwordHash).
+    // Tokens are delivered ONLY via httpOnly cookies (set above) — they are
+    // intentionally NOT echoed in the response body to avoid redundant exposure
+    // in proxy logs or client storage.
     return NextResponse.json({
       user: {
         id: user.id,
         email: user.email,
         role: user.role,
       },
-      accessToken,
-      refreshToken,
       expiresIn: ACCESS_TOKEN_EXPIRY_SECONDS,
       redirectUrl,
     });

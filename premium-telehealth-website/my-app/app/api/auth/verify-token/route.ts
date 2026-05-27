@@ -15,6 +15,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'crypto';
 import { prisma } from '@/lib/db/prisma';
+import { hashToken } from '@/lib/auth/token-utils';
 import { rateLimit } from '@/lib/middleware/rate-limit';
 import { auditPasswordEvent } from '@/lib/audit/logger';
 import { AuditContext, AuditEventType } from '@/lib/audit/types';
@@ -71,14 +72,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     );
   }
 
+  // Tokens are stored hashed at rest; hash the incoming raw token once and use
+  // the hash for both the DB lookup and the timing-safe comparison below.
+  const tokenHash = hashToken(token);
+
   try {
     // Defense-in-depth: prisma.findUnique uses a DB index lookup (constant-time
     // at the database level, not vulnerable to byte-by-byte timing attacks).
     // We additionally perform a timing-safe comparison on the retrieved token
-    // vs the user-supplied token so that even if the DB driver leaks timing
-    // information through network latency, the comparison itself is safe.
+    // hash vs the hash of the user-supplied token so that even if the DB driver
+    // leaks timing information through network latency, the comparison is safe.
     const resetRecord = await prisma.passwordReset.findUnique({
-      where: { token },
+      where: { token: tokenHash },
       include: {
         user: {
           select: {
@@ -104,10 +109,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Timing-safe comparison: ensure the stored token matches the input token
-    // in constant time, preventing timing side-channel attacks.
+    // Timing-safe comparison: ensure the stored token hash matches the hash of
+    // the input token in constant time, preventing timing side-channel attacks.
     const storedBuf = Buffer.from(resetRecord.token, 'utf-8');
-    const inputBuf = Buffer.from(token, 'utf-8');
+    const inputBuf = Buffer.from(tokenHash, 'utf-8');
     if (storedBuf.length !== inputBuf.length || !timingSafeEqual(storedBuf, inputBuf)) {
       return NextResponse.json(
         { error: 'Invalid or expired link', code: 'INVALID_TOKEN' },

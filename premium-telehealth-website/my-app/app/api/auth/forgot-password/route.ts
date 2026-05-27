@@ -17,6 +17,9 @@ import { randomBytes } from 'crypto';
 // Database
 import { prisma } from '@/lib/db/prisma';
 
+// Token hashing (tokens are stored hashed at rest — never in plaintext)
+import { hashToken } from '@/lib/auth/token-utils';
+
 // Audit
 import { auditPasswordEvent } from '@/lib/audit/logger';
 import { AuditContext, AuditEventType } from '@/lib/audit/types';
@@ -146,16 +149,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       },
     });
 
-    // Create password reset record
+    // Create password reset record. Store the SHA-256 hash of the token, not
+    // the raw value, so a DB read cannot yield a usable reset token. The raw
+    // token is emailed to the user below.
     await prisma.passwordReset.create({
       data: {
         userId: user.id,
-        token,
+        token: hashToken(token),
         expiresAt,
       },
     });
 
-    // Queue password reset email
+    // Queue password reset email — sends the RAW token in the link
     await queuePasswordResetEmail(user.email, token);
 
     // Log audit event

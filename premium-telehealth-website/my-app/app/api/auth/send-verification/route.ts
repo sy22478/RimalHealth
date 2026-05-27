@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
+import { hashToken } from '@/lib/auth/token-utils';
 import { sendEmail } from '@/lib/integrations/sendgrid';
 import { EmailTemplate } from '@/lib/notifications/templates';
 import { rateLimit, rateLimitPresets } from '@/lib/middleware/rate-limit';
@@ -76,10 +77,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Use "verify-" prefix to distinguish from password reset tokens (Team H Amendment 2)
     const token = `verify-${crypto.randomUUID()}`;
 
+    // Store the hash, not the raw token, so a DB read cannot yield a usable
+    // verification token. The raw token is sent in the email link below.
     await prisma.passwordReset.create({
       data: {
         userId: user.id,
-        token,
+        token: hashToken(token),
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
       },
     });

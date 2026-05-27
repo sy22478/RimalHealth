@@ -73,6 +73,9 @@ model Session {
 model PasswordReset {
   id        String    @id @default(uuid())
   userId    String
+  // Stored as a SHA-256 hash of the raw token (see lib/auth/token-utils.ts).
+  // Used for password-reset, email-verification, and create-account tokens.
+  // The raw token is delivered only via email and is never stored in plaintext.
   token     String    @unique
   expiresAt DateTime
   usedAt    DateTime?

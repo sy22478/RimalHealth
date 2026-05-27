@@ -29,6 +29,10 @@ import { Prisma } from '@prisma/client';
 // Import from new stripe module
 import { getStripe, constructWebhookEvent } from '@/lib/stripe/stripe-server';
 
+// Token hashing — create-account tokens are stored hashed at rest (pure util,
+// only depends on node:crypto, so static import is safe here)
+import { hashToken } from '@/lib/auth/token-utils';
+
 // Force dynamic rendering for webhooks (requires runtime env vars)
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -411,10 +415,12 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
     // Generate create-account token for new/unverified users
     if (isNewUser || !txUser.emailVerified) {
       const token = crypto.randomUUID();
+      // Store the hash, not the raw token — the raw token is emailed to the
+      // user in the create-account link below.
       await tx.passwordReset.create({
         data: {
           userId,
-          token,
+          token: hashToken(token),
           expiresAt: new Date(Date.now() + 72 * 60 * 60 * 1000), // 72 hours
         },
       });
