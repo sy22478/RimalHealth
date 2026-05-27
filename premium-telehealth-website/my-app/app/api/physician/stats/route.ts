@@ -13,8 +13,9 @@ import { prisma } from '@/lib/db/prisma';
 import { AuditService } from '@/lib/services/audit-service';
 import { ValidationService } from '@/lib/services/validation-service';
 import { statsQuerySchema } from '@/lib/validation/schemas';
-import { Role, IntakeStatus, RefillStatus } from '@prisma/client';
+import { Role, IntakeStatus, RefillStatus, CheckInStatus } from '@prisma/client';
 import { PHIResourceType } from '@/lib/audit/index';
+import { getStepsReadyForReview } from '@/lib/titration/service';
 
 // ============================================================================
 // GET - Get Stats
@@ -214,6 +215,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           }, 0) / pendingIntakeDates.length
         : 0;
 
+    // GLP-1 monitoring stats (Phase 4): check-ins awaiting review, GLP-1 refills
+    // pending review, and titration steps eligible for a physician-approved advance.
+    const [checkInsAwaitingReview, refillsPendingReview, stepsReady] = await Promise.all([
+      prisma.checkIn.count({
+        where: { status: CheckInStatus.SUBMITTED, deletedAt: null },
+      }),
+      prisma.refillRequest.count({
+        where: {
+          status: RefillStatus.PENDING,
+          prescription: { product: { concernType: 'WEIGHT_MANAGEMENT' } },
+        },
+      }),
+      getStepsReadyForReview(now).then((r) => r.length),
+    ]);
+
     // Log access
     await AuditService.logPHIAccess(
       'VIEW',
@@ -242,6 +258,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           : 0,
         approvalRate: Math.round(approvalRate),
         pendingRefills,
+      },
+      // GLP-1 weight-management monitoring queue (Phase 4)
+      monitoring: {
+        checkInsAwaitingReview,
+        refillsPendingReview,
+        titrationStepsReady: stepsReady,
       },
     });
   } catch (error) {

@@ -35,6 +35,11 @@ export enum EmailTemplate {
   CREATE_ACCOUNT = 'create_account',
   GENERIC_NOTIFICATION = 'generic_notification',
   ADMIN_ALERT = 'admin_alert',
+  // GLP-1 monitoring (Phase 4)
+  CHECK_IN_DUE = 'check_in_due',
+  CHECK_IN_REVIEWED = 'check_in_reviewed',
+  TITRATION_STEP_READY = 'titration_step_ready',
+  REFILL_READY = 'refill_ready',
 }
 
 /**
@@ -48,6 +53,9 @@ export enum SMSTemplate {
   MESSAGE_NOTIFICATION = 'message_notification',
   STATUS_UPDATE = 'status_update',
   MESSAGE_RECEIVED = 'message_received',
+  // GLP-1 monitoring (Phase 4)
+  CHECK_IN_DUE = 'check_in_due',
+  REFILL_READY = 'refill_ready',
 }
 
 /**
@@ -867,6 +875,105 @@ Timestamp: ${new Date().toISOString()}`;
       text: interpolateTemplate(text, data),
     };
   },
+
+  // --- GLP-1 monitoring (Phase 4) ---
+  [EmailTemplate.CHECK_IN_DUE]: (data) => {
+    const html = wrapEmail(`
+      <h2 style="color: #0a2540; margin-top: 0;">Your check-in is due</h2>
+      <p>Hi ${data.firstName || 'there'},</p>
+      <p>It's time for your weight-management check-in. It takes about a minute and helps your physician monitor your progress and safety.</p>
+      <p style="margin-top: 24px;">
+        <a href="{{checkInUrl}}" style="background: #0a2540; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+          Complete Check-in
+        </a>
+      </p>
+    `);
+    const text = `Your check-in is due
+
+Hi ${data.firstName || 'there'},
+
+It's time for your weight-management check-in. Complete it here: {{checkInUrl}}
+
+Questions? Contact us at ${siteConfig.supportEmail}`;
+    return {
+      subject: 'Your weight-management check-in is due',
+      html: interpolateTemplate(html, data),
+      text: interpolateTemplate(text, data),
+    };
+  },
+
+  [EmailTemplate.CHECK_IN_REVIEWED]: (data) => {
+    const html = wrapEmail(`
+      <h2 style="color: #0a2540; margin-top: 0;">Your check-in has been reviewed</h2>
+      <p>Hi ${data.firstName || 'there'},</p>
+      <p>Your physician has reviewed your latest check-in. If any action is needed, you'll hear from your care team.</p>
+      <p style="margin-top: 24px;">
+        <a href="{{dashboardUrl}}" style="background: #0a2540; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+          View Dashboard
+        </a>
+      </p>
+    `);
+    const text = `Your check-in has been reviewed
+
+Hi ${data.firstName || 'there'},
+
+Your physician has reviewed your latest check-in. View your dashboard: {{dashboardUrl}}
+
+Questions? Contact us at ${siteConfig.supportEmail}`;
+    return {
+      subject: 'Your check-in has been reviewed',
+      html: interpolateTemplate(html, data),
+      text: interpolateTemplate(text, data),
+    };
+  },
+
+  [EmailTemplate.TITRATION_STEP_READY]: (data) => {
+    const html = wrapEmail(`
+      <h2 style="color: #0a2540; margin-top: 0;">Titration step ready for review</h2>
+      <p>${data.physicianName || 'Doctor'},</p>
+      <p>A weight-management patient has a titration step ready for your review. The dose is not advanced until you approve it.</p>
+      <p style="margin-top: 24px;">
+        <a href="{{reviewUrl}}" style="background: #0a2540; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+          Review in Dashboard
+        </a>
+      </p>
+    `);
+    const text = `Titration step ready for review
+
+A weight-management patient has a titration step ready for your review. The dose is not advanced until you approve it.
+
+Review: {{reviewUrl}}`;
+    return {
+      subject: 'GLP-1 titration step ready for review',
+      html: interpolateTemplate(html, data),
+      text: interpolateTemplate(text, data),
+    };
+  },
+
+  [EmailTemplate.REFILL_READY]: (data) => {
+    const html = wrapEmail(`
+      <h2 style="color: #0a2540; margin-top: 0;">Your refill is available</h2>
+      <p>Hi ${data.firstName || 'there'},</p>
+      <p>Your prescription is now within its refill window. You can request a refill from your dashboard.</p>
+      <p style="margin-top: 24px;">
+        <a href="{{dashboardUrl}}" style="background: #0a2540; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+          Request Refill
+        </a>
+      </p>
+    `);
+    const text = `Your refill is available
+
+Hi ${data.firstName || 'there'},
+
+Your prescription is now within its refill window. Request a refill: {{dashboardUrl}}
+
+Questions? Contact us at ${siteConfig.supportEmail}`;
+    return {
+      subject: 'Your refill is available',
+      html: interpolateTemplate(html, data),
+      text: interpolateTemplate(text, data),
+    };
+  },
 };
 
 /**
@@ -900,6 +1007,14 @@ export const smsTemplates: Record<SMSTemplate, (data: Record<string, string>) =>
 
   [SMSTemplate.MESSAGE_RECEIVED]: () => {
     return `You have a new message on ${siteConfig.name}. Log in to your portal to read and respond.`.slice(0, 160);
+  },
+
+  [SMSTemplate.CHECK_IN_DUE]: () => {
+    return `Your ${siteConfig.name} check-in is due. Log in to your portal to complete it. Reply STOP to opt out of SMS.`.slice(0, 160);
+  },
+
+  [SMSTemplate.REFILL_READY]: () => {
+    return `Your ${siteConfig.name} refill is available. Log in to your portal to request it. Reply STOP to opt out of SMS.`.slice(0, 160);
   },
 };
 

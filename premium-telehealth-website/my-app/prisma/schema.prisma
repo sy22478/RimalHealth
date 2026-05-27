@@ -877,6 +877,11 @@ enum NotificationType {
   PAYMENT_SUCCESS
   PAYMENT_FAILED
   SUBSCRIPTION_CANCELLED
+  // GLP-1 monitoring (Phase 4)
+  CHECK_IN_DUE
+  CHECK_IN_REVIEWED
+  TITRATION_STEP_READY
+  REFILL_READY
 }
 
 // ============================================

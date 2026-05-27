@@ -266,3 +266,98 @@ export const LAB_GATE = {
   /** A lab uploaded within this many days satisfies the gate. */
   recencyDays: 90, // TODO(clinical): confirm recency window
 } as const;
+
+// ============================================================================
+// Check-in schedule + questionnaire (Phase 4)
+// ============================================================================
+// TODO(clinical): REQUIRES CLINICAL SIGN-OFF — confirm the check-in cadence and
+// the grace period before a missed check-in is flagged. Check-ins are
+// physician-reviewed; the cron only marks them DUE/MISSED and notifies.
+export const CHECK_IN_SCHEDULE = {
+  /** Days between scheduled check-ins. */
+  intervalDays: 28,
+  /** Days after `dueAt` before a check-in is marked MISSED. */
+  graceDays: 7,
+} as const;
+
+/** A single check-in questionnaire field. */
+export interface CheckInQuestion {
+  id: string;
+  label: string;
+  type: 'number' | 'select' | 'boolean' | 'textarea';
+  options?: ReadonlyArray<{ value: string; label: string }>;
+  required: boolean;
+  /** Optional unit/help text shown beside the field. */
+  hint?: string;
+}
+
+// TODO(clinical): REQUIRES CLINICAL SIGN-OFF — confirm the check-in question set,
+// required-ness, and the side-effect severity scale. Answers are stored in the
+// encrypted `CheckIn.responses` JSON column.
+export const CHECK_IN_QUESTIONS: ReadonlyArray<CheckInQuestion> = [
+  {
+    id: 'currentWeightLbs',
+    label: 'Current weight',
+    type: 'number',
+    required: true,
+    hint: 'lbs',
+  },
+  {
+    id: 'doseAdherence',
+    label: 'How many weekly doses did you miss since your last check-in?',
+    type: 'select',
+    required: true,
+    options: [
+      { value: 'none', label: 'None' },
+      { value: 'one', label: '1 dose' },
+      { value: 'two-plus', label: '2 or more doses' },
+    ],
+  },
+  {
+    id: 'nauseaSeverity',
+    label: 'Nausea',
+    type: 'select',
+    required: true,
+    options: [
+      { value: 'none', label: 'None' },
+      { value: 'mild', label: 'Mild' },
+      { value: 'moderate', label: 'Moderate' },
+      { value: 'severe', label: 'Severe' },
+    ],
+  },
+  {
+    id: 'vomitingSeverity',
+    label: 'Vomiting',
+    type: 'select',
+    required: true,
+    options: [
+      { value: 'none', label: 'None' },
+      { value: 'mild', label: 'Mild' },
+      { value: 'moderate', label: 'Moderate' },
+      { value: 'severe', label: 'Severe' },
+    ],
+  },
+  {
+    id: 'abdominalPain',
+    label: 'Severe or persistent abdominal pain (possible pancreatitis)?',
+    type: 'boolean',
+    required: true,
+  },
+  {
+    id: 'otherSideEffects',
+    label: 'Any other side effects or new symptoms?',
+    type: 'textarea',
+    required: false,
+  },
+];
+
+/**
+ * Symptom answers that should fast-track a check-in for physician review.
+ * TODO(clinical): REQUIRES CLINICAL SIGN-OFF — confirm urgent-review triggers.
+ */
+export const CHECK_IN_URGENT_TRIGGERS = {
+  /** `abdominalPain === true` → urgent (pancreatitis watch). */
+  abdominalPain: true,
+  /** Severity values (for nausea/vomiting) that warrant urgent review. */
+  severeSymptomValues: ['severe'] as const,
+} as const;

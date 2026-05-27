@@ -10,6 +10,7 @@ import { QuickActions } from './QuickActions';
 import { RecentMessages } from './RecentMessages';
 import { PrescriptionCard } from './PrescriptionCard';
 import { TreatmentProgress } from './TreatmentProgress';
+import { Glp1MonitoringWidget } from './Glp1MonitoringWidget';
 import {
   DashboardData,
   DashboardStatus,
@@ -628,6 +629,9 @@ export function PatientDashboard({ data, userId, mfaEnabled = true, accountAgeDa
             the column can grow past its track and force horizontal scroll at
             1024px where the column is ~195px wide. */}
         <div className="space-y-6 min-w-0">
+          {/* GLP-1 titration + check-in (self-hides for non-GLP-1 patients) */}
+          <Glp1MonitoringWidget />
+
           {/* Prescription Card */}
           <PrescriptionCard prescription={activePrescription as unknown as import('@/types/prescriptions').PrescriptionSummary} onRequestRefill={() => {}} />
           

@@ -16,6 +16,7 @@ import {
   X,
   CreditCard,
   ShieldCheck,
+  ClipboardCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -38,6 +39,7 @@ const navItems: NavItem[] = [
   { href: '/patient/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/patient/messages', label: 'Messages', icon: MessageSquare },
   { href: '/patient/prescriptions', label: 'Prescriptions', icon: Pill },
+  { href: '/patient/check-ins', label: 'Check-ins', icon: ClipboardCheck },
   { href: '/patient/documents', label: 'Documents', icon: FileText },
   { href: '/patient/billing', label: 'Billing', icon: CreditCard },
   { href: '/patient/profile/settings', label: 'Profile', icon: User },
