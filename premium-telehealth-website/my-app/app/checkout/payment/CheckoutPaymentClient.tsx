@@ -12,7 +12,7 @@
 import * as React from 'react';
 import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Check, Loader2, Shield, AlertCircle } from 'lucide-react';
+import { Check, Loader2, Shield, AlertCircle, Scale, Pill } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -50,6 +50,10 @@ interface PlanCardProps {
 function PlanCard({ plan, isSelected, onSelect, disabled, showPopularBadge }: PlanCardProps) {
   const isPopular = showPopularBadge && plan.id === 'ACTIVE_TREATMENT';
 
+  // Per-treatment icon so the AUD and weight-management plan cards are
+  // visually distinguishable at a glance.
+  const PlanIcon = plan.id === 'WEIGHT_MANAGEMENT' ? Scale : Pill;
+
   return (
     <Card
       className={`relative cursor-pointer transition-all duration-200 ${
@@ -76,7 +80,10 @@ function PlanCard({ plan, isSelected, onSelect, disabled, showPopularBadge }: Pl
       
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">{plan.name}</CardTitle>
+          <div className="flex items-center gap-2">
+            <PlanIcon className="h-5 w-5 text-primary" aria-hidden />
+            <CardTitle className="text-lg">{plan.name}</CardTitle>
+          </div>
           {isSelected && (
             <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground">
               <Check className="h-4 w-4" />

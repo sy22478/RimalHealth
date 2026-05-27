@@ -12,7 +12,7 @@ export function Footer() {
               {siteConfig.name}
             </h3>
             <p className="text-sm text-gray-600 leading-relaxed">
-              Physician-prescribed treatment for alcohol addiction.
+              Physician-prescribed treatment for alcohol use disorder and weight management.
             </p>
           </div>
 
