@@ -11,6 +11,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/auth/require-auth';
+import { enforceRateLimit, rateLimitPresets } from '@/lib/middleware/rate-limit';
 import { prisma } from '@/lib/db/prisma';
 import { AuditService } from '@/lib/services/audit-service';
 import { NotificationService } from '@/lib/services/notification-service';
@@ -58,6 +59,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
+  const limited = await enforceRateLimit(request, rateLimitPresets.api);
+  if (limited) return limited;
+
   const auth = await requireRole(request, [Role.PHYSICIAN, Role.ADMIN]);
   if (auth instanceof NextResponse) return auth;
 
@@ -141,6 +145,9 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
+  const limited = await enforceRateLimit(request, rateLimitPresets.api);
+  if (limited) return limited;
+
   const auth = await requireRole(request, [Role.PHYSICIAN, Role.ADMIN]);
   if (auth instanceof NextResponse) return auth;
 

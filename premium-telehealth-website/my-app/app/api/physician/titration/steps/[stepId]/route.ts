@@ -11,6 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireRole, getClientIp, getUserAgent } from '@/lib/auth/require-auth';
+import { enforceRateLimit, rateLimitPresets } from '@/lib/middleware/rate-limit';
 import { requireCSRF } from '@/lib/security/csrf';
 import { Role } from '@prisma/client';
 import { approveTitrationStep } from '@/lib/titration/service';
@@ -23,6 +24,9 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ stepId: string }> }
 ): Promise<NextResponse> {
+  const limited = await enforceRateLimit(request, rateLimitPresets.api);
+  if (limited) return limited;
+
   const csrfError = requireCSRF(request);
   if (csrfError) return csrfError;
 

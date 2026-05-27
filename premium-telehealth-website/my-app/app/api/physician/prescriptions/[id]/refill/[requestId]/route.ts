@@ -18,6 +18,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
 import { requireRole } from '@/lib/auth/require-auth';
+import { enforceRateLimit, rateLimitPresets } from '@/lib/middleware/rate-limit';
 import { AuditService } from '@/lib/services/audit-service';
 import { NotificationService } from '@/lib/services/notification-service';
 import { requireCSRF } from '@/lib/security/csrf';
@@ -41,6 +42,9 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; requestId: string }> }
 ): Promise<NextResponse> {
+  const limited = await enforceRateLimit(request, rateLimitPresets.api);
+  if (limited) return limited;
+
   // CSRF guard before any state change
   const csrfError = requireCSRF(request);
   if (csrfError) return csrfError;

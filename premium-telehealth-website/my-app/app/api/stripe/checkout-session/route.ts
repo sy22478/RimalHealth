@@ -31,6 +31,7 @@ import { z } from 'zod';
 import { PlanType, Role } from '@prisma/client';
 
 import { requireRole } from '@/lib/auth/require-auth';
+import { enforceRateLimit, rateLimitPresets } from '@/lib/middleware/rate-limit';
 
 // Audit logging - safe to import at top level
 import { auditLogger } from '@/lib/audit/logger';
@@ -87,6 +88,15 @@ async function getUserWithProfile(userId: string) {
 // ============================================
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  // Strict limit to prevent checkout-session creation spam (5/hour/IP).
+  const limited = await enforceRateLimit(request, {
+    requests: 5,
+    windowMs: 60 * 60 * 1000, // 1 hour
+    keyPrefix: 'ratelimit:checkout-session',
+    useMemoryFallback: true,
+  });
+  if (limited) return limited;
+
   // Lazy load Stripe integration
   const {
     createCheckoutSession,
@@ -287,6 +297,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
  * - Never exposes set-password tokens or customer email in the response
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
+  const limited = await enforceRateLimit(request, rateLimitPresets.api);
+  if (limited) return limited;
+
   // Lazy load Stripe integration
   const { getCheckoutSession, isStripeConfigured } = await import('@/lib/stripe/stripe-server');
 

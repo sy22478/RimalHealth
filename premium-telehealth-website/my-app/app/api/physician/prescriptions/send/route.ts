@@ -13,6 +13,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/auth/require-auth';
+import { enforceRateLimit, rateLimitPresets } from '@/lib/middleware/rate-limit';
 import { prisma } from '@/lib/db/prisma';
 import { AuditService } from '@/lib/services/audit-service';
 import { ValidationService } from '@/lib/services/validation-service';
@@ -30,6 +31,9 @@ import { provisionTitrationForPrescription } from '@/lib/titration/service';
 // ============================================================================
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  const limited = await enforceRateLimit(request, rateLimitPresets.api);
+  if (limited) return limited;
+
   // CSRF guard before any state change (sends PHI to pharmacy)
   const csrfError = requireCSRF(request);
   if (csrfError) return csrfError;
