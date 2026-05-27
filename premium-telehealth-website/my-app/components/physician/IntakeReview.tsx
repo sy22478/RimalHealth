@@ -37,6 +37,20 @@ interface IntakeReviewProps {
   isReadOnly?: boolean;
 }
 
+/**
+ * Derive the prescription `frequency` field from the selected dosage cadence.
+ * Dosage strings encode the cadence (e.g. "0.25mg weekly", "666mg TID"), so the
+ * denormalized frequency must follow it rather than assume daily — Wegovy is
+ * once weekly, Acamprosate is TID.
+ */
+function deriveFrequency(dosage: string): string {
+  const d = dosage.toLowerCase();
+  if (d.includes('weekly')) return 'Once weekly';
+  if (d.includes('tid')) return 'Three times daily';
+  if (d.includes('bid')) return 'Twice daily';
+  return 'Once daily';
+}
+
 interface SubmissionState {
   status: 'idle' | 'submitting' | 'success' | 'error';
   error?: string;
@@ -181,7 +195,7 @@ export function IntakeReview({ intake, physicianId, physicianName, isDeactivated
             medicationName: decisionData.medication.name,
             genericName: decisionData.medication.genericName,
             dosage: decisionData.medication.dosage,
-            frequency: 'Once daily',
+            frequency: deriveFrequency(decisionData.medication.dosage),
             quantity: decisionData.medication.quantity,
             refills: decisionData.medication.refills,
             instructions: decisionData.medication.instructions,

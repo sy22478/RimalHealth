@@ -50,8 +50,8 @@ export function MedicationSelector({
   formData,
   disabled = false,
 }: MedicationSelectorProps) {
-  // Get medications appropriate for the concern type. Only ALCOHOL options
-  // exist today; WEIGHT_MANAGEMENT (GLP-1) options arrive in Phase 3.
+  // Get medications appropriate for the concern type: ALCOHOL → AUD meds,
+  // WEIGHT_MANAGEMENT → Wegovy (GLP-1).
   const availableMedications = React.useMemo(() => {
     return getMedicationsForConcern(concernType);
   }, [concernType]);

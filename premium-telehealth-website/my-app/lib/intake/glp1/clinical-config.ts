@@ -165,6 +165,23 @@ export const PREGNANCY_HARD_STOP_VALUES: string[] = [
 ];
 
 // ============================================================================
+// Prescribing-time medication warnings (physician MedicationSelector card)
+// ============================================================================
+// TODO(clinical): REQUIRES CLINICAL SIGN-OFF — confirm the warning copy shown to
+// the physician when selecting the GLP-1 medication at prescribe time. Kept here
+// (the single source of truth for GLP-1 clinical constants) so it is reviewed
+// alongside the contraindications above rather than duplicated in the catalog.
+export const GLP1_MEDICATION_WARNINGS: string[] = [
+  'Common GI effects: nausea, vomiting, diarrhea, constipation — usually transient',
+  'Boxed warning: risk of thyroid C-cell tumors (rodent data) — counsel on neck symptoms',
+  'Discontinue and evaluate if severe, persistent abdominal pain occurs (pancreatitis)',
+  'Risk of gallbladder events (cholelithiasis, cholecystitis)',
+  'Hypoglycemia risk when combined with insulin or sulfonylureas — consider dose reduction',
+  'Hold around scheduled surgery/anesthesia due to delayed gastric emptying',
+  'Monitor for new or worsening depression, mood changes, or suicidal ideation',
+];
+
+// ============================================================================
 // Drug-interaction flags (Step 6)
 // ============================================================================
 // TODO(clinical): REQUIRES CLINICAL SIGN-OFF — confirm the interaction list and

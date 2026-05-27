@@ -193,7 +193,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           'prescriber_identity',
           'patient_identity',
         ],
-        purpose: 'Treatment — fulfillment of Naltrexone prescription',
+        purpose: `Treatment — fulfillment of ${prescription.medicationName} prescription`,
         legalBasis: '42 CFR §2.31 patient consent (treatment/payment/operations)',
       }
     );
