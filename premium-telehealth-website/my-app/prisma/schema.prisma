@@ -292,6 +292,12 @@ model Intake {
   // Product (multi-treatment spine; nullable during backfill)
   productId String?
 
+  // GLP-1 triage metadata (non-PHI; lets the physician queue filter/sort).
+  // Actual answers stay in the encrypted formData JSON column.
+  requiresUrgentReview Boolean?
+  bmi                  Float?
+  glp1Eligibility      String? // 'ELIGIBLE' | 'BORDERLINE' | 'INELIGIBLE'
+
   // Data Retention (soft delete)
   deletedAt DateTime?
 

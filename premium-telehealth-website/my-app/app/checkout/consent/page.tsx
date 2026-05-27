@@ -4,7 +4,11 @@
  * Consent Page
  *
  * Standalone page displayed before checkout payment.
- * Users must agree to all 8 consent items before proceeding.
+ * Product-aware: the default (AUD / Naltrexone) flow requires 8 consent items
+ * including 42 CFR Part 2 SUD consent. The weight-management (GLP-1) flow,
+ * selected via `?product=weight-management`, requires its own 9-item consent
+ * set and OMITS the 42 CFR Part 2 item (Part 2 applies to SUD records only).
+ * Users must agree to all consent items for the active product before proceeding.
  * Consent record is POSTed to /api/checkout/consent before redirect.
  *
  * @module app/checkout/consent/page
@@ -31,10 +35,34 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 
 // ============================================
-// Consent Items (8 required agreements)
+// Product types
 // ============================================
 
-const CONSENT_ITEMS: { id: string; label: React.ReactNode; icon: React.ReactNode; description?: string; ariaLabel: string }[] = [
+type ProductType = 'ALCOHOL' | 'WEIGHT_MANAGEMENT';
+
+/**
+ * Resolve the product type from the `?product=` query param.
+ * Anything other than the explicit weight-management value falls back to the
+ * default AUD (alcohol) behavior — keeping the existing flow unchanged.
+ */
+function resolveProductType(product: string | null): ProductType {
+  return product === 'weight-management' ? 'WEIGHT_MANAGEMENT' : 'ALCOHOL';
+}
+
+// ============================================
+// Consent Items
+// ============================================
+
+type ConsentItem = {
+  id: string;
+  label: React.ReactNode;
+  icon: React.ReactNode;
+  description?: string;
+  ariaLabel: string;
+};
+
+// AUD / Naltrexone consent set (8 required agreements) — DEFAULT, UNCHANGED.
+const CONSENT_ITEMS: ConsentItem[] = [
   {
     id: 'age',
     label: 'I confirm that I am at least 18 years of age.',
@@ -188,6 +216,89 @@ const CONSENT_ITEMS: { id: string; label: React.ReactNode; icon: React.ReactNode
   },
 ];
 
+// GLP-1 weight-management consent set (9 required agreements).
+// Intentionally OMITS the 42 CFR Part 2 SUD consent — Part 2 protections apply
+// to substance use disorder records only, not to weight-management care.
+const GLP1_CONSENT_ITEMS: ConsentItem[] = [
+  {
+    id: 'telehealth',
+    label:
+      'I consent to receive weight-management care through telehealth, including asynchronous communication with my provider and remote evaluation, prescribing, and follow-up. I understand I will not be physically examined in person and that care is delivered online.',
+    icon: <Stethoscope className="h-4 w-4 text-ocean" />,
+    description: 'Consent to the telehealth nature of weight-management care',
+    ariaLabel: 'I consent to receive weight-management care through telehealth',
+  },
+  {
+    id: 'glp1_side_effects',
+    label:
+      'I have been informed of the common and serious side effects of GLP-1 medications (such as semaglutide and tirzepatide), including nausea, vomiting, diarrhea, constipation, injection-site reactions, gallbladder problems, pancreatitis, kidney injury from dehydration, and a boxed warning for risk of thyroid C-cell tumors. I understand these medications are contraindicated in people with a personal or family history of medullary thyroid carcinoma or Multiple Endocrine Neoplasia syndrome type 2 (MEN 2).',
+    icon: <FileCheck className="h-4 w-4 text-ocean" />,
+    description: 'Disclosure of GLP-1 medication side effects and contraindications',
+    ariaLabel: 'I acknowledge the disclosed side effects and risks of GLP-1 medications',
+  },
+  {
+    id: 'retinopathy_monitoring',
+    label:
+      'I understand that rapid improvement in blood sugar with GLP-1 therapy can be associated with worsening of diabetic retinopathy. I agree to disclose any history of eye disease and to obtain ongoing eye monitoring as recommended by my provider, and to report any changes in my vision promptly.',
+    icon: <CheckCircle2 className="h-4 w-4 text-ocean" />,
+    description: 'Commitment to retinopathy and vision monitoring during GLP-1 therapy',
+    ariaLabel: 'I commit to retinopathy and vision monitoring during GLP-1 therapy',
+  },
+  {
+    id: 'emergency_situations',
+    label:
+      'I understand that Rimal Health is not an emergency service and does not provide urgent or crisis care. If I experience a medical emergency I will call 911, and if I experience a mental-health crisis or thoughts of self-harm I will call or text 988 (the Suicide and Crisis Lifeline) or go to the nearest emergency room.',
+    icon: <Shield className="h-4 w-4 text-ocean" />,
+    description: 'Acknowledgement of emergency and crisis instructions (911 / 988)',
+    ariaLabel: 'I understand emergency situations require 911 or 988, not Rimal Health',
+  },
+  {
+    id: 'mental_health_warning',
+    label:
+      'I have been advised that GLP-1 medications may be associated with changes in mood, including depression and thoughts of self-harm. I agree to monitor my mental health and to promptly report any new or worsening depression, anxiety, or suicidal thoughts to my provider or to seek emergency help by calling or texting 988.',
+    icon: <Stethoscope className="h-4 w-4 text-ocean" />,
+    description: 'Mental-health warning and reporting commitment for GLP-1 therapy',
+    ariaLabel: 'I acknowledge the mental-health warning for GLP-1 therapy',
+  },
+  {
+    id: 'surgery_notification',
+    label:
+      'I agree to notify my provider and any surgeon or anesthesiologist before any scheduled surgery, procedure, or sedation that I am taking a GLP-1 medication. I understand that because these medications delay stomach emptying, my care team may instruct me to pause my medication beforehand to reduce the risk of complications under anesthesia.',
+    icon: <FileCheck className="h-4 w-4 text-ocean" />,
+    description: 'Obligation to notify providers before surgery or procedures (anesthesia hold)',
+    ariaLabel: 'I agree to notify providers about GLP-1 use before surgery or procedures',
+  },
+  {
+    id: 'long_term_therapy',
+    label:
+      'I understand that weight management with GLP-1 medications is generally a long-term therapy, that weight regain is common if treatment is stopped, and that achieving and maintaining results depends on ongoing medication, lifestyle changes, and follow-up care rather than a short-term course of treatment.',
+    icon: <CheckCircle2 className="h-4 w-4 text-ocean" />,
+    description: 'Acknowledgement that GLP-1 weight management is a long-term therapy',
+    ariaLabel: 'I understand GLP-1 weight management is a long-term therapy',
+  },
+  {
+    id: 'pharmacy_prescribing',
+    label:
+      'I authorize Rimal Health providers to evaluate me and, when clinically appropriate, to issue prescriptions for GLP-1 medications and to transmit those prescriptions to a licensed pharmacy on my behalf. I understand the prescribing decision is at my provider’s clinical discretion, that no specific medication or dose is guaranteed, and that pharmacy pricing and availability may vary.',
+    icon: <FileCheck className="h-4 w-4 text-ocean" />,
+    description: 'Consent to GLP-1 prescribing and transmission of prescriptions to a pharmacy',
+    ariaLabel: 'I consent to GLP-1 prescribing and pharmacy transmission',
+  },
+  {
+    id: 'california',
+    label:
+      'I confirm that I am a current resident of California and that I am physically located in California at the time I receive care, as Rimal Health is only able to provide treatment to California residents.',
+    icon: <CheckCircle2 className="h-4 w-4 text-ocean" />,
+    description: 'California residency and location confirmation required for treatment eligibility',
+    ariaLabel: 'I confirm I am a California resident located in California',
+  },
+];
+
+/** Return the consent item set for the active product type. */
+function getConsentItems(productType: ProductType): ConsentItem[] {
+  return productType === 'WEIGHT_MANAGEMENT' ? GLP1_CONSENT_ITEMS : CONSENT_ITEMS;
+}
+
 // ============================================
 // Animated Checkbox Component
 // ============================================
@@ -319,13 +430,16 @@ function ConsentContent(): React.ReactElement {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  const productType = resolveProductType(searchParams.get('product'));
+  const consentItems = getConsentItems(productType);
+
   const [consents, setConsents] = React.useState<Record<string, boolean>>({});
   const [patientName, setPatientName] = React.useState<string>('');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  const checkedCount = CONSENT_ITEMS.filter((item) => consents[item.id]).length;
-  const allConsentsChecked = checkedCount === CONSENT_ITEMS.length;
+  const checkedCount = consentItems.filter((item) => consents[item.id]).length;
+  const allConsentsChecked = checkedCount === consentItems.length;
   const trimmedName = patientName.trim();
   const nameValid = trimmedName.length >= 2;
   const canSubmit = allConsentsChecked && nameValid;
@@ -342,24 +456,38 @@ function ConsentContent(): React.ReactElement {
     setError(null);
 
     try {
-      // POST consent record to backend before redirecting
+      // Build the consents payload from the active product's item set. For the
+      // default AUD flow this yields exactly the same 8 keys as before; for the
+      // GLP-1 flow it yields the weight-management key set (no 42 CFR Part 2).
+      const consentPayload = consentItems.reduce<Record<string, boolean>>(
+        (acc, item) => {
+          acc[item.id] = consents[item.id] ?? false;
+          return acc;
+        },
+        {}
+      );
+
+      // POST consent record to backend before redirecting.
+      // `productType` is only sent for GLP-1; the AUD flow omits it so the
+      // request body and behavior remain unchanged.
+      const requestBody: {
+        consents: Record<string, boolean>;
+        patientName: string;
+        timestamp: string;
+        productType?: 'WEIGHT_MANAGEMENT';
+      } = {
+        consents: consentPayload,
+        patientName: trimmedName,
+        timestamp: new Date().toISOString(),
+      };
+      if (productType === 'WEIGHT_MANAGEMENT') {
+        requestBody.productType = 'WEIGHT_MANAGEMENT';
+      }
+
       const response = await fetch('/api/checkout/consent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          consents: {
-            age: consents.age ?? false,
-            california: consents.california ?? false,
-            terms: consents.terms ?? false,
-            privacy: consents.privacy ?? false,
-            hipaa: consents.hipaa ?? false,
-            part2_sud_consent: consents.part2_sud_consent ?? false,
-            telehealth: consents.telehealth ?? false,
-            informed: consents.informed ?? false,
-          },
-          patientName: trimmedName,
-          timestamp: new Date().toISOString(),
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -385,11 +513,15 @@ function ConsentContent(): React.ReactElement {
       return;
     }
 
-    // Preserve any query params (e.g., ?plan=active-treatment) and pass consentId
+    // Preserve any query params (e.g., ?plan=active-treatment, ?product=...) and pass consentId
     const plan = searchParams.get('plan');
+    const product = searchParams.get('product');
     const params = new URLSearchParams();
     if (plan) {
       params.set('plan', plan);
+    }
+    if (product) {
+      params.set('product', product);
     }
     // Retrieve consentRecordId to pass through the checkout flow
     let consentId: string | null = null;
@@ -436,9 +568,9 @@ function ConsentContent(): React.ReactElement {
               Consent & Agreements
             </CardTitle>
             <CardDescription>
-              All {CONSENT_ITEMS.length} items are required to continue.
+              All {consentItems.length} items are required to continue.
               <span className="ml-2 inline-flex items-center text-xs font-medium text-ocean">
-                {checkedCount}/{CONSENT_ITEMS.length} completed
+                {checkedCount}/{consentItems.length} completed
               </span>
             </CardDescription>
           </CardHeader>
@@ -446,7 +578,7 @@ function ConsentContent(): React.ReactElement {
           <Separator />
 
           <CardContent className="pt-6 space-y-4" role="group" aria-label="Required consent agreements">
-            {CONSENT_ITEMS.map((item) => {
+            {consentItems.map((item) => {
               const isChecked = !!consents[item.id];
               const labelId = `consent-label-${item.id}`;
               const descId = item.description ? `consent-desc-${item.id}` : undefined;
@@ -493,7 +625,7 @@ function ConsentContent(): React.ReactElement {
             <div className="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-ocean to-ocean-400 transition-all duration-500 ease-out"
-                style={{ width: `${(checkedCount / CONSENT_ITEMS.length) * 100}%` }}
+                style={{ width: `${(checkedCount / consentItems.length) * 100}%` }}
               />
             </div>
           </div>
