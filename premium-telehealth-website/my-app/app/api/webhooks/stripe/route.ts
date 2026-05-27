@@ -281,6 +281,11 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
 
   const planType = (session.metadata?.planType as typeof PlanType[keyof typeof PlanType]) || PlanType.ACTIVE_TREATMENT;
 
+  // Product-type identifier from session metadata. Falls back to 'ALCOHOL' for
+  // sessions created before Phase 5 (no productType metadata) — backward safe.
+  const productType: 'ALCOHOL' | 'WEIGHT_MANAGEMENT' =
+    session.metadata?.productType === 'WEIGHT_MANAGEMENT' ? 'WEIGHT_MANAGEMENT' : 'ALCOHOL';
+
   // ========================================================================
   // 3. Find or create User + PatientProfile + Subscription in a transaction
   //    (Task 3.5: Transaction safety — no orphaned records on partial failure)
@@ -321,7 +326,9 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
 
     if (!existingProfile) {
       // Create a minimal profile — patient will complete it later
-      // PHI fields are auto-encrypted by the Prisma encryption extension
+      // PHI fields are auto-encrypted by the Prisma encryption extension.
+      // primaryConcern records which product the patient paid for so the intake
+      // gate routes them to the correct intake (AUD vs GLP-1).
       await tx.patientProfile.create({
         data: {
           userId,
@@ -333,6 +340,7 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
           addressCity: '',
           addressState: 'CA',
           addressZip: '',
+          primaryConcern: productType,
         },
       });
     }
@@ -426,7 +434,12 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
 
   // 4a. Send payment receipt to ALL users (Task 3.1)
   const nextBillingDate = periodEnd.toLocaleDateString();
-  const planLabel = planType === PlanType.ACTIVE_TREATMENT ? 'Active Treatment' : 'Maintenance';
+  const planLabel =
+    planType === PlanType.WEIGHT_MANAGEMENT
+      ? 'Weight Management'
+      : planType === PlanType.ACTIVE_TREATMENT
+        ? 'Active Treatment'
+        : 'Treatment';
 
   await sendEmail({
     to: customerEmail,
@@ -444,7 +457,7 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
   // 4b. Send Create Account or Welcome email
   if (createAccountToken) {
     // New or unverified user — send Create Account email (Task 3.2)
-    const createAccountUrl = `${process.env.NEXT_PUBLIC_APP_URL}/create-account?token=${createAccountToken}`;
+    const createAccountUrl = `${process.env.NEXT_PUBLIC_APP_URL}/create-account?token=${createAccountToken}&product=${productType}`;
 
     const createAccountResult = await sendEmail({
       to: customerEmail,
@@ -542,13 +555,25 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
           signature,
           consents: meta.consents ?? {},
         };
+        // Branch the consent record by product. 42 CFR Part 2 applies to
+        // substance-use-disorder records ONLY — never label a weight-management
+        // consent as a Part 2 disclosure. Prefer the productType recorded in the
+        // consent audit metadata; fall back to the session's productType.
+        const consentProductType =
+          (meta.productType as string | undefined) === 'WEIGHT_MANAGEMENT' ||
+          productType === 'WEIGHT_MANAGEMENT'
+            ? 'WEIGHT_MANAGEMENT'
+            : 'ALCOHOL';
+        const isGlp1Consent = consentProductType === 'WEIGHT_MANAGEMENT';
+
         await prisma.consentRecord.create({
           data: {
             id: consentRecordId,
             userId,
-            consentType: 'PART2_DISCLOSURE',
-            consentText:
-              '42 CFR Part 2 SUD treatment + HIPAA + Telehealth + Naltrexone informed consent (8 items)',
+            consentType: isGlp1Consent ? 'TREATMENT' : 'PART2_DISCLOSURE',
+            consentText: isGlp1Consent
+              ? 'GLP-1 weight management + HIPAA + Telehealth + Wegovy informed consent (9 items)'
+              : '42 CFR Part 2 SUD treatment + HIPAA + Telehealth + Naltrexone informed consent (8 items)',
             consentVersion,
             grantedAt: consentTimestamp ? new Date(consentTimestamp) : new Date(),
             ipAddress: (signature.ipAddress as string | undefined) ?? null,
@@ -837,11 +862,14 @@ async function handleSubscriptionUpdated(
 
   if (subscription.items.data.length > 0) {
     const priceId = subscription.items.data[0]?.price?.id;
-    
-    // Check if price ID matches a different plan
+
+    // Check if the price ID matches a known plan and update if it changed.
     if (priceId && priceId === process.env.STRIPE_PRICE_ACTIVE_TREATMENT && planType !== PlanType.ACTIVE_TREATMENT) {
       planType = PlanType.ACTIVE_TREATMENT;
       amount = 5000; // $50.00
+    } else if (priceId && priceId === process.env.STRIPE_PRICE_WEIGHT_MANAGEMENT && planType !== PlanType.WEIGHT_MANAGEMENT) {
+      planType = PlanType.WEIGHT_MANAGEMENT;
+      amount = 5000; // $50.00 — TODO(business): confirm GLP-1 platform fee
     }
   }
 

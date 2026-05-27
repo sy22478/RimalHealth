@@ -41,7 +41,7 @@ import { AuditEventType, AuditSeverity } from '@/lib/audit/types';
 // ============================================
 
 const checkoutSessionSchema = z.object({
-  planType: z.enum(['ACTIVE_TREATMENT']),
+  planType: z.enum(['ACTIVE_TREATMENT', 'WEIGHT_MANAGEMENT']),
   successUrl: z.string().url('Invalid success URL'),
   cancelUrl: z.string().url('Invalid cancel URL'),
 });
@@ -204,6 +204,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Get price ID for the plan
     const priceId = getPriceId(planType as PlanType);
 
+    // Product-type identifier (no PHI) flows to both session + subscription
+    // metadata via createCheckoutSession, so the webhook can branch correctly.
+    const productType = planType === 'WEIGHT_MANAGEMENT' ? 'WEIGHT_MANAGEMENT' : 'ALCOHOL';
+
     // Create checkout session
     const session = await createCheckoutSession(
       customerId,
@@ -213,6 +217,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       {
         userId: user.id,
         planType,
+        productType,
       }
     );
 

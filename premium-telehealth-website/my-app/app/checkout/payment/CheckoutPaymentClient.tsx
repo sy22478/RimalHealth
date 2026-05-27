@@ -123,6 +123,17 @@ function PlanCard({ plan, isSelected, onSelect, disabled, showPopularBadge }: Pl
 // Inner Content Component (uses useSearchParams)
 // ============================================
 
+/**
+ * Normalize a `?plan=` value to a PlanType enum id. Accepts both URL slugs
+ * (`active-treatment`, `weight-management`) and enum values. Unknown values
+ * default to ACTIVE_TREATMENT (AUD) — backward compatible.
+ */
+function normalizePlanId(raw: string | null): string {
+  const v = (raw ?? '').trim().toLowerCase().replace(/_/g, '-');
+  if (v === 'weight-management') return 'WEIGHT_MANAGEMENT';
+  return 'ACTIVE_TREATMENT';
+}
+
 function CheckoutPaymentContent() {
   const searchParams = useSearchParams();
 
@@ -132,8 +143,9 @@ function CheckoutPaymentContent() {
 
   const [plans] = React.useState<PlanInfo[]>(getPlans());
 
-  // Get pre-selected plan and consent ID from URL
-  const preselectedPlan = searchParams.get('plan') || 'ACTIVE_TREATMENT';
+  // Get pre-selected plan and consent ID from URL. Normalize the `plan` slug to
+  // a PlanType enum id so the value sent to the checkout API is always valid.
+  const preselectedPlan = normalizePlanId(searchParams.get('plan'));
   const consentId = searchParams.get('consentId');
 
   const [selectedPlanId, setSelectedPlanId] = React.useState<string>(preselectedPlan);
@@ -195,6 +207,11 @@ function CheckoutPaymentContent() {
 
   const selectedPlan = plans.find(p => p.id === selectedPlanId);
 
+  // Show only the plan the patient chose (at pricing/consent). This keeps the
+  // AUD payment page a single AUD card (unchanged) and prevents a GLP-1 patient
+  // from switching to the AUD plan after signing the GLP-1 consent.
+  const visiblePlans = plans.filter(p => p.id === selectedPlanId);
+
   return (
     <div className="container mx-auto max-w-5xl py-12 px-4">
       {/* Header */}
@@ -228,14 +245,14 @@ function CheckoutPaymentContent() {
       {/* Plan Selection (hidden during loading/redirecting) */}
       {(state.status === 'idle' || state.status === 'error') && (
         <div className="grid gap-6 md:grid-cols-2 mb-8">
-          {plans.map((plan) => (
+          {visiblePlans.map((plan) => (
             <PlanCard
               key={plan.id}
               plan={plan}
               isSelected={selectedPlanId === plan.id}
               onSelect={() => handlePlanSelect(plan.id)}
               disabled={state.status !== 'idle' && state.status !== 'error'}
-              showPopularBadge={plans.length > 1}
+              showPopularBadge={visiblePlans.length > 1}
             />
           ))}
         </div>

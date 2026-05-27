@@ -22,7 +22,8 @@ import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { verifyAccessToken } from '@/lib/auth/jwt';
 import { prisma } from '@/lib/db/prisma';
-import { IntakeStatus, SubscriptionStatus } from '@prisma/client';
+import { ConcernType, IntakeStatus, Prisma, SubscriptionStatus } from '@prisma/client';
+import { resolveProductId, WEIGHT_MANAGEMENT_SLUG, DEFAULT_PRODUCT_SLUG } from '@/lib/products/product';
 import PatientLayoutClient from './PatientLayoutClient';
 
 export const dynamic = 'force-dynamic';
@@ -98,29 +99,58 @@ export default async function PatientLayout({
     redirect('/checkout/payment');
   }
 
-  // Gate 1b: Intake gate — check if patient has a completed/submitted intake.
-  // Skip this gate when the patient is on /patient/mfa-setup, otherwise a
-  // patient with no intake AND expired MFA grace period would loop:
+  // Gate 1b: Intake gate — check if patient has completed the CORRECT intake for
+  // their product. Skip this gate when on /patient/mfa-setup, otherwise a patient
+  // with no intake AND expired MFA grace period would loop:
   //   /intake → (MFA gate) → /patient/mfa-setup → (intake gate) → /intake
-  let completedIntake: { id: string } | null = null;
   if (!isMfaSetupPath) {
+    // Determine the patient's product from their profile. Unset (legacy
+    // patients) defaults to AUD so the existing flow is unchanged.
+    let primaryConcern: ConcernType | null = null;
     try {
-      completedIntake = await prisma.intake.findFirst({
-        where: {
-          patientId: userId,
-          status: { in: COMPLETED_INTAKE_STATUSES },
-        },
-        select: { id: true },
+      const profile = await prisma.patientProfile.findUnique({
+        where: { userId },
+        select: { primaryConcern: true },
       });
+      primaryConcern = profile?.primaryConcern ?? null;
+    } catch (err) {
+      console.error('[PatientLayout] Failed to read patient product:', err instanceof Error ? err.message : 'Unknown error');
+      redirect('/error?reason=intake-check-failed');
+    }
+
+    const wantsGlp1 = primaryConcern === ConcernType.WEIGHT_MANAGEMENT;
+    const intakeRoute = wantsGlp1 ? '/intake/glp1' : '/intake';
+
+    let completedIntake: { id: string } | null = null;
+    try {
+      // Build a product-scoped where clause. Match completed intakes carrying the
+      // patient's productId. For AUD, also accept legacy null-productId intakes
+      // created before the Product table existed (Phase 1). If the product id
+      // can't be resolved (un-migrated DB), fall back to "any completed intake".
+      const where: Prisma.IntakeWhereInput = {
+        patientId: userId,
+        status: { in: COMPLETED_INTAKE_STATUSES },
+      };
+      if (wantsGlp1) {
+        const glp1ProductId = await resolveProductId(WEIGHT_MANAGEMENT_SLUG);
+        if (glp1ProductId) where.productId = glp1ProductId;
+      } else {
+        const audProductId = await resolveProductId(DEFAULT_PRODUCT_SLUG);
+        where.OR = audProductId
+          ? [{ productId: audProductId }, { productId: null }]
+          : [{ productId: null }];
+      }
+
+      completedIntake = await prisma.intake.findFirst({ where, select: { id: true } });
     } catch (err) {
       console.error('[PatientLayout] Failed to check intake status:', err instanceof Error ? err.message : 'Unknown error');
       // On DB failure, redirect to an error page rather than silently allowing access
       redirect('/error?reason=intake-check-failed');
     }
 
-    // If no completed intake, redirect to intake form
+    // If no completed intake for this product, redirect to the correct intake form
     if (!completedIntake) {
-      redirect('/intake');
+      redirect(intakeRoute);
     }
   }
 
@@ -137,7 +167,7 @@ export default async function PatientLayout({
     // On DB failure, skip MFA gate to avoid blocking portal access
   }
 
-  // eslint-disable-next-line react-hooks/purity -- Date.now() is safe in server components (single render per request)
+  // Date.now() is safe in server components (single render per request).
   const now = Date.now();
   if (user && !user.mfaEnabled) {
     const accountAgeDays = Math.floor(

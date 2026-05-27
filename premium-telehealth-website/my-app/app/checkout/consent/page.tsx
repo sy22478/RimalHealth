@@ -642,8 +642,10 @@ function ConsentContent(): React.ReactElement {
             </Label>
             <p className="text-xs text-muted-foreground mb-3">
               Type your full legal name below. This serves as your electronic
-              signature for the agreements above and is required by 42 CFR Part 2
-              for substance use disorder treatment consent.
+              signature for the agreements above
+              {productType === 'WEIGHT_MANAGEMENT'
+                ? ' and confirms your weight management treatment consent.'
+                : ' and is required by 42 CFR Part 2 for substance use disorder treatment consent.'}
             </p>
             <input
               id="patient-signature"

@@ -23,14 +23,17 @@ import { PlanType } from '@prisma/client';
  */
 export const STRIPE_PRICE_IDS: Record<PlanType, string | undefined> = {
   ACTIVE_TREATMENT: process.env.STRIPE_PRICE_ACTIVE_TREATMENT,
+  WEIGHT_MANAGEMENT: process.env.STRIPE_PRICE_WEIGHT_MANAGEMENT,
 };
 
 /**
  * Plan amounts in cents (fallback values)
  * ACTIVE_TREATMENT: $50.00/month
+ * WEIGHT_MANAGEMENT: $50.00/month — TODO(business): confirm GLP-1 platform fee
  */
 export const PLAN_AMOUNTS: Record<PlanType, number> = {
   ACTIVE_TREATMENT: 5000,
+  WEIGHT_MANAGEMENT: 5000,
 };
 
 /**
@@ -38,6 +41,7 @@ export const PLAN_AMOUNTS: Record<PlanType, number> = {
  */
 export const PLAN_NAMES: Record<PlanType, string> = {
   ACTIVE_TREATMENT: 'Active Treatment',
+  WEIGHT_MANAGEMENT: 'Weight Management',
 };
 
 /**
@@ -45,6 +49,7 @@ export const PLAN_NAMES: Record<PlanType, string> = {
  */
 export const PLAN_DESCRIPTIONS: Record<PlanType, string> = {
   ACTIVE_TREATMENT: 'Full access to medication-assisted treatment with physician monitoring',
+  WEIGHT_MANAGEMENT: 'Physician-managed GLP-1 weight management with ongoing monitoring',
 };
 
 // ============================================
@@ -402,6 +407,21 @@ export async function createCustomerPortalSession(
 export async function configureCustomerPortal(): Promise<Stripe.BillingPortal.Configuration> {
   const stripe = getStripe();
 
+  // Build the portal product list from configured products only. The GLP-1
+  // (weight-management) product is included when its env vars are set.
+  const portalProducts: Array<{ product: string; prices: string[] }> = [
+    {
+      product: process.env.STRIPE_PRODUCT_ACTIVE_TREATMENT || '',
+      prices: [process.env.STRIPE_PRICE_ACTIVE_TREATMENT || ''],
+    },
+  ];
+  if (process.env.STRIPE_PRODUCT_WEIGHT_MANAGEMENT && process.env.STRIPE_PRICE_WEIGHT_MANAGEMENT) {
+    portalProducts.push({
+      product: process.env.STRIPE_PRODUCT_WEIGHT_MANAGEMENT,
+      prices: [process.env.STRIPE_PRICE_WEIGHT_MANAGEMENT],
+    });
+  }
+
   return stripe.billingPortal.configurations.create({
     features: {
       payment_method_update: { enabled: true },
@@ -409,12 +429,7 @@ export async function configureCustomerPortal(): Promise<Stripe.BillingPortal.Co
         enabled: true,
         default_allowed_updates: ['price', 'quantity', 'promotion_code'],
         proration_behavior: 'create_prorations',
-        products: [
-          {
-            product: process.env.STRIPE_PRODUCT_ACTIVE_TREATMENT || '',
-            prices: [process.env.STRIPE_PRICE_ACTIVE_TREATMENT || ''],
-          },
-        ],
+        products: portalProducts,
       },
       subscription_cancel: {
         enabled: true,

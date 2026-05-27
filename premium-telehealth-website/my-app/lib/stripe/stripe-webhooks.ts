@@ -504,10 +504,14 @@ function determinePlanType(priceId: string): PlanType | null {
   if (priceId === process.env.STRIPE_PRICE_ACTIVE_TREATMENT) {
     return PlanType.ACTIVE_TREATMENT;
   }
+  if (priceId === process.env.STRIPE_PRICE_WEIGHT_MANAGEMENT) {
+    return PlanType.WEIGHT_MANAGEMENT;
+  }
   return null;
 }
 
 // Fallback plan amounts (in cents)
 const PLAN_AMOUNTS: Record<PlanType, number> = {
   ACTIVE_TREATMENT: 5000,
+  WEIGHT_MANAGEMENT: 5000, // TODO(business): confirm GLP-1 platform fee
 };

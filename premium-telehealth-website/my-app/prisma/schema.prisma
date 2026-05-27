@@ -751,6 +751,7 @@ model Subscription {
 
 enum PlanType {
   ACTIVE_TREATMENT
+  WEIGHT_MANAGEMENT
 }
 
 enum SubscriptionStatus {

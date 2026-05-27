@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 const publicCheckoutSchema = z.object({
-  planType: z.enum(['ACTIVE_TREATMENT']),
+  planType: z.enum(['ACTIVE_TREATMENT', 'WEIGHT_MANAGEMENT']),
   successUrl: z.string().url('Invalid success URL'),
   cancelUrl: z.string().url('Invalid cancel URL'),
   consentId: z.string().uuid('Invalid consent ID').optional(),
@@ -84,7 +84,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // when no `customer` param is provided in subscription mode.
     const stripe = getStripe();
 
-    const sessionMetadata: Record<string, string> = { planType };
+    // Product-type identifier (no PHI) so the webhook can branch consent text,
+    // plan label, and patient product context. Derived from the plan.
+    const productType = planType === 'WEIGHT_MANAGEMENT' ? 'WEIGHT_MANAGEMENT' : 'ALCOHOL';
+
+    const sessionMetadata: Record<string, string> = { planType, productType };
     if (consentId) {
       sessionMetadata.consentRecordId = consentId;
     }
@@ -98,7 +102,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       payment_method_collection: 'always',
       metadata: sessionMetadata,
       subscription_data: {
-        metadata: { planType },
+        metadata: { planType, productType },
         trial_period_days: 30,
       },
     });
