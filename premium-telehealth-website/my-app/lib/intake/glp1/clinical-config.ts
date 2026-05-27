@@ -232,3 +232,37 @@ export const LAB_REFERENCE_RANGES = {
 
 /** Maximum dynamic medication entries (Step 6). */
 export const MAX_MEDICATION_ENTRIES = 12;
+
+// ============================================================================
+// Titration schedule (Phase 4) — physician-gated dose escalation
+// ============================================================================
+// TODO(clinical): REQUIRES CLINICAL SIGN-OFF — confirm the titration cadence and
+// each step's duration. The standard Wegovy escalation is monthly (~4 weeks) per
+// step from 0.25mg up to the 2.4mg maintenance dose, but the physician adjusts
+// per patient. The engine NEVER auto-advances — these durations only determine
+// when a step becomes ELIGIBLE for physician review. `dosage` strings MUST match
+// the Wegovy dose strings in `MEDICATION_OPTIONS` (lib/physician/review-types.ts).
+export const TITRATION_SCHEDULE: ReadonlyArray<{
+  dosage: string;
+  durationDays: number;
+}> = [
+  { dosage: '0.25mg weekly', durationDays: 28 },
+  { dosage: '0.5mg weekly', durationDays: 28 },
+  { dosage: '1mg weekly', durationDays: 28 },
+  { dosage: '1.7mg weekly', durationDays: 28 },
+  { dosage: '2.4mg weekly', durationDays: 28 }, // maintenance
+];
+
+// ============================================================================
+// Lab-gated refills (Phase 4)
+// ============================================================================
+// TODO(clinical): REQUIRES CLINICAL SIGN-OFF — confirm which lab document
+// type(s) gate a GLP-1 refill and the recency window. A refill is blocked until
+// a qualifying lab result has been uploaded within `recencyDays`. AUD refills are
+// never gated (this applies only to WEIGHT_MANAGEMENT prescriptions).
+export const LAB_GATE = {
+  /** Document types that satisfy the lab gate. */
+  requiredDocumentTypes: ['LAB_RESULT'] as const,
+  /** A lab uploaded within this many days satisfies the gate. */
+  recencyDays: 90, // TODO(clinical): confirm recency window
+} as const;

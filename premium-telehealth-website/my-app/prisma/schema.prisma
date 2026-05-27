@@ -46,6 +46,8 @@ model User {
   prescriptions          Prescription[]           @relation("PatientPrescriptions")
   refillRequests         RefillRequest[]          @relation("PatientRefillRequests")
   physicianNotes         PhysicianNote[]          @relation("PatientPhysicianNotes")
+  titrationSchedules     TitrationSchedule[]      @relation("PatientTitrationSchedules")
+  checkIns               CheckIn[]                @relation("PatientCheckIns")
 
   @@index([email])
   @@index([role])
@@ -425,6 +427,10 @@ model Prescription {
   // Refill Management
   lastRefillDate      DateTime?
   nextRefillAvailable DateTime?
+  // GLP-1: end of the current supply (set at send time for weight-management
+  // prescriptions). Refill window = supplyEndDate - 7 days. Nullable/additive →
+  // AUD prescriptions (no supplyEndDate) keep their existing refill behavior.
+  supplyEndDate       DateTime?
 
   // Timeline
   createdAt DateTime @default(now())
@@ -438,10 +444,11 @@ model Prescription {
 
   // Relations
   // onDelete: Restrict — DEA / 42 CFR Part 2 prescription retention
-  intake         Intake          @relation(fields: [intakeId], references: [id], onDelete: Restrict)
-  patient        User            @relation("PatientPrescriptions", fields: [patientId], references: [id], onDelete: Restrict)
-  refillRequests RefillRequest[]
-  pharmacy       Pharmacy?       @relation("PharmacyPrescriptions", fields: [pharmacyId], references: [id])
+  intake             Intake              @relation(fields: [intakeId], references: [id], onDelete: Restrict)
+  patient            User                @relation("PatientPrescriptions", fields: [patientId], references: [id], onDelete: Restrict)
+  refillRequests     RefillRequest[]
+  titrationSchedules TitrationSchedule[]
+  pharmacy           Pharmacy?           @relation("PharmacyPrescriptions", fields: [pharmacyId], references: [id])
   // onDelete: Restrict — match Part 2 retention posture for linked product
   product        Product?        @relation(fields: [productId], references: [id], onDelete: Restrict)
 
@@ -491,6 +498,104 @@ enum RefillStatus {
   APPROVED
   DENIED
   SENT
+}
+
+// ============================================
+// GLP-1 MONITORING DOMAIN (Phase 4)
+// ============================================
+// Titration scheduling, check-ins, and lab-gated refills for weight-management
+// (GLP-1) treatment. The titration engine PROPOSES/TRACKS/FLAGS — a physician
+// must explicitly approve each dose advance and each refill. The cron only marks
+// items due/ready + notifies; it changes no clinical state. All clinical values
+// (cadence, durations, lab thresholds) live in lib/intake/glp1/clinical-config.ts
+// behind the sign-off header. GLP-1-only + additive — AUD is unaffected.
+
+enum TitrationStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  DISCONTINUED
+}
+
+enum TitrationStepStatus {
+  PENDING
+  CURRENT
+  COMPLETED
+  SKIPPED
+}
+
+enum CheckInStatus {
+  SCHEDULED
+  DUE
+  SUBMITTED
+  REVIEWED
+  MISSED
+}
+
+model TitrationSchedule {
+  id             String          @id @default(uuid())
+  patientId      String
+  prescriptionId String?
+  status         TitrationStatus @default(ACTIVE)
+  startedAt      DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  // onDelete: Restrict — retention posture matches the linked prescription
+  patient      User          @relation("PatientTitrationSchedules", fields: [patientId], references: [id], onDelete: Restrict)
+  prescription Prescription? @relation(fields: [prescriptionId], references: [id], onDelete: Restrict)
+  steps        TitrationStep[]
+
+  @@index([patientId])
+  @@index([prescriptionId])
+  @@index([status])
+}
+
+model TitrationStep {
+  id                 String              @id @default(uuid())
+  scheduleId         String
+  stepIndex          Int
+  dosage             String // MUST match a MEDICATION_OPTIONS Wegovy dose string
+  durationDays       Int // TODO(clinical): from clinical-config TITRATION_SCHEDULE
+  status             TitrationStepStatus @default(PENDING)
+  scheduledStartDate DateTime?
+  actualStartDate    DateTime?
+  // Physician-in-the-loop gate — null means this step has NOT been advanced to.
+  physicianApprovedAt DateTime?
+  physicianApprovedBy String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  schedule TitrationSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@index([scheduleId])
+}
+
+model CheckIn {
+  id          String        @id @default(uuid())
+  patientId   String
+  // Loose FK to TitrationSchedule (nullable; no enforced relation yet).
+  scheduleId  String?
+  status      CheckInStatus @default(SCHEDULED)
+  scheduledFor DateTime
+  dueAt       DateTime
+  submittedAt DateTime?
+  reviewedAt  DateTime?
+  reviewedBy  String?
+  // PHI - Encrypted JSON: self-reported weight, vitals, side effects, free text.
+  responses   Json?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  // Data Retention (soft delete)
+  deletedAt   DateTime?
+
+  // onDelete: Restrict — check-in answers are part of the medical record
+  patient User @relation("PatientCheckIns", fields: [patientId], references: [id], onDelete: Restrict)
+
+  @@index([patientId])
+  @@index([status])
+  @@index([dueAt])
+  @@index([patientId, status])
 }
 
 // ============================================
@@ -591,6 +696,7 @@ enum DocumentType {
   ID_VERIFICATION
   INSURANCE_CARD
   MEDICAL_RECORD
+  LAB_RESULT
   CONSENT_FORM
   INTAKE_FORM
   OTHER

@@ -75,6 +75,9 @@ export const PHI_FIELDS: Record<string, string[]> = {
     'description',
     'reviewNotes',
   ],
+  CheckIn: [
+    'responses',
+  ],
 };
 
 // JSON fields that need special handling (serialized before encryption)
@@ -83,6 +86,7 @@ const JSON_FIELDS: Record<string, string[]> = {
   Intake: ['formData'],
   Review: ['contraindications'],
   User: ['mfaBackupCodes'],
+  CheckIn: ['responses'],
 };
 
 // Fields that can be null/undefined
@@ -113,6 +117,7 @@ const NULLABLE_FIELDS: Record<string, Set<string>> = {
   User: new Set(['mfaSecret', 'mfaBackupCodes']),
   AccountDeletionRequest: new Set(['details']),
   DisclosureRestriction: new Set(['reviewNotes']),
+  CheckIn: new Set(['responses']),
 };
 
 /**
@@ -294,6 +299,9 @@ const RELATION_TO_MODEL: Record<string, string> = {
   // Prescription relations
   pharmacy: 'Pharmacy',
   refillRequests: 'RefillRequest',
+  titrationSchedules: 'TitrationSchedule',
+  // CheckIn relations (PHI lives in CheckIn.responses)
+  checkIns: 'CheckIn',
   // Physician relations
   physicianNotes: 'PhysicianNote',
   sentMessages: 'PhysicianMessage',

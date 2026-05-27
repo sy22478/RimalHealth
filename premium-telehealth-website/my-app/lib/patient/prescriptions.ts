@@ -8,14 +8,16 @@
 
 import { prisma } from '@/lib/db/prisma';
 import { PrescriptionStatus, RefillStatus } from '@prisma/client';
-import { 
-  Prescription, 
-  PrescriptionSummary, 
+import {
+  Prescription,
+  PrescriptionSummary,
   RefillRequest,
-  canRequestRefill 
+  RefillLabGate,
+  canRequestRefill
 } from '@/types/prescriptions';
 import { notificationQueue } from '@/lib/notifications/queue';
 import { EmailTemplate } from '@/lib/notifications/templates';
+import { getLabGateStatus } from '@/lib/titration/lab-gate';
 
 // ============================================================================
 // Data Fetching
@@ -189,7 +191,10 @@ export async function createRefillRequest(
       refillsRemaining: true,
       status: true,
       nextRefillAvailable: true,
+      supplyEndDate: true,
       patientId: true,
+      // Concern type drives the GLP-1 lab gate (weight-management only).
+      product: { select: { concernType: true } },
     },
   });
 
@@ -201,8 +206,27 @@ export async function createRefillRequest(
     };
   }
 
-  // Check if eligible for refill
-  if (!canRequestRefill(prescription)) {
+  // GLP-1 lab gate (weight-management only). Evaluated server-side — never trust
+  // the client. AUD prescriptions have no product/WEIGHT_MANAGEMENT concern, so
+  // labGate stays undefined and refill behavior is unchanged.
+  let labGate: RefillLabGate | undefined;
+  if (prescription.product?.concernType === 'WEIGHT_MANAGEMENT') {
+    const gate = await getLabGateStatus(patientId);
+    labGate = { required: true, passed: gate.gatePassed };
+  }
+
+  // Surface a specific message when the lab gate is the blocker.
+  if (labGate?.required && !labGate.passed) {
+    return {
+      success: false,
+      error:
+        'A recent lab result is required before this refill. Please upload your latest labs for physician review.',
+      errorCode: 'LAB_REQUIRED',
+    };
+  }
+
+  // Check if eligible for refill (lab gate already passed if applicable)
+  if (!canRequestRefill({ ...prescription, labGate })) {
     return {
       success: false,
       error: 'Prescription is not eligible for refill at this time',
