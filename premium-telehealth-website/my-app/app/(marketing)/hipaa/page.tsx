@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     "Rimal Health HIPAA Notice of Privacy Practices — your rights regarding protected health information.",
 };
 
-const lastUpdated = "February 1, 2026";
+const lastUpdated = "May 27, 2026";
 
 export default function HIPAANoticePage() {
   return (
@@ -117,6 +117,15 @@ export default function HIPAANoticePage() {
               confidentiality regulations at 42 CFR Part 2, in addition to the
               HIPAA Privacy Rule. These regulations provide heightened
               protections for your SUD treatment records.
+            </p>
+            <p className="mb-4">
+              Rimal Health also provides weight-management treatment using GLP-1
+              medications. Weight-management treatment records are not substance
+              use disorder records and are therefore not subject to 42 CFR
+              Part 2. They remain fully protected as PHI under the HIPAA Privacy
+              Rule and applicable state privacy law. The heightened 42 CFR
+              Part 2 protections described in this section apply only to your
+              alcohol use disorder (SUD) treatment records.
             </p>
 
             <h3 className="font-semibold text-gray-900 mt-6 mb-3">
