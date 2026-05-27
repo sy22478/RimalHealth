@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/table';
 import { CheckCircle, XCircle, AlertCircle, History, ChevronLeft, ChevronRight } from 'lucide-react';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { formatClinicDate } from '@/lib/utils/date-helpers';
 
 interface CompletedReview {
   intakeId: string;
@@ -161,11 +162,7 @@ export default function ReviewHistoryPage() {
                           )}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
-                          {new Date(review.reviewedAt).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
-                          })}
+                          {formatClinicDate(review.reviewedAt)}
                         </TableCell>
                         <TableCell className="max-w-[400px] align-top">
                           <span className="text-sm text-muted-foreground whitespace-pre-wrap break-words block">

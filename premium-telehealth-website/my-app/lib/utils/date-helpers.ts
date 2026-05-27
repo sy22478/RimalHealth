@@ -233,8 +233,55 @@ export function formatRelativeTime(date: Date | string | null | undefined): stri
   if (diffMin < 60) return `${diffMin} minute${diffMin > 1 ? 's' : ''} ago`;
   if (diffHour < 24) return `${diffHour} hour${diffHour > 1 ? 's' : ''} ago`;
   if (diffDay < 7) return `${diffDay} day${diffDay > 1 ? 's' : ''} ago`;
-  
+
   return formatDate(parsed);
+}
+
+/**
+ * Format a timestamp in the clinic's timezone (America/Los_Angeles) for the
+ * physician portal.
+ *
+ * Pinning the timezone serves two purposes: (1) SSR and client renders compute
+ * the same string, avoiding React hydration mismatches; (2) every physician
+ * sees the same wall-clock time regardless of their own browser timezone, which
+ * is what the runtime-QA "timezone inconsistency" finding (PORTAL-02) flagged.
+ *
+ * Use for true timestamps (submittedAt, reviewedAt, completedAt). Do NOT use for
+ * date-only values like DOB — those are timezone-agnostic calendar dates and are
+ * parsed locally elsewhere to avoid a day-boundary shift.
+ */
+export function formatClinicDateTime(date: Date | string | null | undefined): string {
+  const parsed = parseDate(date);
+  if (!parsed) return '';
+
+  return parsed.toLocaleString('en-US', {
+    timeZone: DEFAULT_TIMEZONE,
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  });
+}
+
+/**
+ * Format a timestamp as a clinic-timezone date (no time component) for the
+ * physician portal. Same timezone-pinning rationale as formatClinicDateTime.
+ *
+ * Use for timestamps that are displayed as a date (e.g. review date, last
+ * visit). Do NOT use for DOB.
+ */
+export function formatClinicDate(date: Date | string | null | undefined): string {
+  const parsed = parseDate(date);
+  if (!parsed) return '';
+
+  return parsed.toLocaleDateString('en-US', {
+    timeZone: DEFAULT_TIMEZONE,
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 
 // ============================================

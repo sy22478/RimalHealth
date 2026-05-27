@@ -26,6 +26,7 @@ import { IntakeWithPatient } from '@/lib/physician/review-types';
 import { IntakeFormData, IntakeScores, RiskAssessment } from '@/types/intake';
 import { cn } from '@/lib/utils';
 import { maskPhone, maskEmail } from '@/lib/utils/string-helpers';
+import { formatClinicDateTime } from '@/lib/utils/date-helpers';
 
 interface IntakeReviewProps {
   intake: IntakeWithPatient;
@@ -94,16 +95,11 @@ export function IntakeReview({ intake, physicianId, physicianName, isDeactivated
     return age;
   }, [intake.patient.dateOfBirth]);
 
-  // Format submitted date
+  // Format submitted date in the clinic timezone so it matches the review
+  // history table and is identical across physicians' browsers (PORTAL-02).
   const submittedDate = React.useMemo(() => {
     if (!intake.submittedAt) return 'Unknown';
-    return new Date(intake.submittedAt).toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    });
+    return formatClinicDateTime(intake.submittedAt);
   }, [intake.submittedAt]);
 
   // Calculate SLA deadline (24 hours from submission)
@@ -553,13 +549,7 @@ export function IntakeReview({ intake, physicianId, physicianName, isDeactivated
                       {intake.review?.completedAt && (
                         <p>
                           Reviewed:{' '}
-                          {new Date(intake.review.completedAt).toLocaleString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
-                            hour: 'numeric',
-                            minute: '2-digit',
-                          })}
+                          {formatClinicDateTime(intake.review.completedAt)}
                         </p>
                       )}
                       {intake.review?.physicianName && (

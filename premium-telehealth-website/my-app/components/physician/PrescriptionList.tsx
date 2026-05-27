@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { formatClinicDate } from '@/lib/utils/date-helpers';
 import {
   Search,
   Filter,
@@ -131,14 +132,12 @@ function filterAndSortPrescriptions(
 }
 
 /**
- * Format date relative to now
+ * Format a prescription timestamp as a clinic-timezone date. Pinning the
+ * timezone keeps SSR/CSR renders identical (no hydration mismatch at day
+ * boundaries) and consistent across physicians (PORTAL-02).
  */
 function formatDate(date: Date): string {
-  return new Date(date).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  return formatClinicDate(date);
 }
 
 // ============================================================================

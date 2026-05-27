@@ -32,6 +32,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { formatClinicDate } from '@/lib/utils/date-helpers';
 import {
   Search,
   ChevronLeft,
@@ -116,11 +117,9 @@ function ConcernBadge({ type }: { type: string }) {
  */
 function formatDate(date: Date | undefined): string {
   if (!date) return 'Never';
-  return new Date(date).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  // Pin to the clinic timezone so "Last Visit" reads the same for every
+  // physician and matches the detail page / review history (PORTAL-02).
+  return formatClinicDate(date);
 }
 
 /**
