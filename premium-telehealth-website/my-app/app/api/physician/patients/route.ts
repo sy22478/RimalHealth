@@ -92,7 +92,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // Aggregate counts scoped to the current page only
     const patientUserIds = users.map((u) => u.id);
-    const [intakeStatusCounts, prescriptionCounts, unreadMessageCounts] = await Promise.all([
+    const [intakeStatusCounts, prescriptionCounts, unreadMessageCounts, lastVisitAgg] = await Promise.all([
       prisma.intake.groupBy({
         by: ['status'],
         where: { patientId: { in: patientUserIds } },
@@ -115,10 +115,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         },
         _count: true,
       }),
+      // Most recent SUBMITTED intake per patient = "last visit". Filtering out
+      // null submittedAt (drafts) avoids the Postgres NULLS-FIRST ordering trap
+      // that made the list show "Never" for re-intake patients with a newer draft.
+      prisma.intake.groupBy({
+        by: ['patientId'],
+        where: { patientId: { in: patientUserIds }, submittedAt: { not: null } },
+        _max: { submittedAt: true },
+      }),
     ]);
 
     const rxCountMap = new Map(prescriptionCounts.map((r) => [r.patientId, r._count]));
     const unreadMap = new Map(unreadMessageCounts.map((m) => [m.senderId, m._count]));
+    const lastVisitMap = new Map(lastVisitAgg.map((g) => [g.patientId, g._max.submittedAt]));
 
     await AuditService.logPHIAccess(
       'VIEW',
@@ -162,6 +171,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         treatmentGoal: profile?.treatmentGoal ?? null,
         biologicalSex: profile?.biologicalSex ?? null,
         createdAt: user.createdAt.toISOString(),
+        lastVisitAt: lastVisitMap.get(user.id)?.toISOString() ?? null,
         status,
         intakeStatus: latestIntake?.status || null,
         isDeactivated: !!user.deactivatedAt,

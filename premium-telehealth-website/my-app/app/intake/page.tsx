@@ -8,7 +8,7 @@ import { prisma } from '@/lib/db/prisma';
 import IntakeClient from './IntakeClient';
 
 export const metadata: Metadata = {
-  title: 'Treatment Intake | Rimal Health',
+  title: 'Treatment Intake',
   description: 'Complete your medical intake form to begin treatment.',
 };
 

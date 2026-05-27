@@ -140,9 +140,13 @@ const intakeFormSchema = z.object({
   liverTests: z.enum(['normal', 'mild-elevated', 'significant-elevated', 'no-tests'], { message: 'Please select your liver test results' }),
   pregnancyStatus: z.enum(['pregnant', 'breastfeeding', 'planning-pregnancy', 'none'], { message: 'Please select your pregnancy or breastfeeding status' }),
   drugAllergies: z.enum(['naltrexone', 'other', 'none'], { message: 'Please select your medication allergy status' }),
+  // Free-text drug-allergy detail, shown when drugAllergies is 'other' or 'naltrexone'.
+  medicationAllergies: z.string().max(1000).optional(),
 
   // SECTION 5: Medical & Psychiatric History (Q26-Q29)
   medicalHistory: z.array(z.string()),
+  // Free-text detail, shown when 'other-medical' is selected in medicalHistory.
+  otherConditions: z.string().max(1000).optional(),
   currentMedications: z.boolean({ message: 'Please indicate if you take prescription medications' }),
   medicationList: z.string().optional(),
   previousTreatments: z.array(z.string()),
@@ -763,6 +767,7 @@ function SafetyScreeningStep(): React.ReactElement {
   const hasOpioidUse = opioidUse.length > 0 && !opioidUse.includes('none');
   const opioidMaintenance = watch('opioidMaintenance');
   const pregnancyStatus = watch('pregnancyStatus');
+  const drugAllergies = watch('drugAllergies');
 
   const opioidOptions = [
     { id: 'opioid-prescription', label: 'Prescription opioids (e.g., oxycodone, hydrocodone, codeine, morphine)' },
@@ -954,6 +959,27 @@ function SafetyScreeningStep(): React.ReactElement {
         {errors.drugAllergies && (
           <p className="text-sm text-red-500">{errors.drugAllergies.message}</p>
         )}
+
+        <AnimatePresence>
+          {(drugAllergies === 'other' || drugAllergies === 'naltrexone') && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="pl-4"
+            >
+              <Label htmlFor="medicationAllergies" className="text-sm">
+                Which medication(s) are you allergic to, and what reaction did you have?
+              </Label>
+              <Textarea
+                id="medicationAllergies"
+                {...register('medicationAllergies')}
+                placeholder="e.g., Penicillin — rash and difficulty breathing"
+                className="mt-2"
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </section>
   );
@@ -966,6 +992,7 @@ function SafetyScreeningStep(): React.ReactElement {
 function MedicalHistoryStep(): React.ReactElement {
   const { register, watch } = useFormContext<IntakeFormData>();
   const currentMedications = watch('currentMedications');
+  const medicalHistory = watch('medicalHistory') || [];
 
   return (
     <section aria-label="Section 5: Medical and Psychiatric History" className="space-y-6">
@@ -999,6 +1026,27 @@ function MedicalHistoryStep(): React.ReactElement {
             </label>
           ))}
         </div>
+
+        <AnimatePresence>
+          {medicalHistory.includes('other-medical') && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="pl-4"
+            >
+              <Label htmlFor="otherConditions" className="text-sm">
+                Please describe your other significant medical condition(s):
+              </Label>
+              <Textarea
+                id="otherConditions"
+                {...register('otherConditions')}
+                placeholder="Describe the condition(s), including any current treatment..."
+                className="mt-2"
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Q27: Current Medications */}
@@ -1592,7 +1640,9 @@ export default function IntakePage(): React.ReactElement {
       liverTests: undefined,
       pregnancyStatus: undefined,
       drugAllergies: undefined,
+      medicationAllergies: '',
       medicalHistory: [],
+      otherConditions: '',
       currentMedications: undefined,
       previousTreatments: [],
       seeingTherapist: undefined,
