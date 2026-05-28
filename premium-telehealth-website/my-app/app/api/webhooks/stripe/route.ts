@@ -28,6 +28,7 @@ import { Prisma } from '@prisma/client';
 
 // Import from new stripe module
 import { getStripe, constructWebhookEvent } from '@/lib/stripe/stripe-server';
+import * as Sentry from '@sentry/nextjs';
 
 // Token hashing — create-account tokens are stored hashed at rest (pure util,
 // only depends on node:crypto, so static import is safe here)
@@ -172,6 +173,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ received: true });
 
   } catch (error) {
+    // Critical/unexpected: the payment may have succeeded but event processing
+    // failed (e.g., account never created). Report to Sentry for alerting.
+    Sentry.captureException(error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error(`[Stripe Webhook] Error handling event ${event.type}: ${errorMessage}`);
 

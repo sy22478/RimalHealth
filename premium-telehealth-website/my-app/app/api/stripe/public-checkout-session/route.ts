@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { PlanType } from '@prisma/client';
 import { rateLimit, rateLimitPresets } from '@/lib/middleware/rate-limit';
+import * as Sentry from '@sentry/nextjs';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -112,6 +113,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       url: session.url,
     });
   } catch (error) {
+    // Payment-creation failure — report for alerting.
+    Sentry.captureException(error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('[Public Checkout] Error:', errorMessage);
 

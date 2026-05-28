@@ -103,3 +103,35 @@ real browser** (AUD = 8 items incl. Part 2; GLP-1 = 9 items, NO Part 2 / Naltrex
 Stripe product/price creation (manual ops — env vars documented). Insurance/billing model changes.
 Multi-subscription (a patient on both AUD and GLP-1 at once). Scheduler infrastructure (the cron route
 exists; only the trigger is deployment work).
+
+## Deployment
+
+**Current path: AWS ECS Fargate via CodeBuild** (`buildspec.yml` at the repo root). On push to
+`main`, CodeBuild (`rimalhealth-build`) builds the Docker image, tags it `latest` + the commit
+SHA, pushes to ECR (`090814040113.dkr.ecr.us-east-1.amazonaws.com/rimalhealth`), then runs
+`aws ecs update-service --cluster rimalhealth-cluster --service rimalhealth-task-service-u24n1blr
+--force-new-deployment` (rolling, 100/200). The GitHub Actions workflows (`.github/workflows/`) run
+**tests/security only** — they do not deploy.
+
+> **Doc conflict, resolved:** `amplify.yml` and the "Amplify" line in `CLAUDE.md` are **stale** —
+> the app no longer deploys via Amplify (it went Netlify → Amplify → ECS). Treat ECS/CodeBuild as
+> authoritative; see `AWS_MIGRATION_STATUS.md` for the full infra inventory. This task did **not**
+> change the pipeline — only this documentation.
+
+**Rollback (code):** re-deploy the previous good image. Either register a new task-definition
+revision pointing at the prior ECR image tag (the 7-char commit SHA) and `aws ecs update-service
+--task-definition <prev-rev>`, or point the service back at the previous task-def revision. ECS
+performs a rolling replacement; the ALB health check (`/api/health`) gates the rollout.
+
+**Migration rollback caveat:** Prisma migrations are **forward-only**. `prisma migrate deploy` has
+no automatic down-migration, so a *code* rollback after migrating leaves the new columns/enums in
+place. For the GLP-1 expansion this is **harmless**: all the migrations are additive — new tables
+(`Product`, `TitrationSchedule`, `TitrationStep`, `CheckIn`, …), new **nullable** columns, new enum
+values, and a data backfill. None add a `NOT NULL` column to an existing table (verified: the only
+`NOT NULL` clauses are inside `CREATE TABLE` or carry a `DEFAULT`), so old code keeps running against
+the new schema. The only desync risk would be a future migration that adds a `NOT NULL`-without-default
+column or drops/renames one — none of the current GLP-1 migrations do.
+
+**Recommendation for the GLP-1 launch:** before production, run a **staging dry-run of all 6 stacked
+migrations** (in order — see Hazards #1) against a clone of the prod database, then smoke-test both
+the AUD and GLP-1 paths end-to-end. Roll forward with a fix rather than attempting a schema rollback.

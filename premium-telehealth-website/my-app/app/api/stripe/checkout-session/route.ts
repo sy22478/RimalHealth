@@ -32,6 +32,7 @@ import { PlanType, Role } from '@prisma/client';
 
 import { requireRole } from '@/lib/auth/require-auth';
 import { enforceRateLimit, rateLimitPresets } from '@/lib/middleware/rate-limit';
+import * as Sentry from '@sentry/nextjs';
 
 // Audit logging - safe to import at top level
 import { auditLogger } from '@/lib/audit/logger';
@@ -256,8 +257,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       url: session.url,
     });
   } catch (error) {
+    // Payment-creation failure — report for alerting.
+    Sentry.captureException(error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    
+
     console.error('[Stripe Checkout] Error creating checkout session:', errorMessage);
 
     // Log error

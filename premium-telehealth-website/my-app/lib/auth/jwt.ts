@@ -11,6 +11,7 @@
 
 import { SignJWT, jwtVerify, JWTPayload } from 'jose';
 import { Role } from '@prisma/client';
+import * as Sentry from '@sentry/nextjs';
 
 // ============================================
 // Token Payload Types
@@ -63,7 +64,12 @@ const REFRESH_TOKEN_EXPIRY = '7d';
 function getSecret(): Uint8Array {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
-    throw new Error('JWT_SECRET environment variable is required');
+    // Unexpected deploy/config failure that breaks all auth — report it.
+    // NOTE: routine token expiry / invalid-token errors are EXPECTED 401s and
+    // are deliberately NOT sent to Sentry (would be noise).
+    const err = new Error('JWT_SECRET environment variable is required');
+    Sentry.captureException(err);
+    throw err;
   }
   return new TextEncoder().encode(secret);
 }

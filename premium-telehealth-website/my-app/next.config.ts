@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 import { SECURITY_HEADERS } from "./lib/constants";
 
 const nextConfig: NextConfig = {
@@ -288,4 +289,26 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
 };
 
-export default nextConfig;
+// Wrap with Sentry. Source maps are uploaded to Sentry at build time (when
+// SENTRY_AUTH_TOKEN is set) and NOT served to the browser — v10 hides them from
+// clients by default, and we delete the artifacts after upload. Source-map
+// upload is skipped automatically when SENTRY_AUTH_TOKEN is absent, so builds
+// succeed with or without Sentry configured.
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  // Quiet the SDK build logs except in CI.
+  silent: !process.env.CI,
+  // Don't ship Sentry SDK debug-logger statements in the bundle.
+  webpack: {
+    treeshake: {
+      removeDebugLogging: true,
+    },
+  },
+  // Upload source maps for readable stack traces, then remove them from the
+  // build output so they are never publicly served.
+  sourcemaps: {
+    deleteSourcemapsAfterUpload: true,
+  },
+});
