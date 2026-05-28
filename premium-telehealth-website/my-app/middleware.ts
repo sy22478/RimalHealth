@@ -297,6 +297,20 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   // Generate a unique request ID for end-to-end tracing
   const requestId = crypto.randomUUID();
 
+  // SECURITY (defense-in-depth): strip any CLIENT-SUPPLIED identity headers up
+  // front so they can never be trusted downstream. `requireAuth` reads
+  // x-user-id / x-user-role / x-user-email; for /api/* routes this middleware
+  // short-circuits at the static check below WITHOUT running the JWT block, so
+  // without this strip a forged `x-user-id`/`x-user-role` on an /api request
+  // (trivially set via fetch(), or by a misconfigured upstream proxy) could be
+  // trusted as identity. These headers are (re)set ONLY from the verified JWT in
+  // the protected-route branch below. Every branch forwards these sanitized
+  // headers; only the JWT-verified path re-adds x-user-*.
+  const sanitizedHeaders = new Headers(request.headers);
+  sanitizedHeaders.delete('x-user-id');
+  sanitizedHeaders.delete('x-user-role');
+  sanitizedHeaders.delete('x-user-email');
+
   // Global API rate-limit safety net (Edge in-memory). Runs before the static
   // /api short-circuit below. Applies to all /api/* routes except external/
   // infra endpoints; per-route Redis limiters add stricter, more specific
@@ -307,9 +321,11 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     if (limited) return limited;
   }
 
-  // Skip static assets and API routes
+  // Skip static assets and API routes. Forward the sanitized headers so /api/*
+  // routes (which short-circuit here, before the JWT block below) never receive
+  // client-supplied x-user-* identity headers.
   if (isStaticRoute(pathname)) {
-    return NextResponse.next();
+    return NextResponse.next({ request: { headers: sanitizedHeaders } });
   }
 
   // Allow public routes
@@ -331,7 +347,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
       }
     }
     // Attach request ID even on public routes so downstream API calls can trace
-    const publicHeaders = new Headers(request.headers);
+    const publicHeaders = new Headers(sanitizedHeaders);
     publicHeaders.set('x-request-id', requestId);
     const publicResponse = NextResponse.next({
       request: { headers: publicHeaders },
@@ -346,7 +362,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     pathname === prefix || pathname.startsWith(`${prefix}/`)
   );
   if (!isProtectedRoute) {
-    const passthroughHeaders = new Headers(request.headers);
+    const passthroughHeaders = new Headers(sanitizedHeaders);
     passthroughHeaders.set('x-request-id', requestId);
     const passthroughResponse = NextResponse.next({
       request: { headers: passthroughHeaders },
@@ -400,7 +416,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     }
 
     // Add user info and request ID to request headers for downstream use
-    const requestHeaders = new Headers(request.headers);
+    const requestHeaders = new Headers(sanitizedHeaders);
     requestHeaders.set('x-user-id', userId);
     requestHeaders.set('x-user-role', role);
     requestHeaders.set('x-user-email', payload.email);
@@ -464,7 +480,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
           );
 
           // Inject user identity headers for downstream use
-          const requestHeaders = new Headers(request.headers);
+          const requestHeaders = new Headers(sanitizedHeaders);
           requestHeaders.set('x-user-id', refreshPayload.userId);
           requestHeaders.set('x-user-role', userRole);
           requestHeaders.set('x-user-email', userEmail);

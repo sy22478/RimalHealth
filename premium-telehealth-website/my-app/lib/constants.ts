@@ -230,11 +230,25 @@ export const SESSION_SECURITY = {
 // Security Headers
 // ============================================
 
-/** Content Security Policy directives */
-/** Base CSP script-src directives */
+/**
+ * Base CSP script-src directives.
+ *
+ * `'unsafe-inline'` is RETAINED deliberately. Next.js (App Router) injects
+ * inline bootstrap / hydration / RSC-streaming `<script>` tags, and the optional
+ * GA snippet (components/Analytics.tsx) is an inline `next/script`. Removing it
+ * requires a per-request nonce — but nonce-based CSP forces dynamic rendering,
+ * which would defeat the ISR/static caching the marketing pages rely on (see
+ * the `Cache-Control` headers in next.config.ts). So we keep `'unsafe-inline'`
+ * rather than degrade caching across the public site.
+ *
+ * `'strict-dynamic'` is intentionally NOT added. With no nonces/hashes present,
+ * CSP3 browsers would IGNORE `'unsafe-inline'` and the host allowlist below and
+ * execute nothing — breaking Next.js hydration and Stripe entirely. It only
+ * helps alongside nonces, which (per above) we don't use here.
+ */
 const CSP_SCRIPT_SRC = [
   "'self'",
-  "'unsafe-inline'", // Required for Next.js
+  "'unsafe-inline'", // see note above — required for Next.js inline scripts + GA
   'https://js.stripe.com',
   'https://checkout.stripe.com',
   'https://www.googletagmanager.com',
@@ -244,7 +258,16 @@ const CSP_SCRIPT_SRC = [
 /** Content Security Policy directives */
 export const CSP_DIRECTIVES: Record<string, string[]> = {
   'default-src': ["'self'"],
-  'script-src': [...CSP_SCRIPT_SRC, "'unsafe-eval'"],
+  // `'unsafe-eval'` is only needed by the Next.js DEV runtime (React Fast
+  // Refresh / HMR use eval); it is REMOVED in production. No production
+  // dependency requires eval — Stripe.js runs in its own origin, and
+  // framer-motion, react-hook-form, Zod, and survey-core (verified: no
+  // eval/Function) do not. Dropping the higher-risk directive in prod is the
+  // primary CSP hardening here.
+  'script-src':
+    process.env.NODE_ENV === 'production'
+      ? CSP_SCRIPT_SRC
+      : [...CSP_SCRIPT_SRC, "'unsafe-eval'"],
   'style-src': [
     "'self'",
     "'unsafe-inline'", // Required for Tailwind/styled-components
