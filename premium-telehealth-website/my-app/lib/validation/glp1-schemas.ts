@@ -34,6 +34,19 @@ export const glp1IntakeFormDataSchema = z
     dateOfBirth: z.string().min(1),
     biologicalSex: z.enum(['MALE', 'FEMALE', 'OTHER']),
     biologicalSexOther: z.string().max(100).optional(),
+    genderIdentity: z
+      .enum([
+        'male',
+        'female',
+        'transgender_male',
+        'transgender_female',
+        'non_binary',
+        'prefer_not_to_say',
+        'other',
+      ])
+      .optional(),
+    genderIdentityOther: z.string().max(100).optional(),
+    occupation: z.string().max(100).optional(),
     phone: z.string().max(20),
     addressStreet: z.string().max(255),
     addressCity: z.string().max(100),
@@ -49,6 +62,10 @@ export const glp1IntakeFormDataSchema = z
     heightInches: z.number().min(0).max(11),
     weightLbs: z.number().min(50).max(1500),
     bmi: z.number().optional(),
+    // Emergency contact (required per PDF spec)
+    emergencyContactName: z.string().min(1).max(100),
+    emergencyContactPhone: z.string().min(10).max(20),
+    emergencyContactRelationship: z.string().min(1).max(50),
 
     // Step 2: Weight history
     highestAdultWeightLbs: z.number().min(50).max(1500),
@@ -59,6 +76,19 @@ export const glp1IntakeFormDataSchema = z
     bariatricSurgeryDetails: z.string().max(1000).optional(),
     priorWeightLossMeds: z.boolean(),
     priorWeightLossMedsList: z.string().max(1000).optional(),
+    primaryMedicationGoal: z
+      .enum(['weight_loss', 'blood_sugar_control', 'both', 'other'])
+      .optional(),
+    primaryMedicationGoalOther: z.string().max(200).optional(),
+    timeAtCurrentWeight: z
+      .enum([
+        'less_than_6_months',
+        '6_to_12_months',
+        '1_to_2_years',
+        '2_to_5_years',
+        'over_5_years',
+      ])
+      .optional(),
 
     // Step 3: Medical history
     medicalConditions: z.array(z.string()),
@@ -73,12 +103,17 @@ export const glp1IntakeFormDataSchema = z
     yearsSinceDiabetesDiagnosis: z.string().max(50).optional(),
     lastA1c: z.string().max(50).optional(),
     onInsulin: z.boolean().optional(),
-    diabeticRetinopathy: z.boolean().optional(),
+    retinopathySeverity: z
+      .enum(['none', 'mild_npdr', 'moderate_npdr', 'severe_npdr', 'pdr'])
+      .optional(),
+    diabeticMacularEdema: z.boolean().optional(),
+    ophthalmologistName: z.string().max(100).optional(),
+    ophthalmologistPhone: z.string().max(20).optional(),
     lastEyeExam: z
       .enum(['within-1-year', '1-2-years', 'over-2-years', 'never'])
       .optional(),
     visionChanges: z.boolean().optional(),
-    retinopathyTreatment: z.boolean().optional(),
+    retinopathyTreatmentDetails: z.string().max(500).optional(),
     acknowledgeRetinopathyMonitoring: z.boolean().optional(),
 
     // Step 5: Contraindications
@@ -104,6 +139,10 @@ export const glp1IntakeFormDataSchema = z
     drugAllergiesList: z.string().max(1000).optional(),
     takingInsulinOrSulfonylurea: z.boolean(),
     takingOtherGlp1: z.boolean(),
+    takingOralContraceptive: z.boolean().optional(),
+    takingWarfarin: z.boolean().optional(),
+    takingCyclosporineTacrolimus: z.boolean().optional(),
+    takingLevothyroxine: z.boolean().optional(),
 
     // Step 7: Labs & vitals (self-reported → optional strings)
     hasRecentLabs: z.boolean(),
@@ -113,6 +152,11 @@ export const glp1IntakeFormDataSchema = z
     labTriglycerides: z.string().max(50).optional(),
     labCreatinine: z.string().max(50).optional(),
     labAlt: z.string().max(50).optional(),
+    labLDL: z.string().max(10).optional(),
+    labHDL: z.string().max(10).optional(),
+    labAST: z.string().max(10).optional(),
+    labTSH: z.string().max(10).optional(),
+    labLipase: z.string().max(10).optional(),
     restingHeartRate: z.string().max(50).optional(),
     bloodPressure: z.string().max(50).optional(),
     labDocumentUploaded: z.boolean().optional(),
@@ -131,6 +175,8 @@ export const glp1IntakeFormDataSchema = z
     upcomingSurgery: z.boolean(),
     upcomingSurgeryDetails: z.string().max(1000).optional(),
     acknowledgeAnesthesiaHold: z.boolean().optional(),
+    pastGiSurgery: z.boolean().optional(),
+    pastGiSurgeryDetails: z.string().max(300).optional(),
 
     // Step 10: Mental health
     eatingDisorderHistory: z.boolean(),
@@ -138,8 +184,29 @@ export const glp1IntakeFormDataSchema = z
     phq2Down: z.enum(['0', '1', '2', '3']),
     mentalHealthConditions: z.array(z.string()),
     currentMentalHealthTreatment: z.boolean(),
+    emotionallyReady: z.enum(['yes', 'somewhat', 'no', 'unsure']).optional(),
+    emotionallyReadyConcerns: z.string().max(500).optional(),
 
-    // Step 11: Review & consent acknowledgements
+    // Step 11: Referral & care coordination
+    referralSource: z
+      .enum([
+        'internet_search',
+        'social_media',
+        'physician_referral',
+        'friend_family',
+        'insurance',
+        'other',
+      ])
+      .optional(),
+    referralSourceOther: z.string().max(200).optional(),
+    hasPrimaryCarePhysician: z.boolean(),
+    pcpName: z.string().max(100).optional(),
+    pcpPhone: z.string().max(20).optional(),
+    pcpFaxOrEmail: z.string().max(100).optional(),
+    consentToCoordinateWithPcp: z.boolean().optional(),
+    additionalPharmacyNotes: z.string().max(500).optional(),
+
+    // Step 12: Review & consent acknowledgements
     ackInfoAccurate: z.literal(true),
     ackClinicalIndication: z.literal(true),
     ackFollowUpCompliance: z.literal(true),

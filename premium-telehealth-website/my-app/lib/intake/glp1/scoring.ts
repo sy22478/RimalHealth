@@ -117,6 +117,22 @@ export function getDrugInteractionFlags(answers: Glp1FormData): string[] {
     flags.add('Another GLP-1 / incretin medication (duplicate therapy)');
   }
 
+  // Explicit drug-interaction questions (Q39–Q42). Safety-critical: these are
+  // flagged from the standalone yes/no answers even when the drug never appears
+  // in the free-text medication list above (which the keyword scan can miss).
+  if (answers.takingOralContraceptive === true) {
+    flags.add('Oral contraceptive (possible reduced effectiveness)');
+  }
+  if (answers.takingWarfarin === true) {
+    flags.add('Warfarin / blood thinner (INR monitoring)');
+  }
+  if (answers.takingCyclosporineTacrolimus === true) {
+    flags.add('Cyclosporine / tacrolimus (absorption change)');
+  }
+  if (answers.takingLevothyroxine === true) {
+    flags.add('Levothyroxine (absorption / TSH monitoring)');
+  }
+
   return Array.from(flags);
 }
 

@@ -44,6 +44,7 @@ import {
   DIABETIC_EYE_SCREENING_TRIGGERS,
   MAX_MEDICATION_ENTRIES,
   CONTRAINDICATIONS,
+  DRUG_INTERACTION_NOTES,
 } from '@/lib/intake/glp1/clinical-config';
 import { calculateBmi, evaluateContraindications } from '@/lib/intake/glp1/scoring';
 import type { Glp1FormData } from '@/lib/intake/glp1/types';
@@ -86,6 +87,9 @@ const glp1IntakeFormSchema = z.object({
     }, { message: 'You must be at least 18 years old to use our services' }),
   biologicalSex: z.enum(['MALE', 'FEMALE', 'OTHER'], { message: 'Please select your biological sex' }),
   biologicalSexOther: z.string().max(100).optional(),
+  genderIdentity: z.enum(['male', 'female', 'transgender_male', 'transgender_female', 'non_binary', 'prefer_not_to_say', 'other']).optional(),
+  genderIdentityOther: z.string().max(100).optional(),
+  occupation: z.string().max(100).optional(),
   phone: z.string().min(10, { message: 'Valid phone number required' }),
   addressStreet: z.string().min(1, { message: 'Street address is required' }),
   addressCity: z
@@ -105,6 +109,10 @@ const glp1IntakeFormSchema = z.object({
   heightInches: z.number({ message: 'Height (inches) is required' }).min(0).max(11, { message: 'Inches must be 0-11' }),
   weightLbs: z.number({ message: 'Weight is required' }).min(50, { message: 'Please enter a valid weight' }).max(1500, { message: 'Please enter a valid weight' }),
   bmi: z.number().optional(),
+  // Emergency contact (required per PDF spec)
+  emergencyContactName: z.string().min(1, { message: 'Emergency contact name is required' }).max(100),
+  emergencyContactPhone: z.string().min(10, { message: 'Valid phone number required' }).max(20),
+  emergencyContactRelationship: z.string().min(1, { message: 'Relationship is required' }).max(50),
 
   // Step 2: Weight history
   highestAdultWeightLbs: z.number({ message: 'Highest adult weight is required' }).min(50, { message: 'Please enter a valid weight' }).max(1500, { message: 'Please enter a valid weight' }),
@@ -115,6 +123,9 @@ const glp1IntakeFormSchema = z.object({
   bariatricSurgeryDetails: z.string().max(1000).optional(),
   priorWeightLossMeds: z.boolean({ message: 'Please indicate if you have taken prior weight-loss medications' }),
   priorWeightLossMedsList: z.string().max(1000).optional(),
+  primaryMedicationGoal: z.enum(['weight_loss', 'blood_sugar_control', 'both', 'other']).optional(),
+  primaryMedicationGoalOther: z.string().max(200).optional(),
+  timeAtCurrentWeight: z.enum(['less_than_6_months', '6_to_12_months', '1_to_2_years', '2_to_5_years', 'over_5_years']).optional(),
 
   // Step 3: Medical history
   medicalConditions: z.array(z.string()),
@@ -127,10 +138,13 @@ const glp1IntakeFormSchema = z.object({
   yearsSinceDiabetesDiagnosis: z.string().max(50).optional(),
   lastA1c: z.string().max(50).optional(),
   onInsulin: z.boolean().optional(),
-  diabeticRetinopathy: z.boolean().optional(),
+  retinopathySeverity: z.enum(['none', 'mild_npdr', 'moderate_npdr', 'severe_npdr', 'pdr']).optional(),
+  diabeticMacularEdema: z.boolean().optional(),
+  ophthalmologistName: z.string().max(100).optional(),
+  ophthalmologistPhone: z.string().max(20).optional(),
   lastEyeExam: z.enum(['within-1-year', '1-2-years', 'over-2-years', 'never']).optional(),
   visionChanges: z.boolean().optional(),
-  retinopathyTreatment: z.boolean().optional(),
+  retinopathyTreatmentDetails: z.string().max(500).optional(),
   acknowledgeRetinopathyMonitoring: z.boolean().optional(),
 
   // Step 5: Contraindications
@@ -151,6 +165,10 @@ const glp1IntakeFormSchema = z.object({
   drugAllergiesList: z.string().max(1000).optional(),
   takingInsulinOrSulfonylurea: z.boolean({ message: 'Please answer this question' }),
   takingOtherGlp1: z.boolean({ message: 'Please answer this question' }),
+  takingOralContraceptive: z.boolean().optional(),
+  takingWarfarin: z.boolean().optional(),
+  takingCyclosporineTacrolimus: z.boolean().optional(),
+  takingLevothyroxine: z.boolean().optional(),
 
   // Step 7: Labs & vitals (self-reported → optional)
   hasRecentLabs: z.boolean({ message: 'Please indicate if you have recent labs' }),
@@ -160,6 +178,11 @@ const glp1IntakeFormSchema = z.object({
   labTriglycerides: z.string().max(50).optional(),
   labCreatinine: z.string().max(50).optional(),
   labAlt: z.string().max(50).optional(),
+  labLDL: z.string().max(10).optional(),
+  labHDL: z.string().max(10).optional(),
+  labAST: z.string().max(10).optional(),
+  labTSH: z.string().max(10).optional(),
+  labLipase: z.string().max(10).optional(),
   restingHeartRate: z.string().max(50).optional(),
   bloodPressure: z.string().max(50).optional(),
   labDocumentUploaded: z.boolean().optional(),
@@ -178,6 +201,8 @@ const glp1IntakeFormSchema = z.object({
   upcomingSurgery: z.boolean({ message: 'Please answer this question' }),
   upcomingSurgeryDetails: z.string().max(1000).optional(),
   acknowledgeAnesthesiaHold: z.boolean().optional(),
+  pastGiSurgery: z.boolean().optional(),
+  pastGiSurgeryDetails: z.string().max(300).optional(),
 
   // Step 10: Mental health
   eatingDisorderHistory: z.boolean({ message: 'Please answer this question' }),
@@ -185,8 +210,20 @@ const glp1IntakeFormSchema = z.object({
   phq2Down: z.enum(['0', '1', '2', '3'], { message: 'Please answer this question' }),
   mentalHealthConditions: z.array(z.string()),
   currentMentalHealthTreatment: z.boolean({ message: 'Please answer this question' }),
+  emotionallyReady: z.enum(['yes', 'somewhat', 'no', 'unsure']).optional(),
+  emotionallyReadyConcerns: z.string().max(500).optional(),
 
-  // Step 11: Review & consent acknowledgements
+  // Step 11: Referral & care coordination
+  referralSource: z.enum(['internet_search', 'social_media', 'physician_referral', 'friend_family', 'insurance', 'other']).optional(),
+  referralSourceOther: z.string().max(200).optional(),
+  hasPrimaryCarePhysician: z.boolean({ message: 'Please answer this question' }),
+  pcpName: z.string().max(100).optional(),
+  pcpPhone: z.string().max(20).optional(),
+  pcpFaxOrEmail: z.string().max(100).optional(),
+  consentToCoordinateWithPcp: z.boolean().optional(),
+  additionalPharmacyNotes: z.string().max(500).optional(),
+
+  // Step 12: Review & consent acknowledgements
   ackInfoAccurate: z.literal(true, { message: 'You must confirm this to submit' }),
   ackClinicalIndication: z.literal(true, { message: 'You must confirm this to submit' }),
   ackFollowUpCompliance: z.literal(true, { message: 'You must confirm this to submit' }),
@@ -341,6 +378,7 @@ function SelectField({
 function DemographicsStep(): React.ReactElement {
   const { register, watch, setValue, formState: { errors } } = useFormContext<Glp1IntakeFormData>();
   const biologicalSex = watch('biologicalSex');
+  const genderIdentity = watch('genderIdentity');
 
   const heightFeet = watch('heightFeet');
   const heightInches = watch('heightInches');
@@ -358,7 +396,7 @@ function DemographicsStep(): React.ReactElement {
 
   return (
     <section aria-label="Step 1: Demographics" className="space-y-6">
-      <StepErrorSummary stepFields={['firstName', 'lastName', 'dateOfBirth', 'biologicalSex', 'phone', 'addressStreet', 'addressCity', 'addressState', 'addressZip', 'heightFeet', 'heightInches', 'weightLbs']} />
+      <StepErrorSummary stepFields={['firstName', 'lastName', 'dateOfBirth', 'biologicalSex', 'phone', 'addressStreet', 'addressCity', 'addressState', 'addressZip', 'heightFeet', 'heightInches', 'weightLbs', 'emergencyContactName', 'emergencyContactPhone', 'emergencyContactRelationship']} />
 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-gray-900">Personal Information</h3>
@@ -421,6 +459,31 @@ function DemographicsStep(): React.ReactElement {
         </AnimatePresence>
       </div>
 
+      {/* Gender identity — distinct from biological sex */}
+      <div className="space-y-2">
+        <Label htmlFor="genderIdentity" className="text-base font-medium">What is your gender identity? <span className="text-sm font-normal text-gray-500">(optional)</span></Label>
+        <SelectField
+          fieldKey="genderIdentity"
+          placeholder="Select (optional)"
+          options={[
+            { value: 'male', label: 'Man' },
+            { value: 'female', label: 'Woman' },
+            { value: 'transgender_male', label: 'Transgender man' },
+            { value: 'transgender_female', label: 'Transgender woman' },
+            { value: 'non_binary', label: 'Non-binary / gender non-conforming' },
+            { value: 'prefer_not_to_say', label: 'Prefer not to say' },
+            { value: 'other', label: 'Prefer to self-describe' },
+          ]}
+        />
+        <AnimatePresence>
+          {genderIdentity === 'other' && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+              <Input {...register('genderIdentityOther')} placeholder="Please describe..." aria-label="Self-describe gender identity" className="mt-2" />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
       {/* Address */}
       <div className="pt-4 border-t">
         <h4 className="text-md font-medium text-gray-900 mb-3">Home Address</h4>
@@ -449,6 +512,12 @@ function DemographicsStep(): React.ReactElement {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Occupation (optional) */}
+      <div className="space-y-2">
+        <Label htmlFor="occupation">Occupation <span className="text-sm font-normal text-gray-500">(optional)</span></Label>
+        <Input id="occupation" {...register('occupation')} placeholder="e.g., Teacher" />
       </div>
 
       {/* Height / weight / BMI */}
@@ -481,6 +550,28 @@ function DemographicsStep(): React.ReactElement {
           </p>
         )}
       </div>
+
+      {/* Emergency contact (required) */}
+      <div className="pt-4 border-t">
+        <h4 className="text-md font-medium text-gray-900 mb-3">Emergency Contact</h4>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="emergencyContactName">Full name *</Label>
+            <Input id="emergencyContactName" {...register('emergencyContactName')} placeholder="Jane Doe" />
+            {errors.emergencyContactName && <p className="text-sm text-red-500" role="alert">{errors.emergencyContactName.message}</p>}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="emergencyContactPhone">Phone *</Label>
+            <Input id="emergencyContactPhone" type="tel" {...register('emergencyContactPhone')} placeholder="(555) 555-5555" />
+            {errors.emergencyContactPhone && <p className="text-sm text-red-500" role="alert">{errors.emergencyContactPhone.message}</p>}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="emergencyContactRelationship">Relationship *</Label>
+            <Input id="emergencyContactRelationship" {...register('emergencyContactRelationship')} placeholder="e.g., Spouse" />
+            {errors.emergencyContactRelationship && <p className="text-sm text-red-500" role="alert">{errors.emergencyContactRelationship.message}</p>}
+          </div>
+        </div>
+      </div>
     </section>
   );
 }
@@ -493,6 +584,7 @@ function WeightHistoryStep(): React.ReactElement {
   const { register, watch, formState: { errors } } = useFormContext<Glp1IntakeFormData>();
   const hadBariatricSurgery = watch('hadBariatricSurgery');
   const priorWeightLossMeds = watch('priorWeightLossMeds');
+  const primaryMedicationGoal = watch('primaryMedicationGoal');
 
   const methodOptions = [
     { id: 'diet', label: 'Diet / calorie restriction' },
@@ -507,6 +599,42 @@ function WeightHistoryStep(): React.ReactElement {
   return (
     <section aria-label="Step 2: Weight History" className="space-y-6">
       <StepErrorSummary stepFields={['highestAdultWeightLbs', 'goalWeightLbs', 'weightChangePastYear', 'hadBariatricSurgery', 'priorWeightLossMeds']} />
+
+      <div className="space-y-2">
+        <Label htmlFor="primaryMedicationGoal" className="text-base font-medium">What is your primary goal with this medication? <span className="text-sm font-normal text-gray-500">(optional)</span></Label>
+        <SelectField
+          fieldKey="primaryMedicationGoal"
+          placeholder="Select (optional)"
+          options={[
+            { value: 'weight_loss', label: 'Weight loss' },
+            { value: 'blood_sugar_control', label: 'Blood sugar control' },
+            { value: 'both', label: 'Both weight loss and blood sugar control' },
+            { value: 'other', label: 'Other' },
+          ]}
+        />
+        <AnimatePresence>
+          {primaryMedicationGoal === 'other' && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+              <Input {...register('primaryMedicationGoalOther')} placeholder="Please describe your goal..." aria-label="Other primary goal" className="mt-2" />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="timeAtCurrentWeight" className="text-base font-medium">How long have you been at or above your current weight? <span className="text-sm font-normal text-gray-500">(optional)</span></Label>
+        <SelectField
+          fieldKey="timeAtCurrentWeight"
+          placeholder="Select (optional)"
+          options={[
+            { value: 'less_than_6_months', label: 'Less than 6 months' },
+            { value: '6_to_12_months', label: '6 to 12 months' },
+            { value: '1_to_2_years', label: '1 to 2 years' },
+            { value: '2_to_5_years', label: '2 to 5 years' },
+            { value: 'over_5_years', label: 'More than 5 years' },
+          ]}
+        />
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
@@ -652,7 +780,9 @@ function MedicalHistoryStep(): React.ReactElement {
 // ============================================================================
 
 function DiabeticEyeScreeningStep(): React.ReactElement {
-  const { register } = useFormContext<Glp1IntakeFormData>();
+  const { register, watch } = useFormContext<Glp1IntakeFormData>();
+  const retinopathySeverity = watch('retinopathySeverity');
+  const showRetinopathyDetail = !!retinopathySeverity && retinopathySeverity !== 'none';
 
   return (
     <section aria-label="Step 4: Diabetic Eye Screening" className="space-y-6">
@@ -697,10 +827,46 @@ function DiabeticEyeScreeningStep(): React.ReactElement {
         <BooleanRadio fieldKey="onInsulin" />
       </div>
 
-      <div className="space-y-3">
-        <Label className="text-base font-medium">Have you been diagnosed with diabetic retinopathy (eye disease from diabetes)?</Label>
-        <BooleanRadio fieldKey="diabeticRetinopathy" />
+      <div className="space-y-2">
+        <Label htmlFor="retinopathySeverity" className="text-base font-medium">Have you been diagnosed with diabetic retinopathy? If so, what stage?</Label>
+        <SelectField
+          fieldKey="retinopathySeverity"
+          placeholder="Select severity"
+          options={[
+            { value: 'none', label: 'None — not diagnosed' },
+            { value: 'mild_npdr', label: 'Mild NPDR (non-proliferative)' },
+            { value: 'moderate_npdr', label: 'Moderate NPDR' },
+            { value: 'severe_npdr', label: 'Severe NPDR' },
+            { value: 'pdr', label: 'PDR (proliferative diabetic retinopathy)' },
+          ]}
+        />
       </div>
+
+      <div className="space-y-3">
+        <Label className="text-base font-medium">Have you been diagnosed with diabetic macular edema (DME)?</Label>
+        <BooleanRadio fieldKey="diabeticMacularEdema" />
+      </div>
+
+      <AnimatePresence>
+        {showRetinopathyDetail && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="ophthalmologistName">Eye doctor / practice <span className="text-sm font-normal text-gray-500">(optional)</span></Label>
+                <Input id="ophthalmologistName" {...register('ophthalmologistName')} placeholder="Dr. Smith / Vision Care" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ophthalmologistPhone">Eye doctor phone <span className="text-sm font-normal text-gray-500">(optional)</span></Label>
+                <Input id="ophthalmologistPhone" type="tel" {...register('ophthalmologistPhone')} placeholder="(555) 555-5555" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="retinopathyTreatmentDetails">Describe any treatments you have had:</Label>
+              <Textarea id="retinopathyTreatmentDetails" {...register('retinopathyTreatmentDetails')} placeholder="Describe any treatments (laser, anti-VEGF injection, vitrectomy, etc.)" />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="space-y-2">
         <Label htmlFor="lastEyeExam" className="text-base font-medium">When was your last dilated eye exam?</Label>
@@ -718,11 +884,6 @@ function DiabeticEyeScreeningStep(): React.ReactElement {
       <div className="space-y-3">
         <Label className="text-base font-medium">Have you noticed any recent changes in your vision?</Label>
         <BooleanRadio fieldKey="visionChanges" />
-      </div>
-
-      <div className="space-y-3">
-        <Label className="text-base font-medium">Have you ever had treatment for retinopathy (laser, injections, surgery)?</Label>
-        <BooleanRadio fieldKey="retinopathyTreatment" />
       </div>
 
       <div className="space-y-3 p-4 border border-amber-200 rounded-lg bg-amber-50/50">
@@ -861,6 +1022,15 @@ function MedicationsAllergiesStep(): React.ReactElement {
     name: 'medicationList',
   });
 
+  // Explicit drug-interaction questions (Q39–Q42). The clinical notes are
+  // TODO(clinical): confirm wording.
+  const interactionQuestions: Array<{ key: keyof Glp1IntakeFormData; label: string; note: string }> = [
+    { key: 'takingOralContraceptive', label: 'Are you taking an oral contraceptive (birth control pill)?', note: DRUG_INTERACTION_NOTES.oralContraceptive },
+    { key: 'takingWarfarin', label: 'Are you taking warfarin or another blood thinner?', note: DRUG_INTERACTION_NOTES.warfarin },
+    { key: 'takingCyclosporineTacrolimus', label: 'Are you taking cyclosporine, tacrolimus, or another transplant / immunosuppressant medication?', note: DRUG_INTERACTION_NOTES.cyclosporineTacrolimus },
+    { key: 'takingLevothyroxine', label: 'Are you taking levothyroxine or another thyroid medication?', note: DRUG_INTERACTION_NOTES.levothyroxine },
+  ];
+
   return (
     <section aria-label="Step 6: Medications & Allergies" className="space-y-6">
       <StepErrorSummary stepFields={['currentlyTakingMedications', 'hasDrugAllergies', 'takingInsulinOrSulfonylurea', 'takingOtherGlp1']} />
@@ -915,6 +1085,25 @@ function MedicationsAllergiesStep(): React.ReactElement {
         )}
       </AnimatePresence>
 
+      {/* Drug interactions — explicit yes/no (Q39–Q42), shown when taking meds */}
+      <AnimatePresence>
+        {currentlyTakingMedications === true && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="space-y-4">
+            <div>
+              <h4 className="text-md font-medium text-gray-900">Drug interactions</h4>
+              <p className="text-sm text-gray-500">GLP-1 medications can interact with some common medications. Please answer the following.</p>
+            </div>
+            {interactionQuestions.map((q) => (
+              <div key={q.key} className="p-4 border border-gray-200 rounded-lg">
+                <p className="text-sm text-gray-900 mb-1">{q.label}</p>
+                <p className="text-xs text-gray-500 mb-3">{q.note}</p>
+                <BooleanRadio fieldKey={q.key} label={q.label} />
+              </div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="space-y-3">
         <Label className="text-base font-medium">Do you have any known drug allergies? <span className="text-red-500" aria-hidden="true">*</span></Label>
         <BooleanRadio fieldKey="hasDrugAllergies" />
@@ -954,9 +1143,14 @@ function LabsVitalsStep(): React.ReactElement {
     { key: 'labA1c', label: 'A1c (%)', placeholder: '5.7' },
     { key: 'labFastingGlucose', label: 'Fasting glucose (mg/dL)', placeholder: '95' },
     { key: 'labCholesterolTotal', label: 'Total cholesterol (mg/dL)', placeholder: '190' },
+    { key: 'labLDL', label: 'LDL cholesterol (mg/dL)', placeholder: '100' },
+    { key: 'labHDL', label: 'HDL cholesterol (mg/dL)', placeholder: '50' },
     { key: 'labTriglycerides', label: 'Triglycerides (mg/dL)', placeholder: '120' },
     { key: 'labCreatinine', label: 'Creatinine (mg/dL)', placeholder: '0.9' },
     { key: 'labAlt', label: 'ALT (U/L)', placeholder: '30' },
+    { key: 'labAST', label: 'AST (U/L)', placeholder: '25' },
+    { key: 'labTSH', label: 'TSH (mIU/L)', placeholder: '2.0' },
+    { key: 'labLipase', label: 'Lipase (U/L)', placeholder: '40' },
     { key: 'restingHeartRate', label: 'Resting heart rate (bpm)', placeholder: '72' },
     { key: 'bloodPressure', label: 'Blood pressure (mmHg)', placeholder: '120/80' },
   ];
@@ -1110,6 +1304,7 @@ function LifestyleStep(): React.ReactElement {
 function ProceduresSurgeryStep(): React.ReactElement {
   const { register, watch } = useFormContext<Glp1IntakeFormData>();
   const upcomingSurgery = watch('upcomingSurgery');
+  const pastGiSurgery = watch('pastGiSurgery');
 
   return (
     <section aria-label="Step 9: Procedures & Surgery" className="space-y-6">
@@ -1152,6 +1347,19 @@ function ProceduresSurgeryStep(): React.ReactElement {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <div className="space-y-3">
+        <Label className="text-base font-medium">Have you had any abdominal or gastrointestinal surgery in the past? <span className="text-sm font-normal text-gray-500">(optional)</span></Label>
+        <BooleanRadio fieldKey="pastGiSurgery" />
+        <AnimatePresence>
+          {pastGiSurgery === true && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="pl-4">
+              <Label htmlFor="pastGiSurgeryDetails" className="text-sm">Please describe the type and approximate year:</Label>
+              <Textarea id="pastGiSurgeryDetails" {...register('pastGiSurgeryDetails')} placeholder="e.g., Gallbladder removal, 2018" className="mt-2" />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </section>
   );
 }
@@ -1164,6 +1372,7 @@ function MentalHealthStep(): React.ReactElement {
   const { register, watch, formState: { errors } } = useFormContext<Glp1IntakeFormData>();
   const phq2Interest = watch('phq2Interest');
   const phq2Down = watch('phq2Down');
+  const emotionallyReady = watch('emotionallyReady');
 
   const phq2Score = Number(phq2Interest || 0) + Number(phq2Down || 0);
   const phq2Positive = phq2Score >= 3;
@@ -1254,12 +1463,115 @@ function MentalHealthStep(): React.ReactElement {
         <Label className="text-base font-medium">Are you currently receiving treatment for a mental health condition? <span className="text-red-500" aria-hidden="true">*</span></Label>
         <BooleanRadio fieldKey="currentMentalHealthTreatment" />
       </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="emotionallyReady" className="text-base font-medium">Do you feel emotionally ready to make sustainable lifestyle changes alongside medication? <span className="text-sm font-normal text-gray-500">(optional)</span></Label>
+        <SelectField
+          fieldKey="emotionallyReady"
+          placeholder="Select (optional)"
+          options={[
+            { value: 'yes', label: 'Yes — I feel ready' },
+            { value: 'somewhat', label: 'Somewhat ready' },
+            { value: 'no', label: 'No — not yet' },
+            { value: 'unsure', label: 'Unsure' },
+          ]}
+        />
+        <AnimatePresence>
+          {(emotionallyReady === 'no' || emotionallyReady === 'unsure') && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+              <Label htmlFor="emotionallyReadyConcerns" className="text-sm">What concerns do you have? <span className="text-gray-500">(optional)</span></Label>
+              <Textarea id="emotionallyReadyConcerns" {...register('emotionallyReadyConcerns')} placeholder="Share anything you'd like your care team to know..." className="mt-2" />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </section>
   );
 }
 
 // ============================================================================
-// Step 11: Review & consent
+// Step 11: Referral & care coordination
+// ============================================================================
+
+function ReferralCareStep(): React.ReactElement {
+  const { register, watch } = useFormContext<Glp1IntakeFormData>();
+  const referralSource = watch('referralSource');
+  const hasPrimaryCarePhysician = watch('hasPrimaryCarePhysician');
+
+  return (
+    <section aria-label="Step 11: Referral & Care Coordination" className="space-y-6">
+      <StepErrorSummary stepFields={['hasPrimaryCarePhysician']} />
+
+      <div className="space-y-2">
+        <Label htmlFor="referralSource" className="text-base font-medium">How did you hear about us? <span className="text-sm font-normal text-gray-500">(optional)</span></Label>
+        <SelectField
+          fieldKey="referralSource"
+          placeholder="Select (optional)"
+          options={[
+            { value: 'internet_search', label: 'Internet search' },
+            { value: 'social_media', label: 'Social media' },
+            { value: 'physician_referral', label: 'Physician referral' },
+            { value: 'friend_family', label: 'Friend or family' },
+            { value: 'insurance', label: 'Insurance provider' },
+            { value: 'other', label: 'Other' },
+          ]}
+        />
+        <AnimatePresence>
+          {referralSource === 'other' && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+              <Input {...register('referralSourceOther')} placeholder="Please describe..." aria-label="Other referral source" className="mt-2" />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      <div className="space-y-3">
+        <Label className="text-base font-medium">Do you have a primary care physician? <span className="text-red-500" aria-hidden="true">*</span></Label>
+        <BooleanRadio fieldKey="hasPrimaryCarePhysician" />
+        <AnimatePresence>
+          {hasPrimaryCarePhysician === true && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="space-y-4 pl-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="pcpName">Physician name / practice <span className="text-sm font-normal text-gray-500">(optional)</span></Label>
+                  <Input id="pcpName" {...register('pcpName')} placeholder="Dr. Smith / Valley Medical" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="pcpPhone">Physician phone <span className="text-sm font-normal text-gray-500">(optional)</span></Label>
+                  <Input id="pcpPhone" type="tel" {...register('pcpPhone')} placeholder="(555) 555-5555" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pcpFaxOrEmail">Physician fax or email <span className="text-sm font-normal text-gray-500">(optional)</span></Label>
+                <Input id="pcpFaxOrEmail" {...register('pcpFaxOrEmail')} placeholder="Fax or email for records" />
+              </div>
+              <div className="p-4 border border-gray-200 rounded-lg bg-gray-50/50">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    {...register('consentToCoordinateWithPcp')}
+                    className="mt-0.5 h-4 w-4 shrink-0 rounded-sm border border-primary text-primary focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  />
+                  <span className="text-sm text-gray-700">
+                    I authorize Rimal Health to coordinate my care with my primary care physician.
+                  </span>
+                </label>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="additionalPharmacyNotes" className="text-base font-medium">Anything else we should know about your pharmacy or care preferences? <span className="text-sm font-normal text-gray-500">(optional)</span></Label>
+        <Textarea id="additionalPharmacyNotes" {...register('additionalPharmacyNotes')} placeholder="e.g., preferred pharmacy notes, delivery preferences..." />
+      </div>
+    </section>
+  );
+}
+
+// ============================================================================
+// Step 12: Review & consent
 // ============================================================================
 
 function ReviewStep({ onEditSection }: { onEditSection: (index: number) => void }): React.ReactElement {
@@ -1282,6 +1594,10 @@ function ReviewStep({ onEditSection }: { onEditSection: (index: number) => void 
   const emotionalLabels: Record<string, string> = { never: 'Never', sometimes: 'Sometimes', often: 'Often' };
   const diabetesLabels: Record<string, string> = { 'type-1': 'Type 1', 'type-2': 'Type 2', 'pre-diabetes': 'Pre-diabetes', gestational: 'Gestational', none: 'None' };
   const eyeExamLabels: Record<string, string> = { 'within-1-year': 'Within 1 year', '1-2-years': '1-2 years', 'over-2-years': 'Over 2 years', never: 'Never' };
+  const retinopathyLabels: Record<string, string> = { none: 'None', mild_npdr: 'Mild NPDR', moderate_npdr: 'Moderate NPDR', severe_npdr: 'Severe NPDR', pdr: 'PDR' };
+  const genderLabels: Record<string, string> = { male: 'Man', female: 'Woman', transgender_male: 'Transgender man', transgender_female: 'Transgender woman', non_binary: 'Non-binary', prefer_not_to_say: 'Prefer not to say', other: 'Self-described' };
+  const referralLabels: Record<string, string> = { internet_search: 'Internet search', social_media: 'Social media', physician_referral: 'Physician referral', friend_family: 'Friend/family', insurance: 'Insurance', other: 'Other' };
+  const readyLabels: Record<string, string> = { yes: 'Yes', somewhat: 'Somewhat', no: 'No', unsure: 'Unsure' };
 
   const conditionLabel = (value: string): string => MEDICAL_CONDITIONS.find((c) => c.value === value)?.label || value;
 
@@ -1301,9 +1617,12 @@ function ReviewStep({ onEditSection }: { onEditSection: (index: number) => void 
         `Name: ${values.firstName || 'Not answered'} ${values.lastName || ''}`.trim(),
         `Date of birth: ${values.dateOfBirth || 'Not answered'}`,
         `Biological sex: ${formatEnum(values.biologicalSex, sexLabels)}${values.biologicalSex === 'OTHER' && values.biologicalSexOther ? ` (${values.biologicalSexOther})` : ''}`,
+        ...(values.genderIdentity ? [`Gender identity: ${formatEnum(values.genderIdentity, genderLabels)}`] : []),
         `Phone: ${values.phone || 'Not answered'}`,
         `Address: ${values.addressStreet || 'Not answered'}, ${values.addressCity || ''}, CA ${values.addressZip || ''}`.trim(),
+        ...(values.occupation ? [`Occupation: ${values.occupation}`] : []),
         `Height: ${values.heightFeet ?? '?'}'${values.heightInches ?? '?'}" — Weight: ${values.weightLbs ?? '?'} lbs — BMI: ${values.bmi ? Number(values.bmi).toFixed(1) : 'N/A'}`,
+        `Emergency contact: ${values.emergencyContactName || 'Not answered'}${values.emergencyContactRelationship ? ` (${values.emergencyContactRelationship})` : ''}${values.emergencyContactPhone ? ` — ${values.emergencyContactPhone}` : ''}`,
       ],
     },
     {
@@ -1334,7 +1653,8 @@ function ReviewStep({ onEditSection }: { onEditSection: (index: number) => void 
           items: [
             `Diabetes type: ${formatEnum(values.diabetesType, diabetesLabels)}`,
             `On insulin: ${formatBoolean(values.onInsulin)}`,
-            `Diabetic retinopathy: ${formatBoolean(values.diabeticRetinopathy)}`,
+            `Retinopathy: ${formatEnum(values.retinopathySeverity, retinopathyLabels)}`,
+            `Macular edema (DME): ${formatBoolean(values.diabeticMacularEdema)}`,
             `Last eye exam: ${formatEnum(values.lastEyeExam, eyeExamLabels)}`,
             `Vision changes: ${formatBoolean(values.visionChanges)}`,
           ],
@@ -1391,7 +1711,10 @@ function ReviewStep({ onEditSection }: { onEditSection: (index: number) => void 
     {
       title: 'Step 9: Procedures & Surgery',
       index: hasEyeScreening ? 8 : 7,
-      items: [`Upcoming surgery: ${formatBoolean(values.upcomingSurgery)}`],
+      items: [
+        `Upcoming surgery: ${formatBoolean(values.upcomingSurgery)}`,
+        `Past GI surgery: ${formatBoolean(values.pastGiSurgery)}`,
+      ],
     },
     {
       title: 'Step 10: Mental Health',
@@ -1401,6 +1724,17 @@ function ReviewStep({ onEditSection }: { onEditSection: (index: number) => void 
         `PHQ-2 score: ${phq2Score} of 6`,
         `Conditions: ${mentalConditions.length > 0 ? mentalConditions.join(', ') : 'None'}`,
         `Current treatment: ${formatBoolean(values.currentMentalHealthTreatment)}`,
+        ...(values.emotionallyReady ? [`Emotionally ready: ${formatEnum(values.emotionallyReady, readyLabels)}`] : []),
+      ],
+    },
+    {
+      title: 'Step 11: Referral & Care Coordination',
+      index: hasEyeScreening ? 10 : 9,
+      items: [
+        ...(values.referralSource ? [`Heard about us: ${formatEnum(values.referralSource, referralLabels)}`] : []),
+        `Has primary care physician: ${formatBoolean(values.hasPrimaryCarePhysician)}`,
+        ...(values.hasPrimaryCarePhysician && values.pcpName ? [`PCP: ${values.pcpName}`] : []),
+        ...(values.consentToCoordinateWithPcp ? ['Authorized care coordination with PCP'] : []),
       ],
     },
   ];
@@ -1431,7 +1765,17 @@ function ReviewStep({ onEditSection }: { onEditSection: (index: number) => void 
         </div>
       ))}
 
-      {/* Consent acknowledgements */}
+      {/*
+        Consent acknowledgements.
+        These 3 intake acknowledgements — Accuracy of Information, Clinical
+        Indication, and Follow-up Compliance — combine with the 9 GLP-1 consent
+        items collected at /checkout/consent (telehealth nature, side effects,
+        retinopathy monitoring, emergency situations, mental-health warning,
+        surgery notification, long-term therapy, pharmacy/prescribing, and
+        California location) to complete all 12 required consent points of the
+        PDF questionnaire's Section 12. No additional acknowledgements are needed
+        here; do not duplicate the checkout-consent items.
+      */}
       <div className="space-y-3 pt-2">
         <h3 className="text-sm font-semibold text-gray-900">Acknowledgements</h3>
         {[
@@ -1588,6 +1932,9 @@ export default function Glp1IntakeClient(): React.ReactElement {
       dateOfBirth: '',
       biologicalSex: undefined,
       biologicalSexOther: '',
+      genderIdentity: undefined,
+      genderIdentityOther: '',
+      occupation: '',
       phone: '',
       addressStreet: '',
       addressCity: '',
@@ -1597,6 +1944,9 @@ export default function Glp1IntakeClient(): React.ReactElement {
       heightInches: undefined,
       weightLbs: undefined,
       bmi: undefined,
+      emergencyContactName: '',
+      emergencyContactPhone: '',
+      emergencyContactRelationship: '',
       // Step 2
       highestAdultWeightLbs: undefined,
       goalWeightLbs: undefined,
@@ -1606,6 +1956,9 @@ export default function Glp1IntakeClient(): React.ReactElement {
       bariatricSurgeryDetails: '',
       priorWeightLossMeds: undefined,
       priorWeightLossMedsList: '',
+      primaryMedicationGoal: undefined,
+      primaryMedicationGoalOther: '',
+      timeAtCurrentWeight: undefined,
       // Step 3
       medicalConditions: [],
       medicalConditionsOther: '',
@@ -1616,10 +1969,13 @@ export default function Glp1IntakeClient(): React.ReactElement {
       yearsSinceDiabetesDiagnosis: '',
       lastA1c: '',
       onInsulin: undefined,
-      diabeticRetinopathy: undefined,
+      retinopathySeverity: undefined,
+      diabeticMacularEdema: undefined,
+      ophthalmologistName: '',
+      ophthalmologistPhone: '',
       lastEyeExam: undefined,
       visionChanges: undefined,
-      retinopathyTreatment: undefined,
+      retinopathyTreatmentDetails: '',
       acknowledgeRetinopathyMonitoring: false,
       // Step 5
       personalHistoryMTC: undefined,
@@ -1638,6 +1994,10 @@ export default function Glp1IntakeClient(): React.ReactElement {
       drugAllergiesList: '',
       takingInsulinOrSulfonylurea: undefined,
       takingOtherGlp1: undefined,
+      takingOralContraceptive: undefined,
+      takingWarfarin: undefined,
+      takingCyclosporineTacrolimus: undefined,
+      takingLevothyroxine: undefined,
       // Step 7
       hasRecentLabs: undefined,
       labA1c: '',
@@ -1646,6 +2006,11 @@ export default function Glp1IntakeClient(): React.ReactElement {
       labTriglycerides: '',
       labCreatinine: '',
       labAlt: '',
+      labLDL: '',
+      labHDL: '',
+      labAST: '',
+      labTSH: '',
+      labLipase: '',
       restingHeartRate: '',
       bloodPressure: '',
       labDocumentUploaded: false,
@@ -1662,13 +2027,26 @@ export default function Glp1IntakeClient(): React.ReactElement {
       upcomingSurgery: undefined,
       upcomingSurgeryDetails: '',
       acknowledgeAnesthesiaHold: false,
+      pastGiSurgery: undefined,
+      pastGiSurgeryDetails: '',
       // Step 10
       eatingDisorderHistory: undefined,
       phq2Interest: undefined,
       phq2Down: undefined,
       mentalHealthConditions: [],
       currentMentalHealthTreatment: undefined,
-      // Step 11
+      emotionallyReady: undefined,
+      emotionallyReadyConcerns: '',
+      // Step 11: Referral & care coordination
+      referralSource: undefined,
+      referralSourceOther: '',
+      hasPrimaryCarePhysician: undefined,
+      pcpName: '',
+      pcpPhone: '',
+      pcpFaxOrEmail: '',
+      consentToCoordinateWithPcp: false,
+      additionalPharmacyNotes: '',
+      // Step 12: Review & consent
       ackInfoAccurate: undefined,
       ackClinicalIndication: undefined,
       ackFollowUpCompliance: undefined,
@@ -1703,6 +2081,7 @@ export default function Glp1IntakeClient(): React.ReactElement {
       { id: 'lifestyle', title: 'Lifestyle', sectionTitle: 'Lifestyle', component: LifestyleStep },
       { id: 'procedures-surgery', title: 'Procedures', sectionTitle: 'Procedures & Surgery', component: ProceduresSurgeryStep },
       { id: 'mental-health', title: 'Mental Health', sectionTitle: 'Mental Health', component: MentalHealthStep },
+      { id: 'referral-care', title: 'Referral', sectionTitle: 'Referral & Care Coordination', component: ReferralCareStep },
       { id: 'review-consent', title: 'Review', sectionTitle: 'Review & Consent', component: null },
     );
     return base;
@@ -1806,6 +2185,7 @@ export default function Glp1IntakeClient(): React.ReactElement {
     lifestyle: ['dietPattern', 'exerciseFrequency', 'alcoholUse', 'tobaccoUse', 'recreationalSubstances', 'stressLevel', 'emotionalEating'],
     'procedures-surgery': ['upcomingSurgery'],
     'mental-health': ['eatingDisorderHistory', 'phq2Interest', 'phq2Down', 'currentMentalHealthTreatment'],
+    'referral-care': ['hasPrimaryCarePhysician'],
     'review-consent': [],
   };
 

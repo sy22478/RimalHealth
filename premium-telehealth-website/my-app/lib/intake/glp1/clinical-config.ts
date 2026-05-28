@@ -200,6 +200,24 @@ export const DRUG_INTERACTION_KEYWORDS: string[] = [
 ];
 
 // ============================================================================
+// Explicit drug-interaction question notes (Step 6, Q39–Q42)
+// ============================================================================
+// TODO(clinical): REQUIRES CLINICAL SIGN-OFF — confirm the patient-facing notes
+// shown beside the explicit yes/no drug-interaction questions. These standalone
+// questions back up the free-text keyword scan above (which a patient can miss
+// by not typing the drug into the medication list).
+export const DRUG_INTERACTION_NOTES = {
+  oralContraceptive:
+    'GLP-1 medications can slow stomach emptying and may affect the absorption of oral contraceptives; some agents may reduce their effectiveness.',
+  warfarin:
+    'Changes in diet and weight during GLP-1 therapy can affect warfarin (blood thinner) levels — your INR may need closer monitoring.',
+  cyclosporineTacrolimus:
+    'Delayed gastric emptying can alter the absorption of narrow-therapeutic-index immunosuppressants such as cyclosporine and tacrolimus.',
+  levothyroxine:
+    'GLP-1 medications may affect the absorption and timing of levothyroxine (thyroid medication); your provider may need to monitor your TSH.',
+} as const;
+
+// ============================================================================
 // PHQ-2 depression screen (Step 10)
 // ============================================================================
 // TODO(clinical): REQUIRES CLINICAL SIGN-OFF — standard PHQ-2 positive cutoff is
@@ -228,6 +246,12 @@ export const LAB_REFERENCE_RANGES = {
   triglyceridesMgDl: { low: 0, high: 150 },
   creatinineMgDl: { low: 0.6, high: 1.3 },
   altUL: { low: 7, high: 56 },
+  // Added for full PDF conformance (Step 7, Q44 lab panel).
+  ldlMgDl: { low: 0, high: 100 }, // mg/dL — TODO(clinical): confirm
+  hdlMgDl: { low: 40, high: 100 }, // mg/dL — TODO(clinical): confirm
+  astUL: { low: 0, high: 40 }, // U/L — TODO(clinical): confirm
+  tshMIUL: { low: 0.4, high: 4.0 }, // mIU/L — TODO(clinical): confirm
+  lipaseUL: { low: 0, high: 60 }, // U/L — TODO(clinical): confirm
 } as const;
 
 /** Maximum dynamic medication entries (Step 6). */

@@ -70,6 +70,16 @@ export interface Glp1FormData {
   dateOfBirth: string; // YYYY-MM-DD
   biologicalSex: 'MALE' | 'FEMALE' | 'OTHER';
   biologicalSexOther?: string;
+  /** Gender identity (Q4) — distinct from biological sex; for respectful interaction. */
+  genderIdentity?:
+    | 'male'
+    | 'female'
+    | 'transgender_male'
+    | 'transgender_female'
+    | 'non_binary'
+    | 'prefer_not_to_say'
+    | 'other';
+  genderIdentityOther?: string;
   phone: string;
   addressStreet: string;
   addressCity: string;
@@ -80,6 +90,12 @@ export interface Glp1FormData {
   weightLbs: number;
   /** Auto-calculated from height + weight; stored read-only. */
   bmi?: number;
+  /** Occupation (Q50) — optional. */
+  occupation?: string;
+  /** Emergency contact (Q9) — required per PDF spec. */
+  emergencyContactName: string;
+  emergencyContactPhone: string;
+  emergencyContactRelationship: string;
 
   // --- Step 2: Weight history (Q11–Q17) -------------------------------------
   highestAdultWeightLbs: number;
@@ -90,6 +106,16 @@ export interface Glp1FormData {
   bariatricSurgeryDetails?: string; // visibleIf hadBariatricSurgery
   priorWeightLossMeds: boolean;
   priorWeightLossMedsList?: string; // visibleIf priorWeightLossMeds
+  /** Primary goal for the medication (Q11). */
+  primaryMedicationGoal?: 'weight_loss' | 'blood_sugar_control' | 'both' | 'other';
+  primaryMedicationGoalOther?: string; // visibleIf primaryMedicationGoal === 'other'
+  /** How long at/above current weight (Q12). */
+  timeAtCurrentWeight?:
+    | 'less_than_6_months'
+    | '6_to_12_months'
+    | '1_to_2_years'
+    | '2_to_5_years'
+    | 'over_5_years';
 
   // --- Step 3: Medical history (Q18–Q19) ------------------------------------
   medicalConditions: string[]; // ~40-item checklist (clinical-config)
@@ -102,10 +128,17 @@ export interface Glp1FormData {
   yearsSinceDiabetesDiagnosis?: string;
   lastA1c?: string;
   onInsulin?: boolean;
-  diabeticRetinopathy?: boolean;
+  /** Retinopathy severity staging (Q20) — replaces the old diabeticRetinopathy boolean. */
+  retinopathySeverity?: 'none' | 'mild_npdr' | 'moderate_npdr' | 'severe_npdr' | 'pdr';
+  /** Diabetic macular edema diagnosis (Q21). */
+  diabeticMacularEdema?: boolean;
+  /** Treating eye doctor (Q23) — optional. */
+  ophthalmologistName?: string;
+  ophthalmologistPhone?: string;
   lastEyeExam?: 'within-1-year' | '1-2-years' | 'over-2-years' | 'never';
   visionChanges?: boolean;
-  retinopathyTreatment?: boolean;
+  /** Retinopathy treatment details (Q24/Q25) — replaces the old retinopathyTreatment boolean. */
+  retinopathyTreatmentDetails?: string;
   acknowledgeRetinopathyMonitoring?: boolean;
 
   // --- Step 5: Contraindications (Q29–Q37) ----------------------------------
@@ -126,6 +159,11 @@ export interface Glp1FormData {
   drugAllergiesList?: string; // visibleIf hasDrugAllergies
   takingInsulinOrSulfonylurea: boolean;
   takingOtherGlp1: boolean;
+  /** Explicit drug-interaction questions (Q39–Q42); visibleIf currentlyTakingMedications. */
+  takingOralContraceptive?: boolean;
+  takingWarfarin?: boolean;
+  takingCyclosporineTacrolimus?: boolean;
+  takingLevothyroxine?: boolean;
 
   // --- Step 7: Labs & vitals (Q44 + self-reported table) --------------------
   hasRecentLabs: boolean;
@@ -135,6 +173,11 @@ export interface Glp1FormData {
   labTriglycerides?: string;
   labCreatinine?: string;
   labAlt?: string;
+  labLDL?: string;
+  labHDL?: string;
+  labAST?: string;
+  labTSH?: string;
+  labLipase?: string;
   restingHeartRate?: string;
   bloodPressure?: string;
   labDocumentUploaded?: boolean;
@@ -153,6 +196,9 @@ export interface Glp1FormData {
   upcomingSurgery: boolean;
   upcomingSurgeryDetails?: string;
   acknowledgeAnesthesiaHold?: boolean; // visibleIf upcomingSurgery
+  /** Past abdominal/GI surgery (Q53). */
+  pastGiSurgery?: boolean;
+  pastGiSurgeryDetails?: string; // visibleIf pastGiSurgery
 
   // --- Step 10: Mental health (Q54–Q58) -------------------------------------
   eatingDisorderHistory: boolean;
@@ -160,8 +206,27 @@ export interface Glp1FormData {
   phq2Down: '0' | '1' | '2' | '3'; // PHQ-2 item 2
   mentalHealthConditions: string[];
   currentMentalHealthTreatment: boolean;
+  /** Emotional readiness for lifestyle change (Q58). */
+  emotionallyReady?: 'yes' | 'somewhat' | 'no' | 'unsure';
+  emotionallyReadyConcerns?: string; // visibleIf emotionallyReady is 'no' | 'unsure'
 
-  // --- Step 11: Review & consent acknowledgements ---------------------------
+  // --- Step 11: Referral & care coordination (Q59–Q63) ----------------------
+  referralSource?:
+    | 'internet_search'
+    | 'social_media'
+    | 'physician_referral'
+    | 'friend_family'
+    | 'insurance'
+    | 'other';
+  referralSourceOther?: string; // visibleIf referralSource === 'other'
+  hasPrimaryCarePhysician: boolean;
+  pcpName?: string; // visibleIf hasPrimaryCarePhysician
+  pcpPhone?: string;
+  pcpFaxOrEmail?: string;
+  consentToCoordinateWithPcp?: boolean;
+  additionalPharmacyNotes?: string;
+
+  // --- Step 12: Review & consent acknowledgements ---------------------------
   ackInfoAccurate: boolean;
   ackClinicalIndication: boolean;
   ackFollowUpCompliance: boolean;

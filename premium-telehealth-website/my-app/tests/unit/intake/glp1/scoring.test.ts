@@ -30,6 +30,9 @@ function baseAnswers(overrides: Partial<Glp1FormData> = {}): Glp1FormData {
     heightFeet: 5,
     heightInches: 10,
     weightLbs: 230,
+    emergencyContactName: 'Jane Doe',
+    emergencyContactPhone: '5559876543',
+    emergencyContactRelationship: 'Spouse',
     // Step 2
     highestAdultWeightLbs: 240,
     goalWeightLbs: 180,
@@ -74,7 +77,9 @@ function baseAnswers(overrides: Partial<Glp1FormData> = {}): Glp1FormData {
     phq2Down: '0',
     mentalHealthConditions: [],
     currentMentalHealthTreatment: false,
-    // Step 11
+    // Step 11 — Referral & care coordination
+    hasPrimaryCarePhysician: false,
+    // Step 12 — Review & consent
     ackInfoAccurate: true,
     ackClinicalIndication: true,
     ackFollowUpCompliance: true,
