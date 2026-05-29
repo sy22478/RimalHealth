@@ -12,6 +12,7 @@
 
 import Stripe from 'stripe';
 import { PlanType } from '@prisma/client';
+import { PLAN_AMOUNTS, PLAN_NAMES, PLAN_DESCRIPTIONS } from './plan-constants';
 
 // ============================================
 // Configuration
@@ -27,30 +28,11 @@ export const STRIPE_PRICE_IDS: Record<PlanType, string | undefined> = {
 };
 
 /**
- * Plan amounts in cents (fallback values)
- * ACTIVE_TREATMENT: $50.00/month
- * WEIGHT_MANAGEMENT: $50.00/month — TODO(business): confirm GLP-1 platform fee
+ * Plan display names, amounts, and descriptions live in a client-safe module
+ * (no `stripe` SDK import) so client components can render product-aware copy.
+ * Re-exported here to keep existing server-side import sites working.
  */
-export const PLAN_AMOUNTS: Record<PlanType, number> = {
-  ACTIVE_TREATMENT: 5000,
-  WEIGHT_MANAGEMENT: 5000,
-};
-
-/**
- * Plan display names
- */
-export const PLAN_NAMES: Record<PlanType, string> = {
-  ACTIVE_TREATMENT: 'Active Treatment',
-  WEIGHT_MANAGEMENT: 'Weight Management',
-};
-
-/**
- * Plan descriptions for checkout
- */
-export const PLAN_DESCRIPTIONS: Record<PlanType, string> = {
-  ACTIVE_TREATMENT: 'Full access to medication-assisted treatment with physician monitoring',
-  WEIGHT_MANAGEMENT: 'Physician-managed GLP-1 weight management with ongoing monitoring',
-};
+export { PLAN_AMOUNTS, PLAN_NAMES, PLAN_DESCRIPTIONS };
 
 // ============================================
 // Lazy Stripe Client Initialization
