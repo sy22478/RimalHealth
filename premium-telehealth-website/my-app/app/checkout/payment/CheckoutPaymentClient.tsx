@@ -141,7 +141,7 @@ function normalizePlanId(raw: string | null): string {
   return 'ACTIVE_TREATMENT';
 }
 
-function CheckoutPaymentContent() {
+function CheckoutPaymentContent({ priceConfigured }: { priceConfigured: boolean }) {
   const searchParams = useSearchParams();
 
   const [state, setState] = React.useState<CheckoutState>({
@@ -157,8 +157,15 @@ function CheckoutPaymentContent() {
 
   const [selectedPlanId, setSelectedPlanId] = React.useState<string>(preselectedPlan);
 
-  // Check if Stripe is configured
-  const stripeConfigured = React.useMemo(() => isStripeConfigured(), []);
+  // Stripe is usable only if the publishable key is set (client check) AND the
+  // selected plan's price is configured server-side (priceConfigured prop). The
+  // latter is resolved on the server because price IDs are not exposed to the
+  // client — this surfaces the warning for a GLP-1 selection when only the
+  // GLP-1 price is missing.
+  const stripeConfigured = React.useMemo(
+    () => isStripeConfigured() && priceConfigured,
+    [priceConfigured]
+  );
 
   const handlePlanSelect = (planId: string) => {
     if (state.status !== 'idle' && state.status !== 'error') return;
@@ -337,7 +344,7 @@ function CheckoutPaymentContent() {
 // Main Export with Suspense Wrapper
 // ============================================
 
-export default function CheckoutPaymentClient() {
+export default function CheckoutPaymentClient({ priceConfigured }: { priceConfigured: boolean }) {
   return (
     <Suspense fallback={
       <div className="container mx-auto max-w-4xl py-12 px-4">
@@ -351,7 +358,7 @@ export default function CheckoutPaymentClient() {
         </div>
       </div>
     }>
-      <CheckoutPaymentContent />
+      <CheckoutPaymentContent priceConfigured={priceConfigured} />
     </Suspense>
   );
 }

@@ -80,12 +80,21 @@ export function getStripe(): Stripe {
 }
 
 /**
- * Check if Stripe is properly configured
- * Used to conditionally enable/disable payment features
+ * Check if Stripe is properly configured.
+ *
+ * Used to conditionally enable/disable payment features and to fail fast on a
+ * misconfigured price BEFORE a patient hits checkout.
+ *
+ * @param planType - When provided, also require that plan's price ID to be set.
+ *   This lets a GLP-1 checkout report "not available" when only the GLP-1 price
+ *   is missing, without affecting AUD checkout (and vice versa). Omit to check
+ *   reachability only (secret key present) — preserves existing callers.
  */
-export function isStripeConfigured(): boolean {
+export function isStripeConfigured(planType?: PlanType): boolean {
   const key = process.env.STRIPE_SECRET_KEY;
-  return !!key && key.startsWith('sk_');
+  if (!key || !key.startsWith('sk_')) return false;
+  if (planType) return !!STRIPE_PRICE_IDS[planType];
+  return true;
 }
 
 /**

@@ -20,6 +20,10 @@ const REQUIRED_IN_PRODUCTION = [
   'STRIPE_SECRET_KEY',
   'STRIPE_WEBHOOK_SECRET',
   'REDIS_URL',
+  // Price IDs: a misconfigured deploy would otherwise look healthy and only
+  // fail mid-funnel when getPriceId() throws in front of a paying patient.
+  'STRIPE_PRICE_ACTIVE_TREATMENT', // AUD
+  'STRIPE_PRICE_WEIGHT_MANAGEMENT', // GLP-1 (Phase 5)
 ] as const;
 
 /**

@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
+import { PlanType } from '@prisma/client';
+import { isStripeConfigured } from '@/lib/stripe/stripe-server';
 import CheckoutPaymentClient from './CheckoutPaymentClient';
 
 export const metadata: Metadata = {
@@ -7,7 +9,33 @@ export const metadata: Metadata = {
   description: 'Complete your payment.',
 };
 
-export default function CheckoutPaymentPage() {
+// Reading searchParams to resolve the selected plan opts this route into
+// dynamic rendering, which checkout already requires.
+export const dynamic = 'force-dynamic';
+
+/**
+ * Normalize a `?plan=` value to a PlanType. Accepts URL slugs
+ * (`weight-management`) and enum values; unknown values default to AUD.
+ * Mirrors normalizePlanId() in CheckoutPaymentClient.
+ */
+function normalizePlanType(raw: string | string[] | undefined): PlanType {
+  const v = (Array.isArray(raw) ? raw[0] : raw ?? '').trim().toLowerCase().replace(/_/g, '-');
+  return v === 'weight-management' ? 'WEIGHT_MANAGEMENT' : 'ACTIVE_TREATMENT';
+}
+
+export default async function CheckoutPaymentPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const params = await searchParams;
+  const planType = normalizePlanType(params.plan);
+
+  // Server-side price check: the client can't read server-only STRIPE_PRICE_*
+  // env vars, so resolve whether the selected plan is purchasable here and pass
+  // it down. A GLP-1 selection reports false when only the GLP-1 price is unset.
+  const priceConfigured = isStripeConfigured(planType);
+
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center">
@@ -17,7 +45,7 @@ export default function CheckoutPaymentPage() {
         </div>
       </div>
     }>
-      <CheckoutPaymentClient />
+      <CheckoutPaymentClient priceConfigured={priceConfigured} />
     </Suspense>
   );
 }

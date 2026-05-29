@@ -33,19 +33,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   const {
-    createCheckoutSession,
-    getOrCreateCustomer,
     getPriceId,
     isStripeConfigured,
     getStripe,
   } = await import('@/lib/stripe/stripe-server');
-
-  if (!isStripeConfigured()) {
-    return NextResponse.json(
-      { error: 'Payment processing is not available.', code: 'STRIPE_NOT_CONFIGURED' },
-      { status: 503 }
-    );
-  }
 
   try {
     const body = await request.json();
@@ -63,6 +54,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const { planType, successUrl, cancelUrl, consentId } = validationResult.data;
+
+    // Fail fast if Stripe (or this plan's price) is not configured, so a
+    // misconfigured deploy returns a clean 503 instead of throwing mid-session.
+    if (!isStripeConfigured(planType as PlanType)) {
+      return NextResponse.json(
+        { error: 'Payment processing is not available.', code: 'STRIPE_NOT_CONFIGURED' },
+        { status: 503 }
+      );
+    }
 
     // Validate redirect URLs start with the app URL to prevent open redirect
     const appUrl = process.env.NEXT_PUBLIC_APP_URL;
