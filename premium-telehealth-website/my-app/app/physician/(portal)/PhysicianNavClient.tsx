@@ -25,6 +25,8 @@ import {
   Stethoscope,
   Bell,
   History,
+  ClipboardCheck,
+  TrendingUp,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUnreadMessageCount } from '@/hooks/useUnreadMessageCount';
@@ -44,6 +46,8 @@ const navItems: NavItem[] = [
   { href: '/physician/reviews', label: 'Review History', icon: History },
   { href: '/physician/patients', label: 'Patients', icon: Users },
   { href: '/physician/prescriptions', label: 'Prescriptions', icon: Pill },
+  { href: '/physician/check-ins', label: 'Check-ins', icon: ClipboardCheck },
+  { href: '/physician/titration', label: 'Titration', icon: TrendingUp },
 ];
 
 /**

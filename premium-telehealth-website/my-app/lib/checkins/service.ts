@@ -45,6 +45,53 @@ export function isUrgentCheckIn(responses: CheckInResponses): boolean {
   );
 }
 
+export interface SubmittedCheckIn {
+  id: string;
+  patientName: string;
+  submittedAt: Date | null;
+  urgent: boolean;
+  /** Decrypted check-in answers (auto-decrypted by the Prisma extension). */
+  responses: CheckInResponses | null;
+}
+
+/**
+ * List every SUBMITTED check-in across all patients (oldest first, so the
+ * longest-waiting is at the top) for the physician review queue. `responses` is
+ * decrypted by the Prisma encryption extension; patient names come from the
+ * (encrypted) PatientProfile and are likewise auto-decrypted.
+ */
+export async function getSubmittedCheckIns(): Promise<SubmittedCheckIn[]> {
+  const rows = await prisma.checkIn.findMany({
+    where: { status: CheckInStatus.SUBMITTED, deletedAt: null },
+    orderBy: { submittedAt: 'asc' },
+    select: {
+      id: true,
+      submittedAt: true,
+      responses: true,
+      patient: {
+        select: {
+          patientProfile: { select: { firstName: true, lastName: true } },
+        },
+      },
+    },
+  });
+
+  return rows.map((row) => {
+    const profile = row.patient?.patientProfile;
+    // Guard: decryption can yield a non-string on error — never crash the list.
+    const firstName = typeof profile?.firstName === 'string' ? profile.firstName : '';
+    const lastName = typeof profile?.lastName === 'string' ? profile.lastName : '';
+    const responses = (row.responses ?? null) as CheckInResponses | null;
+    return {
+      id: row.id,
+      patientName: `${firstName} ${lastName}`.trim() || 'Unknown patient',
+      submittedAt: row.submittedAt,
+      urgent: responses ? isUrgentCheckIn(responses) : false,
+      responses,
+    };
+  });
+}
+
 /** List a patient's check-ins (newest first). Excludes soft-deleted. */
 export async function getPatientCheckIns(
   patientId: string

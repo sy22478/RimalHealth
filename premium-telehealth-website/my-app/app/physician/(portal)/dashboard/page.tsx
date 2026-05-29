@@ -183,7 +183,7 @@ export default async function PhysicianDashboardPage() {
             {
               label: 'Check-ins awaiting review',
               value: monitoring.checkInsAwaitingReview,
-              href: '/physician/queue',
+              href: '/physician/check-ins',
             },
             {
               label: 'GLP-1 refills pending',
@@ -193,7 +193,7 @@ export default async function PhysicianDashboardPage() {
             {
               label: 'Titration steps ready',
               value: monitoring.titrationStepsReady,
-              href: '/physician/queue',
+              href: '/physician/titration',
             },
           ].map((card) => (
             <Link key={card.label} href={card.href} className="group">
