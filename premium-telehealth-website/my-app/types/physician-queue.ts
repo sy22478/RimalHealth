@@ -8,9 +8,10 @@
 
 /**
  * Concern type for intake filtering
- * Note: Only ALCOHOL is actively used. SMOKING and BOTH remain for backward compatibility.
+ * Note: ALCOHOL and WEIGHT_MANAGEMENT are active treatments. SMOKING and BOTH
+ * remain for backward compatibility.
  */
-export type ConcernType = 'ALCOHOL' | 'SMOKING' | 'BOTH';
+export type ConcernType = 'ALCOHOL' | 'SMOKING' | 'BOTH' | 'WEIGHT_MANAGEMENT';
 
 /**
  * Intake status for queue filtering
@@ -213,6 +214,7 @@ export const CONCERN_TYPE_LABELS: Record<ConcernType | 'ALL', string> = {
   ALCOHOL: 'Alcohol Use',
   SMOKING: 'Discontinued',
   BOTH: 'Discontinued',
+  WEIGHT_MANAGEMENT: 'Weight Management',
 };
 
 /**

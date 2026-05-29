@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     "Rimal Health Privacy Policy — how we collect, use, and protect your personal and health information.",
 };
 
-const lastUpdated = "February 1, 2026";
+const lastUpdated = "May 27, 2026";
 
 export default function PrivacyPolicyPage() {
   return (
@@ -52,6 +52,41 @@ export default function PrivacyPolicyPage() {
                 health information / PHI under HIPAA)
               </li>
               <li>
+                <strong>Height, weight, and body mass index (BMI)</strong> —
+                collected during the weight-management (GLP-1) intake
+              </li>
+              <li>
+                <strong>Biological sex</strong> — used for clinical assessment
+                and weight-management dosing
+              </li>
+              <li>
+                <strong>
+                  Weight-management medication history and current GLP-1
+                  treatment data
+                </strong>{" "}
+                — including prior weight-management medications and your current
+                GLP-1 treatment status
+              </li>
+              <li>
+                <strong>Titration schedule and dosing progress</strong> — your
+                GLP-1 dose level and dose-adjustment history
+              </li>
+              <li>
+                <strong>Check-in responses</strong> — self-reported weight
+                changes, side effects, and medication adherence
+              </li>
+              <li>
+                <strong>Lab results</strong> — laboratory results you upload for
+                treatment monitoring
+              </li>
+              <li>
+                <strong>
+                  Eligibility and contraindication screening answers
+                </strong>{" "}
+                — responses used to determine your suitability for
+                weight-management (GLP-1) treatment
+              </li>
+              <li>
                 <strong>Payment information</strong> — processed securely
                 through our third-party payment processor; we do not store full
                 card numbers
@@ -80,6 +115,15 @@ export default function PrivacyPolicyPage() {
                 To comply with legal obligations, including HIPAA requirements
               </li>
             </ul>
+            <p className="mt-3">
+              These uses apply to all treatment we provide, including both
+              alcohol use disorder treatment and weight-management (GLP-1)
+              treatment. Weight-management treatment data is not a substance use
+              disorder record and is therefore not subject to 42 CFR Part 2;
+              however, it remains protected health information under HIPAA and
+              applicable state privacy law. See Section 5 for details on which
+              records receive the additional protections of 42 CFR Part 2.
+            </p>
           </section>
 
           <section>
@@ -109,7 +153,16 @@ export default function PrivacyPolicyPage() {
               protections under 42 CFR Part 2, the Confidentiality of
               Substance Use Disorder Patient Records regulation.
             </p>
-            <p className="mb-3">These protections mean:</p>
+            <p className="mb-3">
+              Rimal Health also provides weight-management treatment using GLP-1
+              medications. Weight-management treatment records are not substance
+              use disorder records and are therefore not subject to 42 CFR
+              Part 2. These records remain fully protected as PHI under the
+              HIPAA Privacy Rule and applicable state privacy law. The
+              heightened 42 CFR Part 2 protections described in this section
+              apply only to your alcohol use disorder treatment records.
+            </p>
+            <p className="mb-3">These Part 2 protections mean:</p>
             <ul className="list-disc pl-6 space-y-2">
               <li>
                 We will not disclose your SUD treatment records without your

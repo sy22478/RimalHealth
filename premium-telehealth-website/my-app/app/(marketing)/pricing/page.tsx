@@ -43,6 +43,11 @@ export default function PricingPage() {
       answer:
         "We accept all major credit cards (Visa, Mastercard, American Express, Discover), HSA/FSA debit cards, and most debit cards. Your payment information is securely stored and encrypted.",
     },
+    // GLP-1 weight-management FAQ entries are intentionally OMITTED here until
+    // their patient-facing copy clears legal/medical sign-off. They previously
+    // rendered literal "TODO(legal/medical)" placeholder answers publicly.
+    // Restore the GLP-1 Q&A (Wegovy overview, administration, side effects,
+    // treatment duration, medication cost) once approved copy is available.
   ];
 
   const workflowSteps = [
@@ -170,9 +175,10 @@ export default function PricingPage() {
             Choose your plan
           </motion.h2>
           
-          <div className="grid grid-cols-1 max-w-lg mx-auto gap-8 w-full">
+          <div className="grid grid-cols-1 md:grid-cols-2 max-w-4xl mx-auto gap-8 w-full">
+            {/* Alcohol Treatment (AUD) — unchanged */}
             <PricingCard
-              title="Active Treatment"
+              title="Alcohol Treatment"
               price={50}
               description="For patients currently in treatment"
               features={[
@@ -185,12 +191,39 @@ export default function PricingPage() {
                 "Cancel anytime",
               ]}
               highlighted={true}
-              ctaText="Select Active Plan"
-              ctaHref="/checkout/payment?plan=active-treatment"
+              ctaText="Select Alcohol Treatment"
+              ctaHref="/checkout/consent?plan=active-treatment"
               ctaVariant="primary"
               delay={0.1}
             />
+            {/* Weight Management (GLP-1) — routes through the product-gated consent.
+                TODO(legal/medical): feature/claim copy pending sign-off. */}
+            <PricingCard
+              title="Weight Management"
+              price={50}
+              description="Physician-managed GLP-1 (Wegovy) weight management"
+              features={[
+                "Physician evaluation & eligibility review",
+                "Personalized GLP-1 dosing & titration guidance",
+                "Ongoing monitoring & check-ins",
+                "Medication management",
+                "Unlimited messaging with your physician",
+                "Cancel anytime",
+              ]}
+              highlighted={false}
+              ctaText="Select Weight Management"
+              ctaHref="/checkout/consent?plan=weight-management&product=weight-management"
+              ctaVariant="primary"
+              delay={0.2}
+            />
           </div>
+          {/* TODO(business): the $50/month is the platform fee; Wegovy medication
+              cost is billed separately at the pharmacy and is substantially higher
+              than AUD medications. Confirm patient-facing GLP-1 cost guidance. */}
+          <p className="text-center text-sm text-gray-600 mt-6 max-w-2xl mx-auto">
+            The $50/month covers physician care and management for either program.
+            Medication is billed separately at your pharmacy and varies by treatment.
+          </p>
         </div>
       </section>
 
@@ -253,7 +286,12 @@ export default function PricingPage() {
             </table>
           </motion.div>
           <p className="text-center text-sm text-gray-600 mt-6">
-            Medication costs are estimates. Use GoodRx without insurance.
+            Medication costs are estimates for alcohol-treatment medications. Use GoodRx without insurance.
+          </p>
+          {/* TODO(business): GLP-1 (Wegovy) medication pricing differs substantially
+              from the table above; confirm patient-facing GLP-1 cost guidance. */}
+          <p className="text-center text-xs text-gray-600 mt-2 max-w-2xl mx-auto">
+            Weight-management (GLP-1) medication is priced separately at the pharmacy and is not reflected in the table above.
           </p>
         </div>
       </section>
@@ -459,7 +497,7 @@ export default function PricingPage() {
           </h2>
           <Link
             href="/checkout/consent?plan=active-treatment"
-            className="inline-flex items-center gap-2 bg-gradient-to-r from-navy-500 to-ocean-500 text-white text-lg font-semibold py-4.5 px-10 rounded-full shadow-lg shadow-navy-500/20 hover:shadow-xl hover:shadow-navy-500/30 hover:scale-[1.03] active:scale-[0.98] transition-all duration-200"
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-navy-600 to-ocean-500 text-white text-lg font-semibold py-4.5 px-10 rounded-full shadow-lg shadow-navy-600/20 hover:shadow-xl hover:shadow-navy-600/30 hover:scale-[1.03] active:scale-[0.98] transition-all duration-200"
           >
             Get Started — $50/month
             <ArrowRight className="w-5 h-5" />

@@ -27,7 +27,7 @@ export function MobileStickyCTA() {
         >
           <Link
             href="/checkout/consent"
-            className="flex items-center justify-center w-full py-4 rounded-full font-semibold text-white bg-gradient-to-r from-blue-500 to-ocean-500 shadow-lg shadow-blue-500/20 active:scale-[0.98] transition-transform"
+            className="flex items-center justify-center w-full py-4 rounded-full font-semibold text-white bg-gradient-to-r from-navy-600 to-ocean-500 shadow-lg shadow-navy-600/20 active:scale-[0.98] transition-transform"
           >
             Get Started — $50/month
           </Link>

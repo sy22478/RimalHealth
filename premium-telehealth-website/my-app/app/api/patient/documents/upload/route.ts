@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/auth/require-auth';
+import { enforceRateLimit } from '@/lib/middleware/rate-limit';
 import { prisma } from '@/lib/db/prisma';
 import { uploadFile, isAllowedFileType, MAX_FILE_SIZE, generateDocumentKey } from '@/lib/integrations/storage';
 import { auditPHIAccess, createAuditContext, PHIResourceType } from '@/lib/audit/index';
@@ -31,6 +32,15 @@ const VALID_DOCUMENT_TYPES = new Set<string>([
  * Accept file via FormData and store in S3
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  // Strict limit on uploads — they cost storage + bandwidth (10/hour/IP).
+  const limited = await enforceRateLimit(request, {
+    requests: 10,
+    windowMs: 60 * 60 * 1000, // 1 hour
+    keyPrefix: 'ratelimit:upload',
+    useMemoryFallback: true,
+  });
+  if (limited) return limited;
+
   const auth = await requireRole(request, [Role.PATIENT]);
   if (auth instanceof NextResponse) return auth;
 

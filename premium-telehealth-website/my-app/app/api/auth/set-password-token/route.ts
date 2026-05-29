@@ -43,22 +43,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ token: null });
     }
 
-    // Only return token for users who haven't set their password yet
-    if (user.emailVerified) {
-      return NextResponse.json({ token: null });
-    }
-
-    const resetToken = await prisma.passwordReset.findFirst({
-      where: {
-        userId: user.id,
-        usedAt: null,
-        expiresAt: { gt: new Date() },
-      },
-      orderBy: { createdAt: 'desc' },
-      select: { token: true },
-    });
-
-    return NextResponse.json({ token: resetToken?.token || null });
+    // SECURITY: PasswordReset tokens are now stored hashed at rest (see
+    // lib/auth/token-utils.ts), so the raw token is unrecoverable from the DB
+    // and this endpoint can no longer hand back a usable set-password token.
+    // The raw token is delivered only via the create-account / set-password
+    // email link. This endpoint is unused (the checkout success page relies on
+    // the webhook email) and is retained only for backward compatibility — it
+    // now always returns null rather than exposing a stored token value.
+    return NextResponse.json({ token: null });
   } catch (error) {
     console.error('[set-password-token] Error:', error instanceof Error ? error.message : 'Unknown error');
     return NextResponse.json({ token: null });

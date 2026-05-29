@@ -276,10 +276,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       path: '/',
     });
 
-    // Return new token pair
+    // Tokens are delivered ONLY via the rotated httpOnly cookies (set above);
+    // they are intentionally NOT echoed in the response body to avoid redundant
+    // exposure in proxy logs or client storage.
     return NextResponse.json({
-      accessToken: newAccessToken,
-      refreshToken: newRefreshToken,
+      success: true,
       expiresIn: ACCESS_TOKEN_EXPIRY_SECONDS,
     });
   } catch (error) {

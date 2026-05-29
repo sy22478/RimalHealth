@@ -18,6 +18,13 @@ const GLOSSARY: Record<string, string> = {
     'A prescription medication (brand name Campral) that helps some people maintain abstinence from alcohol.',
   disulfiram:
     'A prescription medication (brand name Antabuse) that causes unpleasant reactions if you drink alcohol while taking it.',
+  // TODO(medical): patient-education copy pending medical review.
+  wegovy:
+    'Wegovy is an FDA-approved prescription medication (semaglutide) for chronic weight management, given as a once-weekly injection.',
+  semaglutide:
+    'Semaglutide is the active ingredient in Wegovy. It works by mimicking a hormone (GLP-1) that helps regulate appetite and food intake.',
+  glp1:
+    'GLP-1 (glucagon-like peptide-1) is a naturally occurring hormone that helps control blood sugar and appetite. GLP-1 receptor agonists like semaglutide are medications that mimic this hormone.',
 };
 
 export interface MedicalTermProps {

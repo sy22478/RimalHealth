@@ -52,6 +52,11 @@ export default async function PhysicianDashboardPage() {
   let allFetchesFailed = false;
   let queueFetchFailed = false;
   let statsFetchFailed = false;
+  let monitoring = {
+    checkInsAwaitingReview: 0,
+    refillsPendingReview: 0,
+    titrationStepsReady: 0,
+  };
 
   try {
     const cookieStore = await cookies();
@@ -90,6 +95,9 @@ export default async function PhysicianDashboardPage() {
         const statsData = await statsRes.value.json();
         if (statsData.stats) {
           stats = statsData.stats;
+        }
+        if (statsData.monitoring) {
+          monitoring = statsData.monitoring;
         }
       } else {
         statsFetchFailed = true;
@@ -166,6 +174,48 @@ export default async function PhysicianDashboardPage() {
 
       {/* Stats */}
       <DashboardStats stats={stats} />
+
+      {/* GLP-1 weight-management monitoring queue (Phase 4) */}
+      <div>
+        <h2 className="text-lg font-semibold mb-3">Weight-management monitoring</h2>
+        <div className="grid gap-4 sm:grid-cols-3">
+          {[
+            {
+              label: 'Check-ins awaiting review',
+              value: monitoring.checkInsAwaitingReview,
+              href: '/physician/check-ins',
+            },
+            {
+              label: 'GLP-1 refills pending',
+              value: monitoring.refillsPendingReview,
+              href: '/physician/prescriptions',
+            },
+            {
+              label: 'Titration steps ready',
+              value: monitoring.titrationStepsReady,
+              href: '/physician/titration',
+            },
+          ].map((card) => (
+            <Link key={card.label} href={card.href} className="group">
+              <Card className="transition-shadow hover:shadow-md">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <span className="text-3xl font-bold">{card.value}</span>
+                    {card.value > 0 && (
+                      <Badge variant="secondary" className="text-xs">
+                        Action needed
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1 group-hover:underline">
+                    {card.label}
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      </div>
 
       {/* Quick Links */}
       <div className="grid gap-4 sm:grid-cols-2">

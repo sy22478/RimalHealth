@@ -21,9 +21,13 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { IntakeDataView } from './IntakeDataView';
+import { Glp1IntakeDataView } from './Glp1IntakeDataView';
 import { DecisionForm, DecisionFormData } from './DecisionForm';
 import { IntakeWithPatient } from '@/lib/physician/review-types';
 import { IntakeFormData, IntakeScores, RiskAssessment } from '@/types/intake';
+import type { Glp1FormData } from '@/lib/intake/glp1/types';
+import type { PlanType } from '@prisma/client';
+import { PLAN_NAMES, PLAN_AMOUNTS, formatPlanAmount } from '@/lib/stripe/plan-constants';
 import { cn } from '@/lib/utils';
 import { maskPhone, maskEmail } from '@/lib/utils/string-helpers';
 import { formatClinicDateTime } from '@/lib/utils/date-helpers';
@@ -35,6 +39,20 @@ interface IntakeReviewProps {
   isDeactivated?: boolean;
   /** When true, hide the decision form (e.g. viewing an already-decided intake from the review history). */
   isReadOnly?: boolean;
+}
+
+/**
+ * Derive the prescription `frequency` field from the selected dosage cadence.
+ * Dosage strings encode the cadence (e.g. "0.25mg weekly", "666mg TID"), so the
+ * denormalized frequency must follow it rather than assume daily — Wegovy is
+ * once weekly, Acamprosate is TID.
+ */
+function deriveFrequency(dosage: string): string {
+  const d = dosage.toLowerCase();
+  if (d.includes('weekly')) return 'Once weekly';
+  if (d.includes('tid')) return 'Three times daily';
+  if (d.includes('bid')) return 'Twice daily';
+  return 'Once daily';
 }
 
 interface SubmissionState {
@@ -181,7 +199,7 @@ export function IntakeReview({ intake, physicianId, physicianName, isDeactivated
             medicationName: decisionData.medication.name,
             genericName: decisionData.medication.genericName,
             dosage: decisionData.medication.dosage,
-            frequency: 'Once daily',
+            frequency: deriveFrequency(decisionData.medication.dosage),
             quantity: decisionData.medication.quantity,
             refills: decisionData.medication.refills,
             instructions: decisionData.medication.instructions,
@@ -230,6 +248,13 @@ export function IntakeReview({ intake, physicianId, physicianName, isDeactivated
 
   // Get concern type from form data
   const concernType = (intake.formData?.primaryConcern as string) || 'ALCOHOL';
+  const isWeightManagement = concernType === 'WEIGHT_MANAGEMENT';
+
+  // Product-aware plan copy — derive from the concern rather than hardcoding
+  // "$50/month subscription / Naltrexone". GLP-1 → Weight Management plan.
+  const planType: PlanType = isWeightManagement ? 'WEIGHT_MANAGEMENT' : 'ACTIVE_TREATMENT';
+  const planName = PLAN_NAMES[planType];
+  const planPrice = formatPlanAmount(PLAN_AMOUNTS[planType]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -481,12 +506,19 @@ export function IntakeReview({ intake, physicianId, physicianName, isDeactivated
                 <CardTitle>Intake Form Data</CardTitle>
               </CardHeader>
               <CardContent>
-                <IntakeDataView
-                  formData={intake.formData as IntakeFormData}
-                  scores={intake.scores as IntakeScores | undefined}
-                  riskAssessment={intake.riskAssessment as RiskAssessment | undefined}
-                  preferredPharmacy={intake.patient.preferredPharmacy ?? undefined}
-                />
+                {isWeightManagement ? (
+                  <Glp1IntakeDataView
+                    formData={intake.formData as unknown as Glp1FormData}
+                    preferredPharmacy={intake.patient.preferredPharmacy ?? undefined}
+                  />
+                ) : (
+                  <IntakeDataView
+                    formData={intake.formData as IntakeFormData}
+                    scores={intake.scores as IntakeScores | undefined}
+                    riskAssessment={intake.riskAssessment as RiskAssessment | undefined}
+                    preferredPharmacy={intake.patient.preferredPharmacy ?? undefined}
+                  />
+                )}
               </CardContent>
             </Card>
           </div>
@@ -625,9 +657,9 @@ export function IntakeReview({ intake, physicianId, physicianName, isDeactivated
           <AlertDialogHeader>
             <AlertDialogTitle>Approve this intake?</AlertDialogTitle>
             <AlertDialogDescription>
-              Approving this intake will charge the patient&apos;s saved payment method, create a
-              prescription record for the selected medication, and notify the patient. This action
-              is logged and cannot be undone.
+              Approving this intake will charge the patient&apos;s saved payment method for the{' '}
+              {planName} plan ({planPrice}/month), create a prescription record for the selected
+              medication, and notify the patient. This action is logged and cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

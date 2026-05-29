@@ -12,7 +12,7 @@
 import * as React from 'react';
 import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Check, Loader2, Shield, AlertCircle } from 'lucide-react';
+import { Check, Loader2, Shield, AlertCircle, Scale, Pill } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -50,6 +50,10 @@ interface PlanCardProps {
 function PlanCard({ plan, isSelected, onSelect, disabled, showPopularBadge }: PlanCardProps) {
   const isPopular = showPopularBadge && plan.id === 'ACTIVE_TREATMENT';
 
+  // Per-treatment icon so the AUD and weight-management plan cards are
+  // visually distinguishable at a glance.
+  const PlanIcon = plan.id === 'WEIGHT_MANAGEMENT' ? Scale : Pill;
+
   return (
     <Card
       className={`relative cursor-pointer transition-all duration-200 ${
@@ -76,7 +80,10 @@ function PlanCard({ plan, isSelected, onSelect, disabled, showPopularBadge }: Pl
       
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">{plan.name}</CardTitle>
+          <div className="flex items-center gap-2">
+            <PlanIcon className="h-5 w-5 text-primary" aria-hidden />
+            <CardTitle className="text-lg">{plan.name}</CardTitle>
+          </div>
           {isSelected && (
             <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground">
               <Check className="h-4 w-4" />
@@ -123,7 +130,18 @@ function PlanCard({ plan, isSelected, onSelect, disabled, showPopularBadge }: Pl
 // Inner Content Component (uses useSearchParams)
 // ============================================
 
-function CheckoutPaymentContent() {
+/**
+ * Normalize a `?plan=` value to a PlanType enum id. Accepts both URL slugs
+ * (`active-treatment`, `weight-management`) and enum values. Unknown values
+ * default to ACTIVE_TREATMENT (AUD) — backward compatible.
+ */
+function normalizePlanId(raw: string | null): string {
+  const v = (raw ?? '').trim().toLowerCase().replace(/_/g, '-');
+  if (v === 'weight-management') return 'WEIGHT_MANAGEMENT';
+  return 'ACTIVE_TREATMENT';
+}
+
+function CheckoutPaymentContent({ priceConfigured }: { priceConfigured: boolean }) {
   const searchParams = useSearchParams();
 
   const [state, setState] = React.useState<CheckoutState>({
@@ -132,14 +150,22 @@ function CheckoutPaymentContent() {
 
   const [plans] = React.useState<PlanInfo[]>(getPlans());
 
-  // Get pre-selected plan and consent ID from URL
-  const preselectedPlan = searchParams.get('plan') || 'ACTIVE_TREATMENT';
+  // Get pre-selected plan and consent ID from URL. Normalize the `plan` slug to
+  // a PlanType enum id so the value sent to the checkout API is always valid.
+  const preselectedPlan = normalizePlanId(searchParams.get('plan'));
   const consentId = searchParams.get('consentId');
 
   const [selectedPlanId, setSelectedPlanId] = React.useState<string>(preselectedPlan);
 
-  // Check if Stripe is configured
-  const stripeConfigured = React.useMemo(() => isStripeConfigured(), []);
+  // Stripe is usable only if the publishable key is set (client check) AND the
+  // selected plan's price is configured server-side (priceConfigured prop). The
+  // latter is resolved on the server because price IDs are not exposed to the
+  // client — this surfaces the warning for a GLP-1 selection when only the
+  // GLP-1 price is missing.
+  const stripeConfigured = React.useMemo(
+    () => isStripeConfigured() && priceConfigured,
+    [priceConfigured]
+  );
 
   const handlePlanSelect = (planId: string) => {
     if (state.status !== 'idle' && state.status !== 'error') return;
@@ -195,6 +221,11 @@ function CheckoutPaymentContent() {
 
   const selectedPlan = plans.find(p => p.id === selectedPlanId);
 
+  // Show only the plan the patient chose (at pricing/consent). This keeps the
+  // AUD payment page a single AUD card (unchanged) and prevents a GLP-1 patient
+  // from switching to the AUD plan after signing the GLP-1 consent.
+  const visiblePlans = plans.filter(p => p.id === selectedPlanId);
+
   return (
     <div className="container mx-auto max-w-5xl py-12 px-4">
       {/* Header */}
@@ -228,14 +259,14 @@ function CheckoutPaymentContent() {
       {/* Plan Selection (hidden during loading/redirecting) */}
       {(state.status === 'idle' || state.status === 'error') && (
         <div className="grid gap-6 md:grid-cols-2 mb-8">
-          {plans.map((plan) => (
+          {visiblePlans.map((plan) => (
             <PlanCard
               key={plan.id}
               plan={plan}
               isSelected={selectedPlanId === plan.id}
               onSelect={() => handlePlanSelect(plan.id)}
               disabled={state.status !== 'idle' && state.status !== 'error'}
-              showPopularBadge={plans.length > 1}
+              showPopularBadge={visiblePlans.length > 1}
             />
           ))}
         </div>
@@ -313,7 +344,7 @@ function CheckoutPaymentContent() {
 // Main Export with Suspense Wrapper
 // ============================================
 
-export default function CheckoutPaymentClient() {
+export default function CheckoutPaymentClient({ priceConfigured }: { priceConfigured: boolean }) {
   return (
     <Suspense fallback={
       <div className="container mx-auto max-w-4xl py-12 px-4">
@@ -327,7 +358,7 @@ export default function CheckoutPaymentClient() {
         </div>
       </div>
     }>
-      <CheckoutPaymentContent />
+      <CheckoutPaymentContent priceConfigured={priceConfigured} />
     </Suspense>
   );
 }

@@ -330,6 +330,7 @@ export function PatientList({
             <SelectContent>
               <SelectItem value="ALL">All Types</SelectItem>
               <SelectItem value="ALCOHOL">Alcohol</SelectItem>
+              <SelectItem value="WEIGHT_MANAGEMENT">Weight Management</SelectItem>
               <SelectItem value="BOTH">Both</SelectItem>
             </SelectContent>
           </Select>

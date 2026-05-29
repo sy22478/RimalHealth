@@ -63,7 +63,7 @@ export const positiveInt = z.number().int().positive();
 
 /** Create intake request */
 export const createIntakeSchema = z.object({
-  primaryConcern: z.enum(['ALCOHOL'] as const),
+  primaryConcern: z.enum(['ALCOHOL', 'WEIGHT_MANAGEMENT'] as const),
   formData: z.record(z.string(), z.unknown()).optional(),
 });
 
@@ -93,9 +93,9 @@ export const intakeFormDataSchema = z.object({
   addressZip: zipCodeSchema,
 
   // Treatment
-  primaryConcern: z.enum(['ALCOHOL'] as const),
+  primaryConcern: z.enum(['ALCOHOL', 'WEIGHT_MANAGEMENT'] as const),
   treatmentGoal: z.enum(['QUIT', 'REDUCE', 'EXPLORE'] as const),
-  priorityConcern: z.enum(['ALCOHOL']).optional(),
+  priorityConcern: z.enum(['ALCOHOL', 'WEIGHT_MANAGEMENT']).optional(),
 
   // Medical History
   isPregnant: z.boolean(),
@@ -169,6 +169,9 @@ export const dsm5IntakeFormDataSchema = z.object({
   withdrawalDTs: z.boolean(),
   withdrawalHospitalized: z.boolean(),
   morningDrinking: z.boolean(),
+  // Suicidal-ideation safety screen (988 CrisisBanner parity with GLP-1).
+  // Optional so legacy drafts created before this field still validate.
+  suicidalIdeation: z.boolean().optional(),
 
   // Section 4: Naltrexone Safety Screening (Q20-Q25)
   opioidUse: z.array(z.string()),
@@ -355,7 +358,7 @@ export type SendPrescriptionInput = z.infer<typeof sendPrescriptionSchema>;
 /** Queue query params */
 export const queueQuerySchema = z.object({
   status: z.enum(['ALL', 'SUBMITTED', 'UNDER_REVIEW']).default('ALL'),
-  concernType: z.enum(['ALL', 'ALCOHOL']).default('ALL'),
+  concernType: z.enum(['ALL', 'ALCOHOL', 'WEIGHT_MANAGEMENT']).default('ALL'),
   searchQuery: z.string().optional(),
   sortBy: z.enum(['submittedAt', 'waitTimeHours', 'patientName', 'riskScore']).default('submittedAt'),
   sortOrder: z.enum(['asc', 'desc']).default('asc'),

@@ -286,6 +286,10 @@ function CreateAccountContent(): React.JSX.Element {
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = searchParams.get('token');
+  // Product context (set by the Stripe webhook's create-account URL). Drives the
+  // success-message copy; the patient's product is persisted on PatientProfile
+  // .primaryConcern by the webhook at checkout time.
+  const isWeightManagement = searchParams.get('product') === 'WEIGHT_MANAGEMENT';
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -436,7 +440,8 @@ function CreateAccountContent(): React.JSX.Element {
             </div>
             <h1 className="text-2xl font-bold text-navy mb-2">Account Created!</h1>
             <p className="text-muted-foreground mb-2 max-w-sm mx-auto">
-              Your account has been created successfully. You can now log in and complete your intake form.
+              Your account has been created successfully. You can now log in and complete your{' '}
+              {isWeightManagement ? 'weight management intake form' : 'intake form'}.
             </p>
 
             <div className="mt-6">

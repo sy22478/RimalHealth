@@ -31,6 +31,8 @@ import { z } from 'zod';
 import { PlanType, Role } from '@prisma/client';
 
 import { requireRole } from '@/lib/auth/require-auth';
+import { enforceRateLimit, rateLimitPresets } from '@/lib/middleware/rate-limit';
+import * as Sentry from '@sentry/nextjs';
 
 // Audit logging - safe to import at top level
 import { auditLogger } from '@/lib/audit/logger';
@@ -41,7 +43,7 @@ import { AuditEventType, AuditSeverity } from '@/lib/audit/types';
 // ============================================
 
 const checkoutSessionSchema = z.object({
-  planType: z.enum(['ACTIVE_TREATMENT']),
+  planType: z.enum(['ACTIVE_TREATMENT', 'WEIGHT_MANAGEMENT']),
   successUrl: z.string().url('Invalid success URL'),
   cancelUrl: z.string().url('Invalid cancel URL'),
 });
@@ -87,6 +89,15 @@ async function getUserWithProfile(userId: string) {
 // ============================================
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  // Strict limit to prevent checkout-session creation spam (5/hour/IP).
+  const limited = await enforceRateLimit(request, {
+    requests: 5,
+    windowMs: 60 * 60 * 1000, // 1 hour
+    keyPrefix: 'ratelimit:checkout-session',
+    useMemoryFallback: true,
+  });
+  if (limited) return limited;
+
   // Lazy load Stripe integration
   const {
     createCheckoutSession,
@@ -94,18 +105,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     getPriceId,
     isStripeConfigured,
   } = await import('@/lib/stripe/stripe-server');
-
-  // Check Stripe configuration
-  if (!isStripeConfigured()) {
-    console.error('[Stripe Checkout] Stripe is not configured');
-    return NextResponse.json(
-      {
-        error: 'Payment processing is not available. Please try again later.',
-        code: 'STRIPE_NOT_CONFIGURED',
-      },
-      { status: 503 }
-    );
-  }
 
   const auditContext = getAuditContext(request);
 
@@ -145,6 +144,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const { planType, successUrl, cancelUrl }: CheckoutSessionInput = validationResult.data;
+
+    // Fail fast if Stripe (or this plan's price) is not configured, so a
+    // misconfigured deploy returns a clean 503 instead of throwing mid-session.
+    if (!isStripeConfigured(planType as PlanType)) {
+      console.error('[Stripe Checkout] Stripe is not configured for plan:', planType);
+      return NextResponse.json(
+        {
+          error: 'Payment processing is not available. Please try again later.',
+          code: 'STRIPE_NOT_CONFIGURED',
+        },
+        { status: 503 }
+      );
+    }
 
     // Validate redirect URLs start with the app URL to prevent open redirect
     const appUrl = process.env.NEXT_PUBLIC_APP_URL;
@@ -204,6 +216,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Get price ID for the plan
     const priceId = getPriceId(planType as PlanType);
 
+    // Product-type identifier (no PHI) flows to both session + subscription
+    // metadata via createCheckoutSession, so the webhook can branch correctly.
+    const productType = planType === 'WEIGHT_MANAGEMENT' ? 'WEIGHT_MANAGEMENT' : 'ALCOHOL';
+
     // Create checkout session
     const session = await createCheckoutSession(
       customerId,
@@ -213,6 +229,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       {
         userId: user.id,
         planType,
+        productType,
       }
     );
 
@@ -241,8 +258,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       url: session.url,
     });
   } catch (error) {
+    // Payment-creation failure — report for alerting.
+    Sentry.captureException(error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    
+
     console.error('[Stripe Checkout] Error creating checkout session:', errorMessage);
 
     // Log error
@@ -282,6 +301,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
  * - Never exposes set-password tokens or customer email in the response
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
+  const limited = await enforceRateLimit(request, rateLimitPresets.api);
+  if (limited) return limited;
+
   // Lazy load Stripe integration
   const { getCheckoutSession, isStripeConfigured } = await import('@/lib/stripe/stripe-server');
 

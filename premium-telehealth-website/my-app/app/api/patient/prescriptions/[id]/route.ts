@@ -14,6 +14,7 @@ import {
   auditPrescriptionAccess,
 } from '@/lib/patient/prescriptions';
 import { requireRole } from '@/lib/auth/require-auth';
+import { enforceRateLimit, rateLimitPresets } from '@/lib/middleware/rate-limit';
 import { Role } from '@prisma/client';
 
 interface RouteParams {
@@ -23,6 +24,9 @@ interface RouteParams {
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
+  const limited = await enforceRateLimit(request, rateLimitPresets.api);
+  if (limited) return limited;
+
   const auth = await requireRole(request, [Role.PATIENT]);
   if (auth instanceof NextResponse) return auth;
 

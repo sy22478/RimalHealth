@@ -44,6 +44,7 @@ const PUBLIC_ROUTES = [
   '/faq',
   '/contact',
   '/alcohol-treatment',
+  '/weight-management',
   '/privacy',
   '/terms',
   '/hipaa',
@@ -189,6 +190,104 @@ function shouldRedirectFromAuth(role: Role, path: string): string | null {
 }
 
 // ============================================
+// Global API Rate Limiting (Edge-safe, in-memory)
+// ============================================
+//
+// Middleware runs on the Edge runtime, which cannot reach Redis (ioredis needs
+// Node TCP sockets). This lightweight in-memory fixed-window counter is a
+// coarse safety net for ALL /api/* routes, layered UNDER the stricter, more
+// specific per-route Redis limiters (lib/middleware/rate-limit.ts). State is
+// per-instance (single-region deploy assumption); with N instances the
+// effective limit is ~N×. That is an accepted trade-off: it caps abusive bursts
+// with no Redis dependency, while per-route limiters remain the precise control.
+
+const GLOBAL_RL_WINDOW_MS = 60_000;        // 1-minute fixed window
+const GLOBAL_RL_MAX_AUTHENTICATED = 60;    // authenticated: 60 req/min/IP
+const GLOBAL_RL_MAX_UNAUTHENTICATED = 30;  // unauthenticated: 30 req/min/IP
+
+interface GlobalRateBucket {
+  count: number;
+  resetAt: number;
+}
+
+const globalRateStore = new Map<string, GlobalRateBucket>();
+
+/**
+ * Endpoints exempt from the global limiter: external callers (webhooks are
+ * signature-verified and can legitimately burst) and infra health checks.
+ */
+function isGlobalRateLimitExempt(pathname: string): boolean {
+  return (
+    pathname.startsWith('/api/webhooks/') ||
+    pathname === '/api/health' ||
+    pathname.startsWith('/api/health/')
+  );
+}
+
+/** Extract client IP from proxy headers (Edge-safe — no Node APIs). */
+function getRequestIp(request: NextRequest): string {
+  const forwardedFor = request.headers.get('x-forwarded-for');
+  if (forwardedFor) {
+    const first = forwardedFor.split(',')[0]?.trim();
+    if (first) return first;
+  }
+  return request.headers.get('x-real-ip') ?? 'unknown';
+}
+
+/**
+ * Apply the global in-memory API rate limit. Returns a 429 NextResponse when
+ * the IP has exhausted its per-minute budget, otherwise null.
+ */
+function applyGlobalApiRateLimit(
+  request: NextRequest,
+  isAuthenticated: boolean
+): NextResponse | null {
+  const ip = getRequestIp(request);
+  const limit = isAuthenticated
+    ? GLOBAL_RL_MAX_AUTHENTICATED
+    : GLOBAL_RL_MAX_UNAUTHENTICATED;
+  const now = Date.now();
+  const key = `${isAuthenticated ? 'a' : 'u'}:${ip}`;
+
+  // Opportunistic cleanup to bound memory growth on long-lived instances.
+  if (globalRateStore.size > 10_000) {
+    for (const [k, b] of globalRateStore) {
+      if (now >= b.resetAt) globalRateStore.delete(k);
+    }
+  }
+
+  let bucket = globalRateStore.get(key);
+  if (!bucket || now >= bucket.resetAt) {
+    bucket = { count: 0, resetAt: now + GLOBAL_RL_WINDOW_MS };
+    globalRateStore.set(key, bucket);
+  }
+  bucket.count += 1;
+
+  if (bucket.count > limit) {
+    const retryAfter = Math.max(1, Math.ceil((bucket.resetAt - now) / 1000));
+    return new NextResponse(
+      JSON.stringify({
+        error: 'Too Many Requests',
+        message: 'Global rate limit exceeded. Please slow down and try again.',
+        code: 'RATE_LIMITED',
+        retryAfter,
+      }),
+      {
+        status: 429,
+        headers: {
+          'Content-Type': 'application/json',
+          'Retry-After': String(retryAfter),
+          'X-RateLimit-Limit': String(limit),
+          'X-RateLimit-Remaining': '0',
+        },
+      }
+    );
+  }
+
+  return null;
+}
+
+// ============================================
 // Middleware Handler
 // ============================================
 
@@ -198,9 +297,35 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   // Generate a unique request ID for end-to-end tracing
   const requestId = crypto.randomUUID();
 
-  // Skip static assets and API routes
+  // SECURITY (defense-in-depth): strip any CLIENT-SUPPLIED identity headers up
+  // front so they can never be trusted downstream. `requireAuth` reads
+  // x-user-id / x-user-role / x-user-email; for /api/* routes this middleware
+  // short-circuits at the static check below WITHOUT running the JWT block, so
+  // without this strip a forged `x-user-id`/`x-user-role` on an /api request
+  // (trivially set via fetch(), or by a misconfigured upstream proxy) could be
+  // trusted as identity. These headers are (re)set ONLY from the verified JWT in
+  // the protected-route branch below. Every branch forwards these sanitized
+  // headers; only the JWT-verified path re-adds x-user-*.
+  const sanitizedHeaders = new Headers(request.headers);
+  sanitizedHeaders.delete('x-user-id');
+  sanitizedHeaders.delete('x-user-role');
+  sanitizedHeaders.delete('x-user-email');
+
+  // Global API rate-limit safety net (Edge in-memory). Runs before the static
+  // /api short-circuit below. Applies to all /api/* routes except external/
+  // infra endpoints; per-route Redis limiters add stricter, more specific
+  // limits inside the handlers.
+  if (pathname.startsWith('/api/') && !isGlobalRateLimitExempt(pathname)) {
+    const isAuthenticated = extractToken(request) !== null;
+    const limited = applyGlobalApiRateLimit(request, isAuthenticated);
+    if (limited) return limited;
+  }
+
+  // Skip static assets and API routes. Forward the sanitized headers so /api/*
+  // routes (which short-circuit here, before the JWT block below) never receive
+  // client-supplied x-user-* identity headers.
   if (isStaticRoute(pathname)) {
-    return NextResponse.next();
+    return NextResponse.next({ request: { headers: sanitizedHeaders } });
   }
 
   // Allow public routes
@@ -222,7 +347,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
       }
     }
     // Attach request ID even on public routes so downstream API calls can trace
-    const publicHeaders = new Headers(request.headers);
+    const publicHeaders = new Headers(sanitizedHeaders);
     publicHeaders.set('x-request-id', requestId);
     const publicResponse = NextResponse.next({
       request: { headers: publicHeaders },
@@ -237,7 +362,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     pathname === prefix || pathname.startsWith(`${prefix}/`)
   );
   if (!isProtectedRoute) {
-    const passthroughHeaders = new Headers(request.headers);
+    const passthroughHeaders = new Headers(sanitizedHeaders);
     passthroughHeaders.set('x-request-id', requestId);
     const passthroughResponse = NextResponse.next({
       request: { headers: passthroughHeaders },
@@ -291,7 +416,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     }
 
     // Add user info and request ID to request headers for downstream use
-    const requestHeaders = new Headers(request.headers);
+    const requestHeaders = new Headers(sanitizedHeaders);
     requestHeaders.set('x-user-id', userId);
     requestHeaders.set('x-user-role', role);
     requestHeaders.set('x-user-email', payload.email);
@@ -355,7 +480,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
           );
 
           // Inject user identity headers for downstream use
-          const requestHeaders = new Headers(request.headers);
+          const requestHeaders = new Headers(sanitizedHeaders);
           requestHeaders.set('x-user-id', refreshPayload.userId);
           requestHeaders.set('x-user-role', userRole);
           requestHeaders.set('x-user-email', userEmail);

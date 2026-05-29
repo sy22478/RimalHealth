@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/auth/require-auth';
+import { enforceRateLimit, rateLimitPresets } from '@/lib/middleware/rate-limit';
 import { prisma } from '@/lib/db/prisma';
 import { AuditService } from '@/lib/services/audit-service';
 import { Role } from '@prisma/client';
@@ -20,6 +21,9 @@ import { auditLogger } from '@/lib/audit/index';
 // ============================================================================
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
+  const limited = await enforceRateLimit(request, rateLimitPresets.api);
+  if (limited) return limited;
+
   // Require patient role
   const auth = await requireRole(request, [Role.PATIENT]);
 

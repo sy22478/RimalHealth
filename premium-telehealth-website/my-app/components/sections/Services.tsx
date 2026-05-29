@@ -18,6 +18,18 @@ const services = [
     pill: "Alcohol Use Disorder",
     pillColor: "bg-amber-400/10 text-amber-700 border-amber-400/20",
   },
+  {
+    title: "Weight management",
+    description:
+      "Physician-managed GLP-1 (Wegovy) weight management for adults who meet clinical eligibility, with ongoing monitoring and dose guidance.",
+    link: "/weight-management",
+    linkText: "See weight management",
+    accentFrom: "from-ocean-400/20",
+    accentTo: "to-ocean-500/10",
+    accentBorder: "border-ocean-400/30",
+    pill: "Weight Management",
+    pillColor: "bg-ocean-400/10 text-ocean-700 border-ocean-400/20",
+  },
 ];
 
 export function Services() {
@@ -33,7 +45,7 @@ export function Services() {
         What we treat
       </motion.h2>
 
-      <div className="grid grid-cols-1 md:grid-cols-1 gap-8 lg:gap-10 max-w-2xl mx-auto">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-10 max-w-5xl mx-auto">
         {services.map((service, index) => (
           <motion.div
             key={index}

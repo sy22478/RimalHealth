@@ -7,6 +7,16 @@
  */
 
 import { PrescriptionStatus, RefillStatus } from '@prisma/client';
+import { computeNextRefillAvailable } from '@/lib/titration/engine';
+
+/**
+ * GLP-1 lab gate input for refill eligibility. `required` is true only for
+ * weight-management prescriptions; AUD callers omit it entirely (no gate).
+ */
+export interface RefillLabGate {
+  required: boolean;
+  passed: boolean;
+}
 
 // ============================================================================
 // Prescription Types
@@ -54,6 +64,8 @@ export interface PrescriptionSummary {
   sentAt?: Date | null;
   lastRefillDate: Date | null;
   nextRefillAvailable: Date | null;
+  /** GLP-1 lab gate (weight-management only). Undefined for AUD prescriptions. */
+  labGate?: RefillLabGate;
 }
 
 /**
@@ -279,19 +291,31 @@ export function canRequestRefill(prescription: {
   nextRefillAvailable: Date | null;
   refillsRemaining: number;
   status: PrescriptionStatus;
+  /** GLP-1: end of current supply. When present, the refill window is derived
+   *  from it (supplyEndDate - 7d) in preference to `nextRefillAvailable`. */
+  supplyEndDate?: Date | null;
+  /** GLP-1 lab gate. Omitted/undefined for AUD → no gating. */
+  labGate?: RefillLabGate;
 }): boolean {
   // Check if prescription has refills remaining
   if (prescription.refillsRemaining <= 0) return false;
-  
+
   // Check if prescription is in an active state
   if (['CANCELLED', 'EXPIRED', 'COMPLETED', 'DENIED'].includes(prescription.status)) return false;
-  
-  // Check refill availability date
-  if (!prescription.nextRefillAvailable) return false;
-  
-  const daysUntilRefill = getDaysUntilRefill(prescription.nextRefillAvailable);
+
+  // GLP-1 lab gate: block until a qualifying recent lab is on file. Additive —
+  // AUD callers don't pass labGate, so this never affects them.
+  if (prescription.labGate?.required && !prescription.labGate.passed) return false;
+
+  // Prefer the GLP-1 supply window when present; else the stored refill date.
+  const refillDate = prescription.supplyEndDate
+    ? computeNextRefillAvailable(prescription.supplyEndDate)
+    : prescription.nextRefillAvailable;
+  if (!refillDate) return false;
+
+  const daysUntilRefill = getDaysUntilRefill(refillDate);
   if (daysUntilRefill === null) return false;
-  
+
   // Eligible if within 7 days of refill date or overdue (negative means past due)
   return daysUntilRefill <= 7;
 }
@@ -303,11 +327,13 @@ export function getRefillEligibilityMessage(prescription: {
   nextRefillAvailable: Date | null;
   refillsRemaining: number;
   status: PrescriptionStatus;
+  supplyEndDate?: Date | null;
+  labGate?: RefillLabGate;
 }): string {
   if (prescription.refillsRemaining <= 0) {
     return 'No refills remaining. Contact your doctor for a new prescription.';
   }
-  
+
   if (prescription.status === 'CANCELLED') {
     return 'This prescription has been cancelled.';
   }
@@ -323,8 +349,16 @@ export function getRefillEligibilityMessage(prescription: {
   if (prescription.status === 'EXPIRED') {
     return 'This prescription has expired. Contact your doctor for a new prescription.';
   }
-  
-  const daysUntilRefill = getDaysUntilRefill(prescription.nextRefillAvailable);
+
+  // GLP-1 lab gate takes precedence over the date message.
+  if (prescription.labGate?.required && !prescription.labGate.passed) {
+    return 'A recent lab result is required before this refill. Please upload your latest labs for physician review.';
+  }
+
+  const refillDate = prescription.supplyEndDate
+    ? computeNextRefillAvailable(prescription.supplyEndDate)
+    : prescription.nextRefillAvailable;
+  const daysUntilRefill = getDaysUntilRefill(refillDate);
   
   if (daysUntilRefill === null) {
     return 'Refill information not available.';

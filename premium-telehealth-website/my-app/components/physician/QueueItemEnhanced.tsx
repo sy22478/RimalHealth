@@ -14,6 +14,7 @@ import {
   Clock,
   FileText,
   Wine,
+  Scale,
   Activity,
   TrendingUp,
   Calendar,
@@ -48,9 +49,10 @@ interface QueueItemEnhancedProps {
 }
 
 /**
- * Concern type — only ALCOHOL is actively used. SMOKING and BOTH remain for backward compatibility.
+ * Concern type — ALCOHOL and WEIGHT_MANAGEMENT are active treatments.
+ * SMOKING and BOTH remain for backward compatibility.
  */
-type ExtendedConcernType = 'ALCOHOL' | 'SMOKING' | 'BOTH';
+type ExtendedConcernType = 'ALCOHOL' | 'SMOKING' | 'BOTH' | 'WEIGHT_MANAGEMENT';
 
 // ============================================================================
 // Helper Functions
@@ -115,7 +117,16 @@ function getConcernConfig(concernType: string): {
   bgClass: string;
 } {
   const upperType = concernType.toUpperCase();
-  
+
+  if (upperType === 'WEIGHT_MANAGEMENT') {
+    return {
+      label: 'Weight Management',
+      icon: <Scale className="size-3.5" />,
+      colorClass: 'text-emerald-600',
+      bgClass: 'bg-emerald-50 border-emerald-200',
+    };
+  }
+
   // SMOKING and BOTH are discontinued; fall through to ALCOHOL default
   // Default to ALCOHOL
   return {

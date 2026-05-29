@@ -24,23 +24,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Users,
   Search,
-  MoreHorizontal,
-  Eye,
-  CheckCircle,
-  XCircle,
-  RefreshCw,
-  Key,
   Stethoscope,
   ChevronLeft,
   ChevronRight,
@@ -49,6 +37,7 @@ import {
 import { cn } from '@/lib/utils';
 import { PhysicianStatus } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
+import { PhysicianActionsMenu } from './PhysicianActionsMenu';
 
 // ============================================================================
 // Metadata
@@ -313,53 +302,11 @@ function PhysiciansTable({
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuItem asChild>
-                          <Link href={`/admin/physicians/${physician.id}`} className="cursor-pointer">
-                            <Eye className="mr-2 h-4 w-4" />
-                            View Details
-                          </Link>
-                        </DropdownMenuItem>
-                        {physician.status === PhysicianStatus.PENDING && (
-                          <>
-                            <DropdownMenuItem className="text-green-600 cursor-pointer">
-                              <CheckCircle className="mr-2 h-4 w-4" />
-                              Authorize
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="text-red-600 cursor-pointer">
-                              <XCircle className="mr-2 h-4 w-4" />
-                              Reject
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                        {physician.status === PhysicianStatus.ACTIVE && (
-                          <DropdownMenuItem className="text-amber-600 cursor-pointer">
-                            <XCircle className="mr-2 h-4 w-4" />
-                            Suspend
-                          </DropdownMenuItem>
-                        )}
-                        {physician.status === PhysicianStatus.INACTIVE && (
-                          <DropdownMenuItem className="text-green-600 cursor-pointer">
-                            <RefreshCw className="mr-2 h-4 w-4" />
-                            Reactivate
-                          </DropdownMenuItem>
-                        )}
-                        {(physician.status === PhysicianStatus.ACTIVE || physician.status === PhysicianStatus.INACTIVE) && (
-                          <>
-                            <DropdownMenuItem className="cursor-pointer">
-                              <Key className="mr-2 h-4 w-4" />
-                              Reset Secret Key
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <PhysicianActionsMenu
+                      physicianId={physician.id}
+                      status={physician.status}
+                      name={`${physician.firstName} ${physician.lastName}`.trim()}
+                    />
                   </TableCell>
                 </TableRow>
               ))

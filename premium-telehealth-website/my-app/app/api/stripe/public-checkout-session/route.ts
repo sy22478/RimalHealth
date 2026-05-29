@@ -9,12 +9,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { PlanType } from '@prisma/client';
 import { rateLimit, rateLimitPresets } from '@/lib/middleware/rate-limit';
+import * as Sentry from '@sentry/nextjs';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 const publicCheckoutSchema = z.object({
-  planType: z.enum(['ACTIVE_TREATMENT']),
+  planType: z.enum(['ACTIVE_TREATMENT', 'WEIGHT_MANAGEMENT']),
   successUrl: z.string().url('Invalid success URL'),
   cancelUrl: z.string().url('Invalid cancel URL'),
   consentId: z.string().uuid('Invalid consent ID').optional(),
@@ -32,19 +33,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   const {
-    createCheckoutSession,
-    getOrCreateCustomer,
     getPriceId,
     isStripeConfigured,
     getStripe,
   } = await import('@/lib/stripe/stripe-server');
-
-  if (!isStripeConfigured()) {
-    return NextResponse.json(
-      { error: 'Payment processing is not available.', code: 'STRIPE_NOT_CONFIGURED' },
-      { status: 503 }
-    );
-  }
 
   try {
     const body = await request.json();
@@ -62,6 +54,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const { planType, successUrl, cancelUrl, consentId } = validationResult.data;
+
+    // Fail fast if Stripe (or this plan's price) is not configured, so a
+    // misconfigured deploy returns a clean 503 instead of throwing mid-session.
+    if (!isStripeConfigured(planType as PlanType)) {
+      return NextResponse.json(
+        { error: 'Payment processing is not available.', code: 'STRIPE_NOT_CONFIGURED' },
+        { status: 503 }
+      );
+    }
 
     // Validate redirect URLs start with the app URL to prevent open redirect
     const appUrl = process.env.NEXT_PUBLIC_APP_URL;
@@ -84,7 +85,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // when no `customer` param is provided in subscription mode.
     const stripe = getStripe();
 
-    const sessionMetadata: Record<string, string> = { planType };
+    // Product-type identifier (no PHI) so the webhook can branch consent text,
+    // plan label, and patient product context. Derived from the plan.
+    const productType = planType === 'WEIGHT_MANAGEMENT' ? 'WEIGHT_MANAGEMENT' : 'ALCOHOL';
+
+    const sessionMetadata: Record<string, string> = { planType, productType };
     if (consentId) {
       sessionMetadata.consentRecordId = consentId;
     }
@@ -98,7 +103,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       payment_method_collection: 'always',
       metadata: sessionMetadata,
       subscription_data: {
-        metadata: { planType },
+        metadata: { planType, productType },
         trial_period_days: 30,
       },
     });
@@ -108,6 +113,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       url: session.url,
     });
   } catch (error) {
+    // Payment-creation failure — report for alerting.
+    Sentry.captureException(error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('[Public Checkout] Error:', errorMessage);
 

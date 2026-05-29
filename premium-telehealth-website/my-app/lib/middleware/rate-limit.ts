@@ -1,14 +1,36 @@
 /**
  * Rate Limiting Middleware
- * Redis-based sliding window rate limiting for Next.js
- * 
+ * Redis-based sliding-window rate limiting for Next.js, with an in-memory
+ * fallback so the limiter FAILS CLOSED when Redis is unavailable.
+ *
+ * ─── Strategy ──────────────────────────────────────────────────────────────
+ * Presets (see `rateLimitPresets`):
+ *   - auth    : 5 requests / 15 min   — login, register, password reset
+ *   - api     : 100 requests / 1 min  — general authenticated API consumption
+ *   - strict  : 3 requests / 1 hour   — sensitive ops (2FA, password change)
+ *
+ * Route-specific overrides are passed as inline configs at the call site, e.g.
+ * document upload (10/hour) and Stripe checkout-session creation (5/hour).
+ *
+ * Fail-closed behavior:
+ *   When Redis is unavailable, ALL presets fall back to the in-memory
+ *   sliding-window limiter (`memoryRateLimit`) instead of allowing the request
+ *   through. This prevents DoS / API-bill exhaustion during a Redis outage.
+ *   The in-memory store is per-instance (not shared across servers) — a coarse
+ *   last-resort guard, not a substitute for Redis. (Previously the general
+ *   `api`/default presets failed OPEN; they now fail closed like auth/strict.)
+ *
+ * A separate, lightweight in-memory global limiter lives in `middleware.ts`
+ * (the Edge runtime cannot reach Redis) as a coarse safety net for ALL /api/*
+ * routes. The per-route limiters here remain the precise control.
+ *
+ * Use `enforceRateLimit(request, preset)` at the top of a route handler to get
+ * a ready-to-return 429 response on limit exceeded.
+ *
  * HIPAA Compliance Notes:
- * - No PHI stored in rate limit keys (use hashed identifiers)
+ * - No PHI stored in rate limit keys (IP / user id only)
  * - IP addresses are transient and not logged with PHI
- * - General endpoints fail open (allow requests) if Redis is unavailable
- * - Auth-critical endpoints use an in-memory fallback (`useMemoryFallback`)
- *   to prevent brute-force attacks when Redis is down
- * 
+ *
  * @module lib/middleware/rate-limit
  */
 
@@ -30,13 +52,12 @@ export interface RateLimitConfig {
   /** Redis key prefix for rate limit entries (default: 'ratelimit') */
   keyPrefix?: string;
   /**
-   * When true, an in-memory Map-based rate limiter kicks in if Redis is
-   * unavailable. This prevents brute-force attacks on auth-critical
-   * endpoints even when Redis is down.
-   *
-   * Should ONLY be enabled for auth endpoints (login, password reset,
-   * send-verification, verify-token, verify-email, MFA verify).
-   * General API rate limiting can still fail open.
+   * Historically this flag gated whether the in-memory fallback engaged when
+   * Redis was down (true for auth-critical endpoints, false elsewhere meaning
+   * "fail open"). The limiter now ALWAYS falls back to the in-memory limiter
+   * on Redis failure (fail closed) regardless of this flag, so it no longer
+   * changes runtime behavior. It is retained for backward compatibility and to
+   * document intent at call sites (auth/strict endpoints set it `true`).
    *
    * @default false
    */
@@ -115,7 +136,7 @@ export const rateLimitPresets: RateLimitPresets = {
   /**
    * General API endpoints preset
    * - 100 requests per minute
-   * - No memory fallback (fails open if Redis is down)
+   * - Fails closed via in-memory fallback if Redis is down (see rateLimit)
    * - Use for: general API consumption
    */
   api: {
@@ -368,26 +389,66 @@ export async function rateLimit(
     };
 
   } catch (error) {
-    // If useMemoryFallback is enabled (auth-critical endpoints), use the
-    // in-memory rate limiter instead of failing open. This prevents
-    // brute-force attacks when Redis is unavailable.
-    if (mergedConfig.useMemoryFallback) {
-      console.error('[RateLimit] Redis error, using in-memory fallback:', error instanceof Error ? error.message : 'Unknown error');
-      return memoryRateLimit(identifier, mergedConfig);
-    }
-
-    // For non-critical endpoints: fail open (allow requests)
-    // This ensures availability even if Redis is down
-    console.error('[RateLimit] Redis error, allowing request:', error instanceof Error ? error.message : 'Unknown error');
-
-    // Return success with conservative remaining count
-    return {
-      success: true,
-      limit,
-      remaining: 1, // Conservative: suggest only 1 request left
-      reset: Math.ceil((Date.now() + windowMs) / 1000),
-    };
+    // Redis is unavailable. FAIL CLOSED for ALL presets by falling back to the
+    // in-memory sliding-window limiter, rather than failing open (which
+    // previously allowed unlimited requests on the general `api`/default
+    // presets and risked DoS / API-bill exhaustion during a Redis outage).
+    //
+    // The in-memory store is per-instance — a coarse last-resort guard, not a
+    // Redis substitute. Auth/strict already relied on this path; their
+    // behavior is unchanged.
+    console.error(
+      '[RateLimit] Redis unavailable — using in-memory fallback (fail closed):',
+      error instanceof Error ? error.message : 'Unknown error'
+    );
+    return memoryRateLimit(identifier, mergedConfig);
   }
+}
+
+// ============================================================================
+// Route Handler Helper
+// ============================================================================
+
+/**
+ * Enforce a rate limit at the very top of an API route handler.
+ *
+ * Thin wrapper around {@link rateLimit} that extracts the client IP and, when
+ * the limit is exceeded, returns a ready-to-send 429 `NextResponse` (with
+ * `Retry-After` + `X-RateLimit-*` headers). Returns `null` when the request is
+ * allowed, so the caller continues normally. Mirrors the inline pattern used
+ * by the auth routes, centralized so every route emits an identical 429 shape.
+ *
+ * @example
+ * ```ts
+ * export async function POST(request: NextRequest): Promise<NextResponse> {
+ *   const limited = await enforceRateLimit(request, rateLimitPresets.api);
+ *   if (limited) return limited;
+ *   // ... handler logic
+ * }
+ * ```
+ */
+export async function enforceRateLimit(
+  request: NextRequest,
+  config?: Partial<RateLimitConfig>
+): Promise<NextResponse | null> {
+  const identifier = getClientIP(request);
+  const result = await rateLimit(identifier, config);
+
+  if (result.success) {
+    return null;
+  }
+
+  return NextResponse.json(
+    {
+      error: 'Too many requests. Please try again later.',
+      code: 'RATE_LIMITED',
+      retryAfter: result.retryAfter,
+    },
+    {
+      status: 429,
+      headers: createRateLimitHeaders(result),
+    }
+  );
 }
 
 // ============================================================================

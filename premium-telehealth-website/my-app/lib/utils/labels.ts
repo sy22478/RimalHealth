@@ -54,6 +54,8 @@ export const VALUE_LABELS: Record<string, string> = {
   PREFER_NOT_TO_SAY: 'Prefer not to say',
   alcohol: 'Alcohol Use Disorder',
   ALCOHOL: 'Alcohol Use Disorder',
+  'weight-management': 'Weight Management',
+  WEIGHT_MANAGEMENT: 'Weight Management',
   smoking: 'Smoking',
   SMOKING: 'Smoking',
   both: 'Alcohol & Smoking',

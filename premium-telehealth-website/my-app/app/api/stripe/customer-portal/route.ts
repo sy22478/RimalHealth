@@ -29,6 +29,7 @@ import { z } from 'zod';
 
 // JWT verification - safe to import at top level
 import { verifyAccessToken } from '@/lib/auth/jwt';
+import * as Sentry from '@sentry/nextjs';
 
 // Audit logging
 import { auditLogger } from '@/lib/audit/logger';
@@ -218,8 +219,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       url: portalSession.url,
     });
   } catch (error) {
+    // Billing-portal-creation failure — report for alerting.
+    Sentry.captureException(error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    
+
     console.error('[Stripe Portal] Error creating portal session:', errorMessage);
 
     await auditLogger.log({

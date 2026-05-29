@@ -30,6 +30,7 @@ import { cn } from '@/lib/utils';
 import { LoadingButton } from '@/components/ui/LoadingButton';
 import { PatientPharmacySearch, SelectedPharmacy } from '@/components/patient/PharmacySearch';
 import { MedicalTerm } from '@/components/patient/MedicalTerm';
+import { CrisisBanner } from '@/components/intake/CrisisBanner';
 
 // ============================================================================
 // Address Validation Context
@@ -132,6 +133,9 @@ const intakeFormSchema = z.object({
   withdrawalDTs: z.boolean({ message: 'Please indicate if you have experienced delirium tremens' }),
   withdrawalHospitalized: z.boolean({ message: 'Please indicate if you were hospitalized for detox' }),
   morningDrinking: z.boolean({ message: 'Please indicate if you drink in the morning to avoid withdrawal' }),
+  // Suicidal-ideation safety screen (parity with the GLP-1 intake). Surfaces the
+  // 988 CrisisBanner when true; does not affect DSM-5 scoring.
+  suicidalIdeation: z.boolean({ message: 'Please answer this question' }),
 
   // SECTION 4: Naltrexone Safety Screening (Q20-Q25)
   opioidUse: z.array(z.string()),
@@ -170,14 +174,22 @@ type IntakeFormData = z.infer<typeof intakeFormSchema>;
 
 function scrollToFirstError(): void {
   setTimeout(() => {
-    const firstError = document.querySelector('[role="alert"]');
-    if (firstError) {
-      firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      // Focus the closest focusable input sibling or parent field
-      const fieldContainer = firstError.closest('[role="group"], .space-y-2, .space-y-3');
-      const focusable = fieldContainer?.querySelector<HTMLElement>('input, select, textarea');
-      if (focusable) focusable.focus();
-    }
+    // The step-summary banner is a <div role="alert"> rendered before the
+    // field errors — skip it so focus lands on the first errored *control*,
+    // not the banner. Field-level errors are <p role="alert">.
+    const alerts = Array.from(document.querySelectorAll<HTMLElement>('[role="alert"]'));
+    const firstError = alerts.find((el) => el.tagName === 'P') ?? alerts[0];
+    if (!firstError) return;
+    firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Broaden the wrapper + focusable selectors so radio/select/checkbox
+    // groups (role="radiogroup", space-y-4 wrappers) move focus too.
+    const fieldContainer = firstError.closest(
+      '[role="group"], [role="radiogroup"], .space-y-2, .space-y-3, .space-y-4'
+    );
+    const focusable = fieldContainer?.querySelector<HTMLElement>(
+      'input, select, textarea, [role="radio"], [role="checkbox"], button, [tabindex]'
+    );
+    if (focusable) focusable.focus();
   }, 100);
 }
 
@@ -228,7 +240,7 @@ function BooleanRadio({ fieldKey, label }: { fieldKey: keyof IntakeFormData; lab
             name={String(fieldKey)}
             checked={value === true}
             onChange={() => setValue(fieldKey, true as never)}
-            className="w-5 h-5 min-w-[44px] min-h-[44px] text-ocean-600 border-gray-300 focus:ring-ocean-500 cursor-pointer"
+            className="w-5 h-5 text-ocean-600 border-gray-300 focus:ring-ocean-500 cursor-pointer"
             aria-required="true"
           />
           <Label htmlFor={`${fieldKey}-yes`} className="text-sm font-normal cursor-pointer">Yes</Label>
@@ -240,7 +252,7 @@ function BooleanRadio({ fieldKey, label }: { fieldKey: keyof IntakeFormData; lab
             name={String(fieldKey)}
             checked={value === false}
             onChange={() => setValue(fieldKey, false as never)}
-            className="w-5 h-5 min-w-[44px] min-h-[44px] text-ocean-600 border-gray-300 focus:ring-ocean-500 cursor-pointer"
+            className="w-5 h-5 text-ocean-600 border-gray-300 focus:ring-ocean-500 cursor-pointer"
           />
           <Label htmlFor={`${fieldKey}-no`} className="text-sm font-normal cursor-pointer">No</Label>
         </div>
@@ -697,8 +709,12 @@ function WithdrawalRiskStep(): React.ReactElement {
   const withdrawalDTs = watch('withdrawalDTs');
   const withdrawalHospitalized = watch('withdrawalHospitalized');
   const morningDrinking = watch('morningDrinking');
+  const suicidalIdeation = watch('suicidalIdeation');
 
   const hasWithdrawalRisk = withdrawalSeizure || withdrawalDTs || withdrawalHospitalized || morningDrinking;
+  // Surface the 988 crisis banner for suicidal ideation or the severe
+  // withdrawal signals (DTs / withdrawal seizure).
+  const showCrisisBanner = suicidalIdeation === true || withdrawalDTs === true || withdrawalSeizure === true;
 
   const questions = [
     { key: 'withdrawalSeizure' as const, num: 'Q16', label: 'Have you ever had a seizure related to alcohol withdrawal?' },
@@ -709,7 +725,7 @@ function WithdrawalRiskStep(): React.ReactElement {
 
   return (
     <section aria-label="Section 3: Withdrawal Risk Assessment" className="space-y-6">
-      <StepErrorSummary stepFields={['withdrawalSeizure', 'withdrawalDTs', 'withdrawalHospitalized', 'morningDrinking']} />
+      <StepErrorSummary stepFields={['withdrawalSeizure', 'withdrawalDTs', 'withdrawalHospitalized', 'morningDrinking', 'suicidalIdeation']} />
 
       <Alert className="bg-amber-50 border-amber-200">
         <AlertTriangle className="h-4 w-4 text-amber-600" />
@@ -749,6 +765,26 @@ function WithdrawalRiskStep(): React.ReactElement {
                 You may need supervised detox before starting naltrexone. Do not stop drinking abruptly without medical supervision.
               </AlertDescription>
             </Alert>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Suicidal-ideation safety screen (parity with the GLP-1 intake). */}
+      <div className="p-4 border border-gray-200 rounded-lg">
+        <p className="text-sm text-gray-900 mb-3">
+          In the past 2 weeks, have you had thoughts that you would be better off dead, or of hurting yourself in some way? <span className="text-red-500" aria-hidden="true">*</span>
+        </p>
+        <BooleanRadio fieldKey="suicidalIdeation" label="Suicidal ideation screen" />
+      </div>
+
+      <AnimatePresence>
+        {showCrisisBanner && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+          >
+            <CrisisBanner />
           </motion.div>
         )}
       </AnimatePresence>
@@ -1141,7 +1177,7 @@ function TreatmentGoalsStep(): React.ReactElement {
                 value={option.value}
                 {...register('primaryGoal')}
                 aria-required="true"
-                className="mt-1 w-5 h-5 min-w-[44px] min-h-[44px] text-ocean-600 border-gray-300 focus:ring-ocean-500 cursor-pointer"
+                className="mt-1 w-5 h-5 text-ocean-600 border-gray-300 focus:ring-ocean-500 cursor-pointer"
               />
               <div>
                 <span className="font-medium text-gray-900 block">{option.label}</span>
@@ -1172,7 +1208,7 @@ function TreatmentGoalsStep(): React.ReactElement {
                 value={option.value}
                 {...register('motivationLevel')}
                 aria-required="true"
-                className="w-5 h-5 min-w-[44px] min-h-[44px] text-ocean-600 border-gray-300 focus:ring-ocean-500 cursor-pointer"
+                className="w-5 h-5 text-ocean-600 border-gray-300 focus:ring-ocean-500 cursor-pointer"
               />
               <span className="text-sm text-gray-700">{option.label}</span>
             </label>
@@ -1200,7 +1236,7 @@ function TreatmentGoalsStep(): React.ReactElement {
                 value={option.value}
                 {...register('supportSystem')}
                 aria-required="true"
-                className="w-5 h-5 min-w-[44px] min-h-[44px] text-ocean-600 border-gray-300 focus:ring-ocean-500 cursor-pointer"
+                className="w-5 h-5 text-ocean-600 border-gray-300 focus:ring-ocean-500 cursor-pointer"
               />
               <span className="text-sm text-gray-700">{option.label}</span>
             </label>
@@ -1243,7 +1279,7 @@ function DemographicsStep(): React.ReactElement {
                 value={option.value}
                 {...register('biologicalSex')}
                 aria-required="true"
-                className="w-5 h-5 min-w-[44px] min-h-[44px] text-ocean-600 border-gray-300 focus:ring-ocean-500 cursor-pointer"
+                className="w-5 h-5 text-ocean-600 border-gray-300 focus:ring-ocean-500 cursor-pointer"
               />
               <span className="text-sm text-gray-700">{option.label}</span>
             </label>
@@ -1370,6 +1406,7 @@ function ReviewStep({ onEditSection }: { onEditSection: (index: number) => void 
         `Delirium tremens: ${formatBoolean(values.withdrawalDTs)}`,
         `Hospitalized for detox: ${formatBoolean(values.withdrawalHospitalized)}`,
         `Morning drinking: ${formatBoolean(values.morningDrinking)}`,
+        `Suicidal ideation (past 2 weeks): ${formatBoolean(values.suicidalIdeation)}`,
       ],
     },
     {
@@ -1634,6 +1671,7 @@ export default function IntakePage(): React.ReactElement {
       withdrawalDTs: undefined,
       withdrawalHospitalized: undefined,
       morningDrinking: undefined,
+      suicidalIdeation: undefined,
       opioidUse: [],
       opioidMaintenance: undefined,
       liverCondition: undefined,
@@ -1846,7 +1884,7 @@ export default function IntakePage(): React.ReactElement {
       personal: ['firstName', 'lastName', 'dateOfBirth', 'phone', 'addressStreet', 'addressCity', 'addressState', 'addressZip', 'pharmacyName', 'pharmacyAddress', 'pharmacyCity', 'pharmacyState', 'pharmacyZip'],
       dsm5: ['dsm5Q1', 'dsm5Q2', 'dsm5Q3', 'dsm5Q4', 'dsm5Q5', 'dsm5Q6', 'dsm5Q7', 'dsm5Q8', 'dsm5Q9', 'dsm5Q10', 'dsm5Q11'],
       drinking: ['drinkingDaysPerWeek', 'drinksPerDay', 'lastDrink', 'bingeDrinking'],
-      withdrawal: ['withdrawalSeizure', 'withdrawalDTs', 'withdrawalHospitalized', 'morningDrinking'],
+      withdrawal: ['withdrawalSeizure', 'withdrawalDTs', 'withdrawalHospitalized', 'morningDrinking', 'suicidalIdeation'],
       safety: ['liverCondition', 'liverTests', 'pregnancyStatus', 'drugAllergies', 'opioidUse', 'opioidMaintenance'],
       medical: ['medicalHistory', 'previousTreatments', 'currentMedications', 'seeingTherapist'],
       goals: ['primaryGoal', 'motivationLevel', 'supportSystem'],

@@ -99,6 +99,7 @@ function SortIndicator({ column, currentColumn, direction }: SortIndicatorProps)
 function ConcernBadge({ type }: { type: string }) {
   const labels: Record<string, { label: string; className: string }> = {
     ALCOHOL: { label: 'Alcohol', className: 'bg-blue-100 text-blue-800 border-blue-200' },
+    WEIGHT_MANAGEMENT: { label: 'Weight Management', className: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
     SMOKING: { label: 'Discontinued', className: 'bg-gray-100 text-gray-600 border-gray-200' },
     BOTH: { label: 'Both', className: 'bg-purple-100 text-purple-800 border-purple-200' },
   };

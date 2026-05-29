@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { Check, X, ArrowRight, Pill, Clock, MessageSquare, ShieldCheck } from "lucide-react";
 import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
 import { SectionWrapper } from "@/components/sections/SectionWrapper";
+import { TrustBadges } from "@/components/TrustBadges";
 
 export default function AlcoholTreatmentPage() {
   return (
@@ -30,10 +31,10 @@ export default function AlcoholTreatmentPage() {
               </p>
               <div className="flex flex-col sm:flex-row gap-3 mt-8">
                 <Link
-                  href="/pricing"
-                  className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-navy-500 to-ocean-500 text-white font-semibold rounded-lg hover:shadow-lg transition-shadow"
+                  href="/checkout/consent?plan=active-treatment"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-navy-600 to-ocean-500 text-white font-semibold rounded-lg hover:shadow-lg transition-shadow"
                 >
-                  Start treatment — $50/month
+                  Get Started — $50/month
                   <ArrowRight className="w-5 h-5" />
                 </Link>
                 <Link
@@ -618,14 +619,14 @@ export default function AlcoholTreatmentPage() {
             <p className="text-sm text-gray-600 mb-2">
               Medications billed separately at your pharmacy (pharmacy may bill your insurance). Costs vary by medication type.
             </p>
-            <p className="text-sm text-gray-500 mb-6">
+            <p className="text-sm text-gray-600 mb-6">
               Our service fee is cash-pay. Superbill available for out-of-network reimbursement — reimbursement not guaranteed and varies by plan. Cancel anytime. No long-term contracts.
             </p>
             <Link
-              href="/pricing"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-navy-500 to-ocean-500 text-white font-semibold rounded-lg hover:shadow-lg transition-shadow"
+              href="/checkout/consent?plan=active-treatment"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-navy-600 to-ocean-500 text-white font-semibold rounded-lg hover:shadow-lg transition-shadow"
             >
-              Get started
+              Get Started — $50/month
               <ArrowRight className="w-5 h-5" />
             </Link>
           </motion.div>
@@ -646,12 +647,15 @@ export default function AlcoholTreatmentPage() {
               Prescription ready in 24 hours
             </p>
             <Link
-              href="/pricing"
-              className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-navy-500 to-ocean-500 text-white font-semibold rounded-lg hover:shadow-lg transition-shadow text-lg"
+              href="/checkout/consent?plan=active-treatment"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-navy-600 to-ocean-500 text-white font-semibold rounded-lg hover:shadow-lg transition-shadow text-lg"
             >
-              Start treatment — $50/month
+              Get Started — $50/month
               <ArrowRight className="w-6 h-6" />
             </Link>
+            <div className="mt-8 flex justify-center">
+              <TrustBadges />
+            </div>
           </motion.div>
         </SectionWrapper>
 

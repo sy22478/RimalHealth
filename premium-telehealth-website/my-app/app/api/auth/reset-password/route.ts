@@ -26,6 +26,9 @@ import { invalidateUserSessions } from '@/lib/auth/session';
 // Database
 import { prisma } from '@/lib/db/prisma';
 
+// Token hashing (tokens are stored hashed at rest — look up by hash)
+import { hashToken } from '@/lib/auth/token-utils';
+
 // Audit
 import { auditPasswordEvent } from '@/lib/audit/logger';
 import { AuditContext, AuditEventType } from '@/lib/audit/types';
@@ -71,8 +74,9 @@ function getAuditContext(request: NextRequest): AuditContext {
  * Find valid password reset record by token
  */
 async function findValidPasswordReset(token: string) {
+  // Tokens are stored hashed at rest; look up by the hash of the raw token.
   const resetRecord = await prisma.passwordReset.findUnique({
-    where: { token },
+    where: { token: hashToken(token) },
     include: {
       user: {
         select: {

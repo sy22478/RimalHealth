@@ -37,8 +37,9 @@ export interface PhysicianDashboardStats {
 /**
  * Treatment type for patient intake
  */
-// Note: Only ALCOHOL is actively used. SMOKING and BOTH remain for backward compatibility.
-export type TreatmentType = 'ALCOHOL' | 'SMOKING' | 'BOTH';
+// Note: ALCOHOL and WEIGHT_MANAGEMENT are active treatments. SMOKING and BOTH
+// remain for backward compatibility.
+export type TreatmentType = 'ALCOHOL' | 'SMOKING' | 'BOTH' | 'WEIGHT_MANAGEMENT';
 
 /**
  * Review status for intake items
@@ -506,6 +507,7 @@ export const TREATMENT_TYPE_LABELS: Record<TreatmentType | 'ALL', string> = {
   ALCOHOL: 'Alcohol Use',
   SMOKING: 'Discontinued',
   BOTH: 'Discontinued',
+  WEIGHT_MANAGEMENT: 'Weight Management',
 };
 
 /**

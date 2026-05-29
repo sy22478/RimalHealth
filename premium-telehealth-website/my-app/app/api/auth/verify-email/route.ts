@@ -19,6 +19,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
+import { hashToken } from '@/lib/auth/token-utils';
 import { rateLimit, rateLimitPresets } from '@/lib/middleware/rate-limit';
 import { auditPasswordEvent } from '@/lib/audit/logger';
 import { AuditContext, AuditEventType } from '@/lib/audit/types';
@@ -67,9 +68,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    // Find the token in PasswordReset table
+    // Find the token in PasswordReset table. The "verify-" prefix check above
+    // runs on the RAW token; the stored value is the SHA-256 hash, so we look
+    // up by the hash of the incoming raw token.
     const verificationRecord = await prisma.passwordReset.findUnique({
-      where: { token },
+      where: { token: hashToken(token) },
       include: {
         user: {
           select: {

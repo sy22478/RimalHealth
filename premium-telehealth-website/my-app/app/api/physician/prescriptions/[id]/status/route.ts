@@ -19,6 +19,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
 import { requirePermission } from '@/lib/auth/require-auth';
+import { enforceRateLimit, rateLimitPresets } from '@/lib/middleware/rate-limit';
 import { Permission } from '@/lib/auth/rbac';
 import { checkPrescriptionStatus } from '@/lib/integrations/dosespot';
 import { auditLogger, PHIResourceType, AuditEventType } from '@/lib/audit/index';
@@ -67,6 +68,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
+  const limited = await enforceRateLimit(request, rateLimitPresets.api);
+  if (limited) return limited;
+
   // Check authentication and permission
   const authResult = await requirePermission(request, Permission.VIEW_PATIENT_DETAILS);
   

@@ -12,6 +12,7 @@
 
 import Stripe from 'stripe';
 import { PlanType } from '@prisma/client';
+import { PLAN_AMOUNTS, PLAN_NAMES, PLAN_DESCRIPTIONS } from './plan-constants';
 
 // ============================================
 // Configuration
@@ -23,29 +24,15 @@ import { PlanType } from '@prisma/client';
  */
 export const STRIPE_PRICE_IDS: Record<PlanType, string | undefined> = {
   ACTIVE_TREATMENT: process.env.STRIPE_PRICE_ACTIVE_TREATMENT,
+  WEIGHT_MANAGEMENT: process.env.STRIPE_PRICE_WEIGHT_MANAGEMENT,
 };
 
 /**
- * Plan amounts in cents (fallback values)
- * ACTIVE_TREATMENT: $50.00/month
+ * Plan display names, amounts, and descriptions live in a client-safe module
+ * (no `stripe` SDK import) so client components can render product-aware copy.
+ * Re-exported here to keep existing server-side import sites working.
  */
-export const PLAN_AMOUNTS: Record<PlanType, number> = {
-  ACTIVE_TREATMENT: 5000,
-};
-
-/**
- * Plan display names
- */
-export const PLAN_NAMES: Record<PlanType, string> = {
-  ACTIVE_TREATMENT: 'Active Treatment',
-};
-
-/**
- * Plan descriptions for checkout
- */
-export const PLAN_DESCRIPTIONS: Record<PlanType, string> = {
-  ACTIVE_TREATMENT: 'Full access to medication-assisted treatment with physician monitoring',
-};
+export { PLAN_AMOUNTS, PLAN_NAMES, PLAN_DESCRIPTIONS };
 
 // ============================================
 // Lazy Stripe Client Initialization
@@ -75,12 +62,21 @@ export function getStripe(): Stripe {
 }
 
 /**
- * Check if Stripe is properly configured
- * Used to conditionally enable/disable payment features
+ * Check if Stripe is properly configured.
+ *
+ * Used to conditionally enable/disable payment features and to fail fast on a
+ * misconfigured price BEFORE a patient hits checkout.
+ *
+ * @param planType - When provided, also require that plan's price ID to be set.
+ *   This lets a GLP-1 checkout report "not available" when only the GLP-1 price
+ *   is missing, without affecting AUD checkout (and vice versa). Omit to check
+ *   reachability only (secret key present) — preserves existing callers.
  */
-export function isStripeConfigured(): boolean {
+export function isStripeConfigured(planType?: PlanType): boolean {
   const key = process.env.STRIPE_SECRET_KEY;
-  return !!key && key.startsWith('sk_');
+  if (!key || !key.startsWith('sk_')) return false;
+  if (planType) return !!STRIPE_PRICE_IDS[planType];
+  return true;
 }
 
 /**
@@ -402,6 +398,21 @@ export async function createCustomerPortalSession(
 export async function configureCustomerPortal(): Promise<Stripe.BillingPortal.Configuration> {
   const stripe = getStripe();
 
+  // Build the portal product list from configured products only. The GLP-1
+  // (weight-management) product is included when its env vars are set.
+  const portalProducts: Array<{ product: string; prices: string[] }> = [
+    {
+      product: process.env.STRIPE_PRODUCT_ACTIVE_TREATMENT || '',
+      prices: [process.env.STRIPE_PRICE_ACTIVE_TREATMENT || ''],
+    },
+  ];
+  if (process.env.STRIPE_PRODUCT_WEIGHT_MANAGEMENT && process.env.STRIPE_PRICE_WEIGHT_MANAGEMENT) {
+    portalProducts.push({
+      product: process.env.STRIPE_PRODUCT_WEIGHT_MANAGEMENT,
+      prices: [process.env.STRIPE_PRICE_WEIGHT_MANAGEMENT],
+    });
+  }
+
   return stripe.billingPortal.configurations.create({
     features: {
       payment_method_update: { enabled: true },
@@ -409,12 +420,7 @@ export async function configureCustomerPortal(): Promise<Stripe.BillingPortal.Co
         enabled: true,
         default_allowed_updates: ['price', 'quantity', 'promotion_code'],
         proration_behavior: 'create_prorations',
-        products: [
-          {
-            product: process.env.STRIPE_PRODUCT_ACTIVE_TREATMENT || '',
-            prices: [process.env.STRIPE_PRICE_ACTIVE_TREATMENT || ''],
-          },
-        ],
+        products: portalProducts,
       },
       subscription_cancel: {
         enabled: true,

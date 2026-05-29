@@ -355,6 +355,134 @@ export async function notifyPhysicianRefillRequest(
 }
 
 // ============================================================================
+// GLP-1 Monitoring Notifications (Phase 4)
+// ============================================================================
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || '';
+
+/** Notify a patient that a check-in is due (in-app + email + SMS). */
+export async function notifyCheckInDue(patientId: string): Promise<void> {
+  try {
+    const { prisma } = await import('@/lib/db/prisma');
+    await prisma.notification.create({
+      data: {
+        userId: patientId,
+        type: 'CHECK_IN_DUE',
+        title: 'Check-in due',
+        message: 'Your weight-management check-in is due. Please complete it for your physician.',
+        actionUrl: '/patient/check-ins',
+      },
+    });
+    await notifyUser({
+      userId: patientId,
+      email: {
+        template: EmailTemplate.CHECK_IN_DUE,
+        data: { checkInUrl: `${APP_URL}/patient/check-ins` },
+      },
+      sms: { template: SMSTemplate.CHECK_IN_DUE, data: {} },
+      priority: 'normal',
+    });
+  } catch (error) {
+    console.error('[NotificationService] Failed to notify check-in due', error instanceof Error ? error.message : 'Unknown error');
+  }
+}
+
+/** Notify a patient that their check-in was reviewed (in-app + email). */
+export async function notifyCheckInReviewed(patientId: string): Promise<void> {
+  try {
+    const { prisma } = await import('@/lib/db/prisma');
+    await prisma.notification.create({
+      data: {
+        userId: patientId,
+        type: 'CHECK_IN_REVIEWED',
+        title: 'Check-in reviewed',
+        message: 'Your physician has reviewed your latest check-in.',
+        actionUrl: '/patient/dashboard',
+      },
+    });
+    await notifyUser({
+      userId: patientId,
+      email: {
+        template: EmailTemplate.CHECK_IN_REVIEWED,
+        data: { dashboardUrl: `${APP_URL}/patient/dashboard` },
+      },
+      priority: 'normal',
+    });
+  } catch (error) {
+    console.error('[NotificationService] Failed to notify check-in reviewed', error instanceof Error ? error.message : 'Unknown error');
+  }
+}
+
+/** Notify a patient that a refill is now available (in-app + email + SMS). */
+export async function notifyRefillReady(patientId: string, prescriptionId: string): Promise<void> {
+  void prescriptionId;
+  try {
+    const { prisma } = await import('@/lib/db/prisma');
+    await prisma.notification.create({
+      data: {
+        userId: patientId,
+        type: 'REFILL_READY',
+        title: 'Refill available',
+        message: 'Your prescription is now within its refill window.',
+        actionUrl: '/patient/prescriptions',
+      },
+    });
+    await notifyUser({
+      userId: patientId,
+      email: {
+        template: EmailTemplate.REFILL_READY,
+        data: { dashboardUrl: `${APP_URL}/patient/prescriptions` },
+      },
+      sms: { template: SMSTemplate.REFILL_READY, data: {} },
+      priority: 'normal',
+    });
+  } catch (error) {
+    console.error('[NotificationService] Failed to notify refill ready', error instanceof Error ? error.message : 'Unknown error');
+  }
+}
+
+/**
+ * Notify active physicians that GLP-1 titration steps are ready for review.
+ * In-app row per physician + email. No PHI in the message (count only).
+ */
+export async function notifyTitrationStepsReady(count: number): Promise<void> {
+  if (count <= 0) return;
+  try {
+    const { prisma } = await import('@/lib/db/prisma');
+    const { PhysicianStatus } = await import('@prisma/client');
+    const activePhysicians = await prisma.physician.findMany({
+      where: { status: PhysicianStatus.ACTIVE },
+      include: { user: { select: { id: true, email: true } } },
+    });
+    for (const physician of activePhysicians) {
+      await prisma.notification.create({
+        data: {
+          userId: physician.user.id,
+          type: 'TITRATION_STEP_READY',
+          title: 'Titration steps ready for review',
+          message: `${count} GLP-1 titration step(s) are ready for your review.`,
+          actionUrl: '/physician/dashboard',
+        },
+      });
+      await notificationQueue.add({
+        type: 'email',
+        priority: 'normal',
+        payload: {
+          to: physician.user.email,
+          template: EmailTemplate.TITRATION_STEP_READY,
+          data: {
+            physicianName: `Dr. ${physician.lastName}`,
+            reviewUrl: `${APP_URL}/physician/dashboard`,
+          },
+        },
+      });
+    }
+  } catch (error) {
+    console.error('[NotificationService] Failed to notify titration steps ready', error instanceof Error ? error.message : 'Unknown error');
+  }
+}
+
+// ============================================================================
 // Admin Notifications
 // ============================================================================
 
@@ -447,6 +575,22 @@ export class NotificationService {
 
   static async notifyRefillApproved(patientId: string, prescriptionId: string): Promise<void> {
     return notifyRefillApproved(patientId, prescriptionId);
+  }
+
+  static async notifyCheckInDue(patientId: string): Promise<void> {
+    return notifyCheckInDue(patientId);
+  }
+
+  static async notifyCheckInReviewed(patientId: string): Promise<void> {
+    return notifyCheckInReviewed(patientId);
+  }
+
+  static async notifyRefillReady(patientId: string, prescriptionId: string): Promise<void> {
+    return notifyRefillReady(patientId, prescriptionId);
+  }
+
+  static async notifyTitrationStepsReady(count: number): Promise<void> {
+    return notifyTitrationStepsReady(count);
   }
 
   static async notifyPhysicianNewIntake(intakeId: string, concernType: string): Promise<void> {

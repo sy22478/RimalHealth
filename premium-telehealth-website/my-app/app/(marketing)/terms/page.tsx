@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     "Rimal Health Terms of Service — the agreement governing your use of our telehealth platform.",
 };
 
-const lastUpdated = "February 1, 2026";
+const lastUpdated = "May 27, 2026";
 
 export default function TermsOfServicePage() {
   return (
@@ -40,7 +40,8 @@ export default function TermsOfServicePage() {
             <p>
               Rimal Health provides an asynchronous telehealth platform
               connecting California residents with California-licensed physicians
-              for medication-assisted treatment of alcohol use disorder. Our services include intake review,
+              for medication-assisted treatment of alcohol use disorder and/or
+              weight management. Our services include intake review,
               prescription management, and ongoing physician messaging.
             </p>
             <p className="mt-3">

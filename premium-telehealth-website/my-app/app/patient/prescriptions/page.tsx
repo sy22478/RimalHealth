@@ -113,6 +113,29 @@ function RejectedState() {
 }
 
 function RefillIneligibleMessage({ prescription }: { prescription: PrescriptionSummary }) {
+  // GLP-1 lab gate blocks the refill until updated labs are reviewed. Surface a
+  // specific message + an upload CTA rather than the generic "not available".
+  if (prescription.labGate?.required && !prescription.labGate.passed) {
+    return (
+      <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+        <FileText className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+        <div className="space-y-2">
+          <p className="text-sm text-amber-800">
+            A recent lab result is required before this refill. Please upload your latest labs so
+            your physician can review them.
+          </p>
+          <Link
+            href="/patient/documents"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-amber-700 hover:text-amber-900 underline"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Upload lab results
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   let message: string;
   if (prescription.refillsRemaining <= 0) {
     message = 'No refills remaining. Contact your doctor for a new prescription.';
@@ -290,6 +313,8 @@ function PrescriptionStatusCard({ prescription, onRefillRequested }: Prescriptio
                   </Button>
                   {refillMessage && (
                     <p
+                      role="status"
+                      aria-live="polite"
                       className={cn(
                         'text-sm',
                         refillMessage.type === 'success' ? 'text-green-700' : 'text-red-700'

@@ -51,7 +51,7 @@ export const step2Schema = z.object({
 );
 
 export const step3Schema = z.object({
-  primaryConcern: z.enum(["ALCOHOL"], {
+  primaryConcern: z.enum(["ALCOHOL", "WEIGHT_MANAGEMENT"], {
     message: "Please select your primary concern",
   }),
   treatmentGoal: z.enum(["QUIT", "REDUCE", "EXPLORE"], {
@@ -116,6 +116,11 @@ export const primaryConcernOptions = [
     value: "ALCOHOL" as const,
     label: "Alcohol Use",
     description: "I want help managing my alcohol consumption",
+  },
+  {
+    value: "WEIGHT_MANAGEMENT" as const,
+    label: "Weight Management",
+    description: "I want help managing my weight with GLP-1 treatment",
   },
 ];
 

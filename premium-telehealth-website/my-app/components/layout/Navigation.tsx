@@ -87,7 +87,7 @@ export function Navigation() {
               </Link>
               <Link
                 href="/checkout/consent"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-ocean-500 text-white font-semibold rounded-lg hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-navy-600 to-ocean-500 text-white font-semibold rounded-lg hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
               >
                 Get Started
                 <ArrowRight className="w-4 h-4" />
@@ -147,7 +147,7 @@ export function Navigation() {
               <Link
                 href="/checkout/consent"
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="flex items-center justify-center gap-2 w-full px-6 py-3 bg-gradient-to-r from-blue-500 to-ocean-500 text-white font-semibold rounded-lg hover:shadow-lg transition-all duration-200"
+                className="flex items-center justify-center gap-2 w-full px-6 py-3 bg-gradient-to-r from-navy-600 to-ocean-500 text-white font-semibold rounded-lg hover:shadow-lg transition-all duration-200"
               >
                 Get Started
                 <ArrowRight className="w-4 h-4" />

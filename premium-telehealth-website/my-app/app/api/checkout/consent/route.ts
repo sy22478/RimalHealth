@@ -4,6 +4,13 @@
  * Records consent agreements before payment. This is a public endpoint
  * (no auth required) since users consent before paying/creating an account.
  *
+ * Product-aware: the default (AUD / Naltrexone) flow validates the 8-item
+ * consent set including 42 CFR Part 2 SUD consent. The weight-management
+ * (GLP-1) flow — selected via `productType: 'WEIGHT_MANAGEMENT'` — validates
+ * its own 9-item set and OMITS the 42 CFR Part 2 item (Part 2 applies to SUD
+ * records only). The product type and accepted consent version are recorded in
+ * the AuditLog metadata.
+ *
  * Consent is persisted to the AuditLog (immutable trail) with the typed-name
  * signature and full consent payload in `metadata`. The Stripe webhook
  * reconciles this entry into a ConsentRecord row once the User exists
@@ -20,6 +27,17 @@ import { AuditEventType } from '@/lib/audit/types';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+// §2.31(a)(8) typed-name electronic signature + timestamp shared across products.
+const signatureSchema = {
+  patientName: z
+    .string()
+    .trim()
+    .min(2, { message: 'Please type your full legal name (minimum 2 characters)' })
+    .max(120, { message: 'Name is too long' }),
+  timestamp: z.string().datetime({ message: 'Valid ISO 8601 timestamp is required' }),
+};
+
+// AUD / Naltrexone consent schema (8 items, includes 42 CFR Part 2) — DEFAULT.
 const consentSchema = z.object({
   consents: z.object({
     age: z.literal(true, { message: 'Age confirmation is required' }),
@@ -31,15 +49,26 @@ const consentSchema = z.object({
     telehealth: z.literal(true, { message: 'Telehealth consent is required' }),
     informed: z.literal(true, { message: 'Informed consent is required' }),
   }),
-  // §2.31(a)(8) typed-name electronic signature
-  patientName: z
-    .string()
-    .trim()
-    .min(2, { message: 'Please type your full legal name (minimum 2 characters)' })
-    .max(120, { message: 'Name is too long' }),
-  timestamp: z.string().datetime({ message: 'Valid ISO 8601 timestamp is required' }),
+  ...signatureSchema,
 });
 
+// GLP-1 weight-management consent schema (9 items, NO 42 CFR Part 2).
+const glp1ConsentSchema = z.object({
+  consents: z.object({
+    telehealth: z.literal(true, { message: 'Telehealth consent is required' }),
+    glp1_side_effects: z.literal(true, { message: 'GLP-1 side-effect acknowledgement is required' }),
+    retinopathy_monitoring: z.literal(true, { message: 'Retinopathy monitoring commitment is required' }),
+    emergency_situations: z.literal(true, { message: 'Emergency situations acknowledgement is required' }),
+    mental_health_warning: z.literal(true, { message: 'Mental-health warning acknowledgement is required' }),
+    surgery_notification: z.literal(true, { message: 'Surgery/procedure notification consent is required' }),
+    long_term_therapy: z.literal(true, { message: 'Long-term therapy acknowledgement is required' }),
+    pharmacy_prescribing: z.literal(true, { message: 'Pharmacy and prescribing consent is required' }),
+    california: z.literal(true, { message: 'California residency confirmation is required' }),
+  }),
+  ...signatureSchema,
+});
+
+// AUD consent version + canonical item keys (recorded in AuditLog metadata).
 const CONSENT_VERSION = '2.1';
 const CONSENT_ITEMS = [
   'age_confirmation',
@@ -51,6 +80,23 @@ const CONSENT_ITEMS = [
   'telehealth_consent',
   'informed_consent',
 ];
+
+// GLP-1 weight-management consent version + canonical item keys.
+const GLP1_CONSENT_VERSION = 'GLP1-1.0';
+const GLP1_CONSENT_ITEMS = [
+  'telehealth_consent',
+  'glp1_side_effects',
+  'retinopathy_monitoring',
+  'emergency_situations',
+  'mental_health_warning',
+  'surgery_notification',
+  'long_term_therapy',
+  'pharmacy_prescribing',
+  'california_residency',
+];
+
+// Accepted product types. Absent / 'ALCOHOL' => default AUD flow.
+const productTypeSchema = z.enum(['ALCOHOL', 'WEIGHT_MANAGEMENT']).optional();
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   // Note: No CSRF on this route — it's a public endpoint (pre-auth).
@@ -77,7 +123,27 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const parsed = consentSchema.safeParse(body);
+  // Determine the product type up front so we validate against the correct
+  // consent set. An invalid/unknown productType is rejected before we pick a
+  // schema; absent => default AUD flow.
+  const productTypeParsed = productTypeSchema.safeParse(
+    (body as { productType?: unknown } | null)?.productType
+  );
+  if (!productTypeParsed.success) {
+    return NextResponse.json(
+      { error: 'Validation failed', code: 'VALIDATION_ERROR', details: productTypeParsed.error.issues },
+      { status: 400 }
+    );
+  }
+  const productType = productTypeParsed.data ?? 'ALCOHOL';
+  const isGlp1 = productType === 'WEIGHT_MANAGEMENT';
+
+  // Select the consent schema, version, and canonical item keys per product.
+  const schema = isGlp1 ? glp1ConsentSchema : consentSchema;
+  const consentVersion = isGlp1 ? GLP1_CONSENT_VERSION : CONSENT_VERSION;
+  const consentItems = isGlp1 ? GLP1_CONSENT_ITEMS : CONSENT_ITEMS;
+
+  const parsed = schema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
       { error: 'Validation failed', code: 'VALIDATION_ERROR', details: parsed.error.issues },
@@ -109,8 +175,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           consents,
           patientName,
           consentTimestamp: timestamp,
-          consentItems: CONSENT_ITEMS,
-          consentVersion: CONSENT_VERSION,
+          consentItems,
+          consentVersion,
+          productType,
           // §2.31(a)(8) electronic-signature attestation
           signature: {
             typedName: patientName,

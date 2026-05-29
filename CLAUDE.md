@@ -114,8 +114,10 @@ npm run db:generate && npm run db:migrate
 
 ## Deployment
 
-Deployed to **AWS Amplify** (SSR, auto-deploys on push to main). Domain `rimalhealth.com` on SiteGround.
-- Build config: `amplify.yml` in repo root. `output: 'standalone'` in `next.config.ts`.
-- GitHub Actions runs tests + security checks on push; Amplify handles the actual deploy.
+Deployed to **AWS ECS Fargate** (us-east-1, SSR). Domain `rimalhealth.com` registered on SiteGround.
+- Live infra: service `rimalhealth-task-service-u24n1blr`, task def `rimalhealth-task`, task role `rimalhealth-task-role`, RDS `rimalhealth-db`, S3 `rimalhealth-documents`, ElastiCache/Valkey Redis, Location place index `rimalhealth-address-validation`.
+- `output: 'standalone'` in `next.config.ts` (container build).
+- GitHub Actions runs tests + security checks on push.
 - `ignoreBuildErrors = false` -- type errors fail the build. Always run `npm run type-check` first.
-- Turbopack can't resolve barrel exports -- use explicit `/index` imports or deploy locally.
+- Turbopack can't resolve barrel exports -- use explicit `/index` imports or build locally.
+- Email provider is **SendGrid** (permanent). NOTE: `amplify.yml` and `netlify.toml.bak` in the repo are STALE from prior hosting (Netlify → Amplify → ECS) -- ignore them as deployment evidence.

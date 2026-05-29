@@ -31,7 +31,7 @@ export function isStripeConfigured(): boolean {
 // Plan Information (Client-Safe)
 // ============================================
 
-export type PlanType = 'ACTIVE_TREATMENT';
+export type PlanType = 'ACTIVE_TREATMENT' | 'WEIGHT_MANAGEMENT';
 
 export interface PlanInfo {
   id: PlanType;
@@ -62,6 +62,23 @@ export function getPlans(): PlanInfo[] {
         '24-hour physician review guarantee',
         'Treatment progress tracking',
         'Medication adjustment support',
+        'California-licensed physicians only',
+      ],
+    },
+    {
+      id: 'WEIGHT_MANAGEMENT',
+      name: 'Weight Management',
+      // TODO(legal/medical): marketing copy pending sign-off.
+      description: 'Physician-managed GLP-1 weight management with ongoing monitoring',
+      amount: 5000, // TODO(business): confirm GLP-1 platform fee
+      formattedAmount: '$50',
+      interval: 'month',
+      features: [
+        'Physician evaluation & eligibility review',
+        'Personalized GLP-1 dosing & titration guidance',
+        'Ongoing monitoring & check-ins',
+        'Medication management',
+        'Unlimited messaging with your physician',
         'California-licensed physicians only',
       ],
     },

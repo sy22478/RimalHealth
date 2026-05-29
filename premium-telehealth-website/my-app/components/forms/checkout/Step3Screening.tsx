@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "framer-motion";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Wine } from "lucide-react";
+import { ChevronLeft, ChevronRight, Wine, Scale } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCheckout } from "./CheckoutContext";
 import {
@@ -29,6 +29,7 @@ const stepVariants = {
 
 const icons = {
   ALCOHOL: Wine,
+  WEIGHT_MANAGEMENT: Scale,
 };
 
 export function Step3Screening() {

@@ -13,6 +13,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/auth/require-auth';
+import { enforceRateLimit, rateLimitPresets } from '@/lib/middleware/rate-limit';
 import { prisma } from '@/lib/db/prisma';
 import { AuditService } from '@/lib/services/audit-service';
 import { ValidationService } from '@/lib/services/validation-service';
@@ -23,12 +24,16 @@ import { auditLogger } from '@/lib/audit/logger';
 import { AuditEventType, AuditSeverity } from '@/lib/audit/types';
 import { checkRestrictions } from '@/lib/compliance/disclosure-restrictions';
 import { requireCSRF } from '@/lib/security/csrf';
+import { provisionTitrationForPrescription } from '@/lib/titration/service';
 
 // ============================================================================
 // POST - Send Prescription
 // ============================================================================
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  const limited = await enforceRateLimit(request, rateLimitPresets.api);
+  if (limited) return limited;
+
   // CSRF guard before any state change (sends PHI to pharmacy)
   const csrfError = requireCSRF(request);
   if (csrfError) return csrfError;
@@ -158,13 +163,25 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // then clicks "Send" here to record the status change and notify the patient.
 
     // Update prescription status to SENT
+    const sentAt = new Date();
     const updatedPrescription = await prisma.prescription.update({
       where: { id: prescriptionId },
       data: {
         status: PrescriptionStatus.SENT,
-        sentAt: new Date(),
+        sentAt,
       },
     });
+
+    // GLP-1 only: provision the titration schedule + first check-in and set the
+    // supply/refill window. No-op for AUD; failures don't block the send.
+    try {
+      await provisionTitrationForPrescription(prescriptionId, sentAt);
+    } catch (provisionError) {
+      console.error(
+        'Failed to provision titration schedule:',
+        provisionError instanceof Error ? provisionError.message : 'Unknown error'
+      );
+    }
 
     // Log prescription sending
     await AuditService.logPrescriptionAccess(
@@ -193,7 +210,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           'prescriber_identity',
           'patient_identity',
         ],
-        purpose: 'Treatment — fulfillment of Naltrexone prescription',
+        purpose: `Treatment — fulfillment of ${prescription.medicationName} prescription`,
         legalBasis: '42 CFR §2.31 patient consent (treatment/payment/operations)',
       }
     );
