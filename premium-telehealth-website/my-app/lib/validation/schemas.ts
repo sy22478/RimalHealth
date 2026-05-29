@@ -169,6 +169,9 @@ export const dsm5IntakeFormDataSchema = z.object({
   withdrawalDTs: z.boolean(),
   withdrawalHospitalized: z.boolean(),
   morningDrinking: z.boolean(),
+  // Suicidal-ideation safety screen (988 CrisisBanner parity with GLP-1).
+  // Optional so legacy drafts created before this field still validate.
+  suicidalIdeation: z.boolean().optional(),
 
   // Section 4: Naltrexone Safety Screening (Q20-Q25)
   opioidUse: z.array(z.string()),
