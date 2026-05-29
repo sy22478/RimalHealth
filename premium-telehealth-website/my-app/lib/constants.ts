@@ -18,9 +18,11 @@ export type AllowedState = (typeof ALLOWED_STATES)[number];
 export const DEFAULT_ALLOWED_STATE: AllowedState = ALLOWED_STATES[0];
 
 export const navLinks = [
-  { href: "/about", label: "About" },
   { href: "/how-it-works", label: "How It Works" },
+  { href: "/alcohol-treatment", label: "Alcohol Treatment" },
+  { href: "/weight-management", label: "Weight Management" },
   { href: "/pricing", label: "Pricing" },
+  { href: "/about", label: "About" },
   { href: "/faq", label: "FAQ" },
 ] as const;
 

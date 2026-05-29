@@ -43,32 +43,11 @@ export default function PricingPage() {
       answer:
         "We accept all major credit cards (Visa, Mastercard, American Express, Discover), HSA/FSA debit cards, and most debit cards. Your payment information is securely stored and encrypted.",
     },
-    // GLP-1 weight-management FAQ — TODO(legal/medical): all claims pending sign-off.
-    {
-      question: "What is Wegovy?",
-      answer:
-        "TODO(legal/medical): Wegovy (semaglutide) is an FDA-approved prescription medication for chronic weight management. Final patient-facing description pending medical/legal sign-off.",
-    },
-    {
-      question: "Is the weight-management medication a pill or an injection?",
-      answer:
-        "Wegovy is a once-weekly subcutaneous (under-the-skin) injection using a pre-filled pen. TODO(legal/medical): confirm administration guidance copy.",
-    },
-    {
-      question: "What are the common side effects of GLP-1 medications?",
-      answer:
-        "TODO(legal/medical): common side effects and serious risks (including contraindications) are disclosed during the consent process. Final summary pending medical/legal sign-off.",
-    },
-    {
-      question: "How long is weight-management treatment?",
-      answer:
-        "TODO(legal/medical): GLP-1 weight management is generally a long-term therapy. Final expectation-setting copy pending medical/legal sign-off.",
-    },
-    {
-      question: "How much does the weight-management medication cost?",
-      answer:
-        "Your $50/month covers physician care and management. The Wegovy medication itself is billed separately at your pharmacy. TODO(business): confirm patient-facing GLP-1 medication cost guidance (retail pricing is substantially higher than AUD medications).",
-    },
+    // GLP-1 weight-management FAQ entries are intentionally OMITTED here until
+    // their patient-facing copy clears legal/medical sign-off. They previously
+    // rendered literal "TODO(legal/medical)" placeholder answers publicly.
+    // Restore the GLP-1 Q&A (Wegovy overview, administration, side effects,
+    // treatment duration, medication cost) once approved copy is available.
   ];
 
   const workflowSteps = [
@@ -213,7 +192,7 @@ export default function PricingPage() {
               ]}
               highlighted={true}
               ctaText="Select Alcohol Treatment"
-              ctaHref="/checkout/payment?plan=active-treatment"
+              ctaHref="/checkout/consent?plan=active-treatment"
               ctaVariant="primary"
               delay={0.1}
             />
@@ -311,7 +290,7 @@ export default function PricingPage() {
           </p>
           {/* TODO(business): GLP-1 (Wegovy) medication pricing differs substantially
               from the table above; confirm patient-facing GLP-1 cost guidance. */}
-          <p className="text-center text-xs text-gray-500 mt-2 max-w-2xl mx-auto">
+          <p className="text-center text-xs text-gray-600 mt-2 max-w-2xl mx-auto">
             Weight-management (GLP-1) medication is priced separately at the pharmacy and is not reflected in the table above.
           </p>
         </div>
@@ -518,7 +497,7 @@ export default function PricingPage() {
           </h2>
           <Link
             href="/checkout/consent?plan=active-treatment"
-            className="inline-flex items-center gap-2 bg-gradient-to-r from-navy-500 to-ocean-500 text-white text-lg font-semibold py-4.5 px-10 rounded-full shadow-lg shadow-navy-500/20 hover:shadow-xl hover:shadow-navy-500/30 hover:scale-[1.03] active:scale-[0.98] transition-all duration-200"
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-navy-600 to-ocean-500 text-white text-lg font-semibold py-4.5 px-10 rounded-full shadow-lg shadow-navy-600/20 hover:shadow-xl hover:shadow-navy-600/30 hover:scale-[1.03] active:scale-[0.98] transition-all duration-200"
           >
             Get Started — $50/month
             <ArrowRight className="w-5 h-5" />

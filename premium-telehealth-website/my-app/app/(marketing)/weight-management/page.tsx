@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
 import { SectionWrapper } from "@/components/sections/SectionWrapper";
+import { TrustBadges } from "@/components/TrustBadges";
 
 // NOTE: Every efficacy claim, statistic, and safety statement on this page is
 // PLACEHOLDER copy that REQUIRES medical + legal/marketing sign-off before
@@ -37,16 +38,16 @@ export default function WeightManagementPage() {
               physician review. $50/month.
             </p>
             {/* Geographic restriction near primary CTA */}
-            <p className="text-sm text-gray-500 mt-2">
+            <p className="text-sm text-gray-600 mt-2">
               Currently serving California residents only. Patient must be physically
               located in California during each visit.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 mt-8">
               <Link
-                href="/pricing"
-                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-navy-500 to-ocean-500 text-white font-semibold rounded-lg hover:shadow-lg transition-shadow"
+                href="/checkout/consent?plan=weight-management&product=weight-management"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-navy-600 to-ocean-500 text-white font-semibold rounded-lg hover:shadow-lg transition-shadow"
               >
-                Start treatment — $50/month
+                Get Started — $50/month
                 <ArrowRight className="w-5 h-5" />
               </Link>
               <Link
@@ -112,42 +113,10 @@ export default function WeightManagementPage() {
         </div>
       </SectionWrapper>
 
-      {/* Statistics Section */}
-      <SectionWrapper className="py-16 bg-gray-50">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5, ease: "easeOut" as const }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-8"
-        >
-          {[
-            /* TODO(legal/medical): all statistics require sourced citations before
-               publication. Do NOT publish with placeholder values. */
-            { value: "TODO%", label: "TODO(legal/medical): cite source" },
-            { value: "TODO%", label: "TODO(legal/medical): cite source" },
-            { value: "TODO", label: "TODO(legal/medical): cite source" },
-          ].map((stat, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{
-                duration: 0.5,
-                delay: index * 0.1,
-                ease: "easeOut" as const,
-              }}
-              className="bg-white border border-gray-200 rounded-xl p-8 text-center"
-            >
-              <div className="text-3xl md:text-4xl font-bold text-gray-900">
-                {stat.value}
-              </div>
-              <div className="text-base text-gray-600 mt-2">{stat.label}</div>
-            </motion.div>
-          ))}
-        </motion.div>
-      </SectionWrapper>
+      {/* Statistics Section — HIDDEN until real, sourced figures are signed off.
+          Previously rendered literal "TODO%" placeholder stat cards publicly.
+          Restore this section (with cited, legal/medical-approved statistics)
+          post legal/medical sign-off. Do NOT publish fabricated numbers. */}
 
       {/* How It Works Section */}
       <SectionWrapper className="py-20">
@@ -500,7 +469,7 @@ export default function WeightManagementPage() {
             Includes physician evaluation, prescription management, unlimited
             messaging, and ongoing monitoring.
           </p>
-          <p className="text-sm text-gray-500 mb-2">
+          <p className="text-sm text-gray-600 mb-2">
             Not included: medication costs, laboratory fees, outside specialist
             services, or emergency care.
           </p>
@@ -508,16 +477,16 @@ export default function WeightManagementPage() {
             Medications billed separately at your pharmacy (pharmacy may bill your
             insurance). Costs vary by medication and pharmacy.
           </p>
-          <p className="text-sm text-gray-500 mb-6">
+          <p className="text-sm text-gray-600 mb-6">
             Our service fee is cash-pay. Superbill available for out-of-network
             reimbursement — reimbursement not guaranteed and varies by plan.
             Cancel anytime. No long-term contracts.
           </p>
           <Link
-            href="/pricing"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-navy-500 to-ocean-500 text-white font-semibold rounded-lg hover:shadow-lg transition-shadow"
+            href="/checkout/consent?plan=weight-management&product=weight-management"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-navy-600 to-ocean-500 text-white font-semibold rounded-lg hover:shadow-lg transition-shadow"
           >
-            Get started
+            Get Started — $50/month
             <ArrowRight className="w-5 h-5" />
           </Link>
         </motion.div>
@@ -538,12 +507,15 @@ export default function WeightManagementPage() {
             California-licensed physician review
           </p>
           <Link
-            href="/pricing"
-            className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-navy-500 to-ocean-500 text-white font-semibold rounded-lg hover:shadow-lg transition-shadow text-lg"
+            href="/checkout/consent?plan=weight-management&product=weight-management"
+            className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-navy-600 to-ocean-500 text-white font-semibold rounded-lg hover:shadow-lg transition-shadow text-lg"
           >
-            Start treatment — $50/month
+            Get Started — $50/month
             <ArrowRight className="w-6 h-6" />
           </Link>
+          <div className="mt-8 flex justify-center">
+            <TrustBadges />
+          </div>
         </motion.div>
       </SectionWrapper>
 
