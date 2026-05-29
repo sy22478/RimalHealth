@@ -10,7 +10,6 @@ import {
   Pill,
   FileText,
   User,
-  Settings,
   LogOut,
   Menu,
   X,
@@ -33,17 +32,22 @@ interface NavItem {
   label: string;
   icon: React.ElementType;
   badge?: number;
+  /** Only shown for weight-management (GLP-1) patients (e.g. Check-ins). */
+  glp1Only?: boolean;
 }
 
+// Note: a single "Profile" entry → /patient/profile/settings (the comprehensive
+// Profile Settings hub covering personal info, password, notifications, privacy).
+// The old separate "Settings" → /patient/settings entry was removed as a dup;
+// that page remains reachable by URL and links back to Profile Settings.
 const navItems: NavItem[] = [
   { href: '/patient/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/patient/messages', label: 'Messages', icon: MessageSquare },
   { href: '/patient/prescriptions', label: 'Prescriptions', icon: Pill },
-  { href: '/patient/check-ins', label: 'Check-ins', icon: ClipboardCheck },
+  { href: '/patient/check-ins', label: 'Check-ins', icon: ClipboardCheck, glp1Only: true },
   { href: '/patient/documents', label: 'Documents', icon: FileText },
   { href: '/patient/billing', label: 'Billing', icon: CreditCard },
   { href: '/patient/profile/settings', label: 'Profile', icon: User },
-  { href: '/patient/settings', label: 'Settings', icon: Settings },
 ];
 
 // ============================================================================
@@ -53,9 +57,10 @@ const navItems: NavItem[] = [
 interface SidebarProps {
   currentPath: string;
   unreadCount?: number;
+  items: NavItem[];
 }
 
-function Sidebar({ currentPath, unreadCount = 0 }: SidebarProps) {
+function Sidebar({ currentPath, unreadCount = 0, items }: SidebarProps) {
   return (
     <aside className="hidden lg:flex flex-col w-64 bg-white border-r border-gray-200 min-h-screen sticky top-0">
       {/* Logo */}
@@ -70,10 +75,10 @@ function Sidebar({ currentPath, unreadCount = 0 }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-1">
-        {navItems.map((item) => {
+        {items.map((item) => {
           const isActive = currentPath === item.href || currentPath.startsWith(`${item.href}/`);
           const showBadge = item.href === '/patient/messages' && unreadCount > 0;
-          
+
           return (
             <Link
               key={item.href}
@@ -127,9 +132,10 @@ function Sidebar({ currentPath, unreadCount = 0 }: SidebarProps) {
 interface MobileNavProps {
   currentPath: string;
   unreadCount?: number;
+  items: NavItem[];
 }
 
-function MobileNav({ currentPath, unreadCount = 0 }: MobileNavProps) {
+function MobileNav({ currentPath, unreadCount = 0, items }: MobileNavProps) {
   const [isOpen, setIsOpen] = React.useState(false);
 
   return (
@@ -161,7 +167,7 @@ function MobileNav({ currentPath, unreadCount = 0 }: MobileNavProps) {
 
                 {/* Navigation */}
                 <nav className="flex-1 p-4 space-y-1">
-                  {navItems.map((item) => {
+                  {items.map((item) => {
                     const isActive = currentPath === item.href || currentPath.startsWith(`${item.href}/`);
                     const showBadge = item.href === '/patient/messages' && unreadCount > 0;
                     
@@ -217,7 +223,7 @@ function MobileNav({ currentPath, unreadCount = 0 }: MobileNavProps) {
       {/* Mobile Bottom Navigation — 5 most-used items; others in hamburger */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 safe-area-pb">
         <div className="flex items-center justify-around">
-          {navItems.slice(0, 5).map((item) => {
+          {items.slice(0, 5).map((item) => {
             const isActive = currentPath === item.href || currentPath.startsWith(`${item.href}/`);
             const showBadge = item.href === '/patient/messages' && unreadCount > 0;
             
@@ -260,17 +266,24 @@ interface PatientLayoutProps {
   mfaRequired?: boolean;
   /** Whether the 7-day grace period has expired */
   mfaGracePeriodExpired?: boolean;
+  /** True when the patient's product is weight-management (GLP-1). */
+  isWeightManagement?: boolean;
 }
 
 export default function PatientLayoutClient({
   children,
   mfaRequired = false,
   mfaGracePeriodExpired = false,
+  isWeightManagement = false,
 }: PatientLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
 
   const { unreadCount } = usePatientUnreadCount();
+
+  // Hide GLP-1-only items (Check-ins) for AUD patients, mirroring the
+  // self-hiding dashboard monitoring widget.
+  const visibleNavItems = navItems.filter((item) => !item.glp1Only || isWeightManagement);
 
   // Proactively refresh the access token before it expires
   useTokenRefresh({ enabled: true, loginPath: '/login' });
@@ -313,11 +326,11 @@ export default function PatientLayoutClient({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <MobileNav currentPath={pathname} unreadCount={unreadCount} />
+      <MobileNav currentPath={pathname} unreadCount={unreadCount} items={visibleNavItems} />
 
       <div className="flex">
         {/* Sidebar - Desktop */}
-        <Sidebar currentPath={pathname} unreadCount={unreadCount} />
+        <Sidebar currentPath={pathname} unreadCount={unreadCount} items={visibleNavItems} />
 
         {/* Main Content */}
         <div className="flex-1 min-w-0">

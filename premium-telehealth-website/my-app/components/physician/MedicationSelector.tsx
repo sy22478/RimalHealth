@@ -114,12 +114,28 @@ export function MedicationSelector({
           Select Medication
           <span className="text-destructive ml-1">*</span>
         </Label>
-        <div className="grid grid-cols-1 gap-3">
-          {availableMedications.map((med) => (
+        <div className="grid grid-cols-1 gap-3" role="radiogroup" aria-label="Select medication">
+          {availableMedications.map((med, idx) => (
             <button
               key={med.name}
               type="button"
+              role="radio"
+              aria-checked={value?.name === med.name}
+              tabIndex={value?.name === med.name || (!value?.name && idx === 0) ? 0 : -1}
               onClick={() => handleMedicationSelect(med)}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+                  e.preventDefault();
+                  const nextIdx = (idx + 1) % availableMedications.length;
+                  handleMedicationSelect(availableMedications[nextIdx]);
+                  (e.currentTarget.parentElement?.children[nextIdx] as HTMLElement | undefined)?.focus();
+                } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+                  e.preventDefault();
+                  const prevIdx = (idx - 1 + availableMedications.length) % availableMedications.length;
+                  handleMedicationSelect(availableMedications[prevIdx]);
+                  (e.currentTarget.parentElement?.children[prevIdx] as HTMLElement | undefined)?.focus();
+                }
+              }}
               disabled={disabled}
               className={cn(
                 'relative text-left p-4 rounded-lg border-2 transition-all',

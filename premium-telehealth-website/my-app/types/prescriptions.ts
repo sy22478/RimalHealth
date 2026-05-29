@@ -64,6 +64,8 @@ export interface PrescriptionSummary {
   sentAt?: Date | null;
   lastRefillDate: Date | null;
   nextRefillAvailable: Date | null;
+  /** GLP-1 lab gate (weight-management only). Undefined for AUD prescriptions. */
+  labGate?: RefillLabGate;
 }
 
 /**

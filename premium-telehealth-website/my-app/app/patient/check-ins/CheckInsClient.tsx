@@ -45,6 +45,7 @@ function formatDate(iso: string): string {
 export default function CheckInsClient(): React.ReactElement {
   const [checkIns, setCheckIns] = React.useState<CheckInSummary[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [loadError, setLoadError] = React.useState<string | null>(null);
   const [submitState, setSubmitState] = React.useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const [submitError, setSubmitError] = React.useState<string | null>(null);
 
@@ -58,18 +59,31 @@ export default function CheckInsClient(): React.ReactElement {
 
   const loadCheckIns = React.useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await fetch('/api/patient/checkins', { credentials: 'include', cache: 'no-store' });
-      if (res.ok) {
-        const data = await res.json();
-        setCheckIns(Array.isArray(data.checkIns) ? data.checkIns : []);
+      if (!res.ok) {
+        throw new Error('Request failed');
       }
+      const data = await res.json();
+      setCheckIns(Array.isArray(data.checkIns) ? data.checkIns : []);
     } catch (err) {
       console.error('Failed to load check-ins:', err instanceof Error ? err.message : 'Unknown error');
+      // Distinct error state — without this, a failed load is indistinguishable
+      // from "no check-in due".
+      setLoadError("We couldn't load your check-ins. Please try again.");
     } finally {
       setLoading(false);
     }
   }, []);
+
+  // Build an accessible summary of the current field errors (announced via aria-live).
+  const errorMessages = React.useMemo(
+    () =>
+      CHECK_IN_QUESTIONS.map((q) => errors[q.id as keyof CheckInResponses]?.message)
+        .filter((m): m is string => typeof m === 'string'),
+    [errors]
+  );
 
   React.useEffect(() => {
     void loadCheckIns();
@@ -116,6 +130,22 @@ export default function CheckInsClient(): React.ReactElement {
       {loading ? (
         <Card>
           <CardContent className="p-6 text-sm text-gray-500">Loading…</CardContent>
+        </Card>
+      ) : loadError ? (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="p-6 flex items-center justify-between gap-3" role="alert">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="h-5 w-5 text-red-600 shrink-0" />
+              <p className="text-sm text-red-700">{loadError}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void loadCheckIns()}
+              className="text-sm font-medium text-red-700 underline hover:text-red-900"
+            >
+              Retry
+            </button>
+          </CardContent>
         </Card>
       ) : (
         <>
@@ -187,12 +217,19 @@ export default function CheckInsClient(): React.ReactElement {
                       )}
 
                       {errors[q.id as keyof CheckInResponses] && (
-                        <p className="text-sm text-destructive" role="alert">
-                          This field is required.
+                        <p className="text-sm text-destructive">
+                          {errors[q.id as keyof CheckInResponses]?.message || 'This field is required.'}
                         </p>
                       )}
                     </div>
                   ))}
+
+                  {/* Accessible error summary — announced to screen readers. */}
+                  <div aria-live="assertive" className="sr-only" role="status">
+                    {errorMessages.length > 0
+                      ? `${errorMessages.length} ${errorMessages.length === 1 ? 'field needs' : 'fields need'} attention: ${errorMessages.join('. ')}`
+                      : ''}
+                  </div>
 
                   {submitState === 'error' && submitError && (
                     <div className="flex items-start gap-2 rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-800">

@@ -107,12 +107,30 @@ export function DecisionForm({
           Review Decision
           <span className="text-destructive ml-1">*</span>
         </Label>
-        <div className="grid grid-cols-1 gap-2">
-          {DECISION_OPTIONS.map((option) => (
+        <div className="grid grid-cols-1 gap-2" role="radiogroup" aria-label="Review decision">
+          {DECISION_OPTIONS.map((option, idx) => (
             <button
               key={option.value}
               type="button"
+              role="radio"
+              aria-checked={value.decision === option.value}
+              // Roving tabindex: only the selected (or first, when none) tile is
+              // in the tab order; arrow keys move between options.
+              tabIndex={value.decision === option.value || (value.decision === null && idx === 0) ? 0 : -1}
               onClick={() => handleDecisionChange(option.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+                  e.preventDefault();
+                  const next = DECISION_OPTIONS[(idx + 1) % DECISION_OPTIONS.length];
+                  handleDecisionChange(next.value);
+                  (e.currentTarget.parentElement?.children[(idx + 1) % DECISION_OPTIONS.length] as HTMLElement | undefined)?.focus();
+                } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+                  e.preventDefault();
+                  const prevIdx = (idx - 1 + DECISION_OPTIONS.length) % DECISION_OPTIONS.length;
+                  handleDecisionChange(DECISION_OPTIONS[prevIdx].value);
+                  (e.currentTarget.parentElement?.children[prevIdx] as HTMLElement | undefined)?.focus();
+                }
+              }}
               disabled={disabled}
               className={cn(
                 'relative flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left',

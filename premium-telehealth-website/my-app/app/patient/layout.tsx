@@ -201,10 +201,24 @@ export default async function PatientLayout({
     ? Math.floor((now - new Date(user.createdAt).getTime()) / (1000 * 60 * 60 * 24))
     : 0;
 
+  // Product awareness for the sidebar: GLP-1-only nav items (e.g. Check-ins) are
+  // hidden for AUD patients. A read failure defaults to AUD (hidden) — safe.
+  let isWeightManagement = false;
+  try {
+    const profile = await prisma.patientProfile.findUnique({
+      where: { userId },
+      select: { primaryConcern: true },
+    });
+    isWeightManagement = profile?.primaryConcern === ConcernType.WEIGHT_MANAGEMENT;
+  } catch (err) {
+    console.error('[PatientLayout] Failed to read product for nav:', err instanceof Error ? err.message : 'Unknown error');
+  }
+
   return (
     <PatientLayoutClient
       mfaRequired={mfaRequired}
       mfaGracePeriodExpired={MFA_REQUIRED && accountAgeDays > MFA_GRACE_PERIOD_DAYS}
+      isWeightManagement={isWeightManagement}
     >
       {children}
     </PatientLayoutClient>

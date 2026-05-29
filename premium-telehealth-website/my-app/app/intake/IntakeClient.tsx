@@ -174,14 +174,22 @@ type IntakeFormData = z.infer<typeof intakeFormSchema>;
 
 function scrollToFirstError(): void {
   setTimeout(() => {
-    const firstError = document.querySelector('[role="alert"]');
-    if (firstError) {
-      firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      // Focus the closest focusable input sibling or parent field
-      const fieldContainer = firstError.closest('[role="group"], .space-y-2, .space-y-3');
-      const focusable = fieldContainer?.querySelector<HTMLElement>('input, select, textarea');
-      if (focusable) focusable.focus();
-    }
+    // The step-summary banner is a <div role="alert"> rendered before the
+    // field errors — skip it so focus lands on the first errored *control*,
+    // not the banner. Field-level errors are <p role="alert">.
+    const alerts = Array.from(document.querySelectorAll<HTMLElement>('[role="alert"]'));
+    const firstError = alerts.find((el) => el.tagName === 'P') ?? alerts[0];
+    if (!firstError) return;
+    firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Broaden the wrapper + focusable selectors so radio/select/checkbox
+    // groups (role="radiogroup", space-y-4 wrappers) move focus too.
+    const fieldContainer = firstError.closest(
+      '[role="group"], [role="radiogroup"], .space-y-2, .space-y-3, .space-y-4'
+    );
+    const focusable = fieldContainer?.querySelector<HTMLElement>(
+      'input, select, textarea, [role="radio"], [role="checkbox"], button, [tabindex]'
+    );
+    if (focusable) focusable.focus();
   }, 100);
 }
 
@@ -232,7 +240,7 @@ function BooleanRadio({ fieldKey, label }: { fieldKey: keyof IntakeFormData; lab
             name={String(fieldKey)}
             checked={value === true}
             onChange={() => setValue(fieldKey, true as never)}
-            className="w-5 h-5 min-w-[44px] min-h-[44px] text-ocean-600 border-gray-300 focus:ring-ocean-500 cursor-pointer"
+            className="w-5 h-5 text-ocean-600 border-gray-300 focus:ring-ocean-500 cursor-pointer"
             aria-required="true"
           />
           <Label htmlFor={`${fieldKey}-yes`} className="text-sm font-normal cursor-pointer">Yes</Label>
@@ -244,7 +252,7 @@ function BooleanRadio({ fieldKey, label }: { fieldKey: keyof IntakeFormData; lab
             name={String(fieldKey)}
             checked={value === false}
             onChange={() => setValue(fieldKey, false as never)}
-            className="w-5 h-5 min-w-[44px] min-h-[44px] text-ocean-600 border-gray-300 focus:ring-ocean-500 cursor-pointer"
+            className="w-5 h-5 text-ocean-600 border-gray-300 focus:ring-ocean-500 cursor-pointer"
           />
           <Label htmlFor={`${fieldKey}-no`} className="text-sm font-normal cursor-pointer">No</Label>
         </div>
@@ -1169,7 +1177,7 @@ function TreatmentGoalsStep(): React.ReactElement {
                 value={option.value}
                 {...register('primaryGoal')}
                 aria-required="true"
-                className="mt-1 w-5 h-5 min-w-[44px] min-h-[44px] text-ocean-600 border-gray-300 focus:ring-ocean-500 cursor-pointer"
+                className="mt-1 w-5 h-5 text-ocean-600 border-gray-300 focus:ring-ocean-500 cursor-pointer"
               />
               <div>
                 <span className="font-medium text-gray-900 block">{option.label}</span>
@@ -1200,7 +1208,7 @@ function TreatmentGoalsStep(): React.ReactElement {
                 value={option.value}
                 {...register('motivationLevel')}
                 aria-required="true"
-                className="w-5 h-5 min-w-[44px] min-h-[44px] text-ocean-600 border-gray-300 focus:ring-ocean-500 cursor-pointer"
+                className="w-5 h-5 text-ocean-600 border-gray-300 focus:ring-ocean-500 cursor-pointer"
               />
               <span className="text-sm text-gray-700">{option.label}</span>
             </label>
@@ -1228,7 +1236,7 @@ function TreatmentGoalsStep(): React.ReactElement {
                 value={option.value}
                 {...register('supportSystem')}
                 aria-required="true"
-                className="w-5 h-5 min-w-[44px] min-h-[44px] text-ocean-600 border-gray-300 focus:ring-ocean-500 cursor-pointer"
+                className="w-5 h-5 text-ocean-600 border-gray-300 focus:ring-ocean-500 cursor-pointer"
               />
               <span className="text-sm text-gray-700">{option.label}</span>
             </label>
@@ -1271,7 +1279,7 @@ function DemographicsStep(): React.ReactElement {
                 value={option.value}
                 {...register('biologicalSex')}
                 aria-required="true"
-                className="w-5 h-5 min-w-[44px] min-h-[44px] text-ocean-600 border-gray-300 focus:ring-ocean-500 cursor-pointer"
+                className="w-5 h-5 text-ocean-600 border-gray-300 focus:ring-ocean-500 cursor-pointer"
               />
               <span className="text-sm text-gray-700">{option.label}</span>
             </label>

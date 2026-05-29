@@ -50,10 +50,26 @@ export async function getPatientPrescriptions(patientId: string): Promise<Prescr
       sentAt: true,
       lastRefillDate: true,
       nextRefillAvailable: true,
+      product: { select: { concernType: true } },
     },
   });
 
-  return prescriptions;
+  // GLP-1 lab gate is per-patient, so evaluate it once and attach to any
+  // weight-management prescriptions. AUD prescriptions have no WEIGHT_MANAGEMENT
+  // product, so labGate stays undefined and their refill UX is unchanged.
+  const hasWeightManagement = prescriptions.some(
+    (p) => p.product?.concernType === 'WEIGHT_MANAGEMENT'
+  );
+  let labGate: RefillLabGate | undefined;
+  if (hasWeightManagement) {
+    const gate = await getLabGateStatus(patientId);
+    labGate = { required: true, passed: gate.gatePassed };
+  }
+
+  return prescriptions.map(({ product, ...p }) => ({
+    ...p,
+    labGate: product?.concernType === 'WEIGHT_MANAGEMENT' ? labGate : undefined,
+  }));
 }
 
 /**

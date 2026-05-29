@@ -128,7 +128,7 @@ const glp1IntakeFormSchema = z.object({
   timeAtCurrentWeight: z.enum(['less_than_6_months', '6_to_12_months', '1_to_2_years', '2_to_5_years', 'over_5_years']).optional(),
 
   // Step 3: Medical history
-  medicalConditions: z.array(z.string()),
+  medicalConditions: z.array(z.string()).min(1, { message: 'Please select at least one option, or "None of the above"' }),
   medicalConditionsOther: z.string().max(1000).optional(),
   recentHospitalization: z.boolean({ message: 'Please indicate any recent hospitalization' }),
   recentHospitalizationDetails: z.string().max(1000).optional(),
@@ -245,13 +245,22 @@ type Glp1IntakeFormData = z.infer<typeof glp1IntakeFormSchema>;
 
 function scrollToFirstError(): void {
   setTimeout(() => {
-    const firstError = document.querySelector('[role="alert"]');
-    if (firstError) {
-      firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      const fieldContainer = firstError.closest('[role="group"], .space-y-2, .space-y-3');
-      const focusable = fieldContainer?.querySelector<HTMLElement>('input, select, textarea');
-      if (focusable) focusable.focus();
-    }
+    // The step-summary banner is a <div role="alert"> rendered before the
+    // field errors — skip it so focus lands on the first errored *control*,
+    // not the banner. Field-level errors are <p role="alert">.
+    const alerts = Array.from(document.querySelectorAll<HTMLElement>('[role="alert"]'));
+    const firstError = alerts.find((el) => el.tagName === 'P') ?? alerts[0];
+    if (!firstError) return;
+    firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Broaden the wrapper + focusable selectors so radio/select/checkbox
+    // groups (role="radiogroup", space-y-4 wrappers) move focus too.
+    const fieldContainer = firstError.closest(
+      '[role="group"], [role="radiogroup"], .space-y-2, .space-y-3, .space-y-4'
+    );
+    const focusable = fieldContainer?.querySelector<HTMLElement>(
+      'input, select, textarea, [role="radio"], [role="checkbox"], button, [tabindex]'
+    );
+    if (focusable) focusable.focus();
   }, 100);
 }
 
@@ -308,7 +317,7 @@ function BooleanRadio({
             name={String(fieldKey)}
             checked={value === true}
             onChange={() => setValue(fieldKey, true as never, { shouldValidate: true, shouldDirty: true })}
-            className="w-5 h-5 min-w-[44px] min-h-[44px] text-ocean-600 border-gray-300 focus:ring-ocean-500 cursor-pointer"
+            className="w-5 h-5 text-ocean-600 border-gray-300 focus:ring-ocean-500 cursor-pointer"
           />
           <Label htmlFor={`${fieldKey}-yes`} className="text-sm font-normal cursor-pointer">Yes</Label>
         </div>
@@ -319,7 +328,7 @@ function BooleanRadio({
             name={String(fieldKey)}
             checked={value === false}
             onChange={() => setValue(fieldKey, false as never, { shouldValidate: true, shouldDirty: true })}
-            className="w-5 h-5 min-w-[44px] min-h-[44px] text-ocean-600 border-gray-300 focus:ring-ocean-500 cursor-pointer"
+            className="w-5 h-5 text-ocean-600 border-gray-300 focus:ring-ocean-500 cursor-pointer"
           />
           <Label htmlFor={`${fieldKey}-no`} className="text-sm font-normal cursor-pointer">No</Label>
         </div>
@@ -443,7 +452,7 @@ function DemographicsStep(): React.ReactElement {
                 type="radio"
                 value={option.value}
                 {...register('biologicalSex')}
-                className="w-5 h-5 min-w-[44px] min-h-[44px] text-ocean-600 border-gray-300 focus:ring-ocean-500 cursor-pointer"
+                className="w-5 h-5 text-ocean-600 border-gray-300 focus:ring-ocean-500 cursor-pointer"
               />
               <span className="text-sm text-gray-700">{option.label}</span>
             </label>
@@ -1417,7 +1426,7 @@ function MentalHealthStep(): React.ReactElement {
         <div className="space-y-2" role="radiogroup" aria-label="PHQ-2 interest" aria-required="true">
           {phq2Options.map((option) => (
             <label key={option.value} className="flex items-center gap-3 p-3 min-h-[44px] border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-              <input type="radio" value={option.value} {...register('phq2Interest')} className="w-5 h-5 min-w-[44px] min-h-[44px] text-ocean-600 border-gray-300 focus:ring-ocean-500 cursor-pointer" />
+              <input type="radio" value={option.value} {...register('phq2Interest')} className="w-5 h-5 text-ocean-600 border-gray-300 focus:ring-ocean-500 cursor-pointer" />
               <span className="text-sm text-gray-700">{option.label}</span>
             </label>
           ))}
@@ -1431,7 +1440,7 @@ function MentalHealthStep(): React.ReactElement {
         <div className="space-y-2" role="radiogroup" aria-label="PHQ-2 down" aria-required="true">
           {phq2Options.map((option) => (
             <label key={option.value} className="flex items-center gap-3 p-3 min-h-[44px] border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-              <input type="radio" value={option.value} {...register('phq2Down')} className="w-5 h-5 min-w-[44px] min-h-[44px] text-ocean-600 border-gray-300 focus:ring-ocean-500 cursor-pointer" />
+              <input type="radio" value={option.value} {...register('phq2Down')} className="w-5 h-5 text-ocean-600 border-gray-300 focus:ring-ocean-500 cursor-pointer" />
               <span className="text-sm text-gray-700">{option.label}</span>
             </label>
           ))}
@@ -2075,14 +2084,14 @@ export default function Glp1IntakeClient(): React.ReactElement {
       base.push({ id: 'diabetic-eye-screening', title: 'Eye Screening', sectionTitle: 'Step 4: Diabetic Eye Screening', component: DiabeticEyeScreeningStep });
     }
     base.push(
-      { id: 'contraindications', title: 'Safety', sectionTitle: 'Safety Screening', component: ContraindicationsStep },
-      { id: 'medications-allergies', title: 'Medications', sectionTitle: 'Medications & Allergies', component: MedicationsAllergiesStep },
-      { id: 'labs-vitals', title: 'Labs & Vitals', sectionTitle: 'Labs & Vitals', component: LabsVitalsStep },
-      { id: 'lifestyle', title: 'Lifestyle', sectionTitle: 'Lifestyle', component: LifestyleStep },
-      { id: 'procedures-surgery', title: 'Procedures', sectionTitle: 'Procedures & Surgery', component: ProceduresSurgeryStep },
-      { id: 'mental-health', title: 'Mental Health', sectionTitle: 'Mental Health', component: MentalHealthStep },
-      { id: 'referral-care', title: 'Referral', sectionTitle: 'Referral & Care Coordination', component: ReferralCareStep },
-      { id: 'review-consent', title: 'Review', sectionTitle: 'Review & Consent', component: null },
+      { id: 'contraindications', title: 'Safety', sectionTitle: 'Step 5: Safety Screening', component: ContraindicationsStep },
+      { id: 'medications-allergies', title: 'Medications', sectionTitle: 'Step 6: Medications & Allergies', component: MedicationsAllergiesStep },
+      { id: 'labs-vitals', title: 'Labs & Vitals', sectionTitle: 'Step 7: Labs & Vitals', component: LabsVitalsStep },
+      { id: 'lifestyle', title: 'Lifestyle', sectionTitle: 'Step 8: Lifestyle', component: LifestyleStep },
+      { id: 'procedures-surgery', title: 'Procedures', sectionTitle: 'Step 9: Procedures & Surgery', component: ProceduresSurgeryStep },
+      { id: 'mental-health', title: 'Mental Health', sectionTitle: 'Step 10: Mental Health', component: MentalHealthStep },
+      { id: 'referral-care', title: 'Referral', sectionTitle: 'Step 11: Referral & Care Coordination', component: ReferralCareStep },
+      { id: 'review-consent', title: 'Review', sectionTitle: 'Step 12: Review & Consent', component: null },
     );
     return base;
   }, [includeEyeStep]);
@@ -2177,7 +2186,7 @@ export default function Glp1IntakeClient(): React.ReactElement {
   const STEP_FIELDS: Record<string, Array<keyof Glp1IntakeFormData>> = {
     demographics: ['firstName', 'lastName', 'dateOfBirth', 'biologicalSex', 'phone', 'addressStreet', 'addressCity', 'addressState', 'addressZip', 'heightFeet', 'heightInches', 'weightLbs'],
     'weight-history': ['highestAdultWeightLbs', 'goalWeightLbs', 'weightChangePastYear', 'hadBariatricSurgery', 'priorWeightLossMeds'],
-    'medical-history': ['recentHospitalization'],
+    'medical-history': ['medicalConditions', 'recentHospitalization'],
     'diabetic-eye-screening': [],
     contraindications: ['personalHistoryMTC', 'familyHistoryMTC', 'men2Syndrome', 'pancreatitisHistory', 'gallbladderDisease', 'severeGastroparesis', 'pregnancyStatus', 'endStageRenalDisease', 'suicidalIdeation'],
     'medications-allergies': ['currentlyTakingMedications', 'hasDrugAllergies', 'takingInsulinOrSulfonylurea', 'takingOtherGlp1'],

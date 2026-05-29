@@ -54,10 +54,10 @@ const quickActions: QuickAction[] = [
     primary: false,
     description: 'Access medical records and forms'
   },
-  { 
-    icon: User, 
-    label: 'Profile', 
-    href: '/patient/profile', 
+  {
+    icon: User,
+    label: 'Profile',
+    href: '/patient/profile/settings',
     primary: false,
     description: 'Update your information'
   },
